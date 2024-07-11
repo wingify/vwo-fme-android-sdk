@@ -28,6 +28,7 @@ import java.util.concurrent.Executors
 
 
 class NetworkManager {
+    @JvmField
     var config: GlobalRequestModel? = null
     private var client: NetworkClientInterface? = null
 
@@ -94,6 +95,7 @@ class NetworkManager {
     }
 
     companion object {
+        @JvmStatic
         var instance: NetworkManager? = null
             get() {
                 if (field == null) {

@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.vwo.sdk.fme.models.user
+package com.vwo.models.user
 
 class VWOContext {
     var id: String? = null
@@ -23,5 +23,5 @@ class VWOContext {
 
     var variationTargetingVariables: Map<String, *> = HashMap<String, Any>()
 
-    var vwo: GatewayService? = null
+    var vwo: com.vwo.models.user.GatewayService? = null
 }

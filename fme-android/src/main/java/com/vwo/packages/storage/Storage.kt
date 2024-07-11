@@ -30,6 +30,7 @@ class Storage {
     }
 
     companion object {
+        @JvmStatic
         @get:Synchronized
         var instance: Storage? = null
             // Singleton instance getter

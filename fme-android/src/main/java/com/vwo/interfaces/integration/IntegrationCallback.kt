@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.vwo.sdk.fme.interfaces.integration
+package com.vwo.interfaces.integration
 
 interface IntegrationCallback {
     fun execute(properties: Map<String?, Any?>?)

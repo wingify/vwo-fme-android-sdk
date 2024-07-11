@@ -16,8 +16,12 @@
 package com.vwo
 
 import com.fasterxml.jackson.databind.JsonNode
+import com.vwo.models.user.VWOInitOptions
 import com.vwo.packages.logger.enums.LogLevelEnum
+import com.vwo.packages.network_layer.manager.NetworkManager
+import com.vwo.packages.segmentation_evaluator.core.SegmentationManager
 import com.vwo.packages.storage.Storage
+import com.vwo.services.LoggerService
 import com.vwo.services.SettingsManager
 
 class VWOBuilder(options: VWOInitOptions?) {
@@ -62,7 +66,7 @@ class VWOBuilder(options: VWOInitOptions?) {
      */
     fun setSegmentation(): VWOBuilder {
         if (options != null && options.segmentEvaluator != null) {
-            SegmentationManager.instance.attachEvaluator(options.segmentEvaluator)
+            SegmentationManager.instance?.attachEvaluator(options.segmentEvaluator)
         }
         LoggerService.log(
             LogLevelEnum.DEBUG,
@@ -160,7 +164,7 @@ class VWOBuilder(options: VWOInitOptions?) {
     fun setLogger(): VWOBuilder {
         try {
             if (this.options == null || (options.logger == null) || options.logger.isEmpty()) {
-                LoggerService(HashMap<String, Any>())
+                LoggerService(hashMapOf<String, Any>())
             } else {
                 LoggerService(options.logger)
             }

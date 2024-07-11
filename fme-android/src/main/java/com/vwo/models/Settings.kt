@@ -13,20 +13,20 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.vwo.sdk.fme.models
+package com.vwo.models
 
 import com.fasterxml.jackson.annotation.JsonInclude
 
 @JsonInclude(JsonInclude.Include.NON_NULL)
 class Settings {
     @JsonProperty("features")
-    var features: List<Feature>? = null
+    var features: List<com.vwo.models.Feature>? = null
 
     @JsonProperty("accountId")
     var accountId: Int? = null
 
     @JsonProperty("groups")
-    var groups: Map<String, Groups>? = null
+    var groups: Map<String, com.vwo.models.Groups>? = null
 
     @JsonProperty("campaignGroups")
     var campaignGroups: Map<String, Int>? = null

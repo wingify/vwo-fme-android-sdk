@@ -30,6 +30,7 @@ class RequestModel(
     var method: String? = method ?: "GET"
     var scheme: String? = scheme ?: "http"
     var port: Int = 0
+    @JvmField
     var timeout: Int = 0
 
     init {

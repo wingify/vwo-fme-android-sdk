@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.vwo.sdk.fme.models.request.EventArchQueryParams
+package com.vwo.models.request.EventArchQueryParams
 
 class SettingsQueryParams(private val i: String, private val r: String, private val a: String) {
     val queryParams: Map<String, String>

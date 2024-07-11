@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.vwo.sdk.fme.enums
+package com.vwo.enums
 
 class HooksEnum {
     enum class DecisionTypes(val type: String) {

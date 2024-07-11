@@ -28,6 +28,7 @@ object SetAttributeAPI {
      * @param attributeValue The value of the attribute to set.
      * @param context  The user context model containing user-specific data.
      */
+    @JvmStatic
     fun setAttribute(
         settings: Settings,
         attributeKey: String,

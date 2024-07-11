@@ -13,11 +13,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.vwo.sdk.fme.interfaces.logger
+package com.vwo.interfaces.logger
 
 
-import com.vwo.sdk.fme.packages.logger.core.LogTransportManager
-import com.vwo.sdk.fme.packages.logger.enums.LogLevelEnum
+import com.vwo.packages.logger.core.LogTransportManager
+import com.vwo.packages.logger.enums.LogLevelEnum
 
 interface ILogManager {
     val transportManager: LogTransportManager?

@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.vwo.sdk.fme.models
+package com.vwo.models
 
 import com.fasterxml.jackson.annotation.JsonInclude
 
@@ -23,7 +23,7 @@ class Feature {
     var key: String? = null
 
     @JsonProperty("metrics")
-    var metrics: List<Metric>? = null
+    var metrics: List<com.vwo.models.Metric>? = null
 
     @JsonProperty("status")
     var status: String? = null
@@ -32,10 +32,10 @@ class Feature {
     var id: Int? = null
 
     @JsonProperty("rules")
-    var rules: List<Rule>? = null
+    var rules: List<com.vwo.models.Rule>? = null
 
     @JsonProperty("impactCampaign")
-    var impactCampaign: ImpactCampaign = ImpactCampaign()
+    var impactCampaign: com.vwo.models.ImpactCampaign = com.vwo.models.ImpactCampaign()
 
     @JsonProperty("name")
     var name: String? = null
@@ -44,11 +44,11 @@ class Feature {
     var type: String? = null
 
     @JsonProperty("rulesLinkedCampaign")
-    var rulesLinkedCampaign: List<Campaign> = ArrayList()
+    var rulesLinkedCampaign: List<com.vwo.models.Campaign> = ArrayList()
 
     @JsonProperty("isGatewayServiceRequired")
     var isGatewayServiceRequired: Boolean = false
 
     @JsonProperty("variables")
-    var variables: List<Variable>? = null
+    var variables: List<com.vwo.models.Variable>? = null
 }

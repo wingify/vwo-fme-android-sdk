@@ -85,6 +85,7 @@ class LoggerService(config: Map<String?, Any?>?) {
             }
         }
 
+        @JvmStatic
         fun log(level: LogLevelEnum?, message: String?) {
             val logManager = LogManager.instance
             when (level) {

@@ -35,6 +35,7 @@ object SettingsUtil {
      * It adds isGatewayServiceRequired flag to each feature in the settings based on pre segmentation.
      * @param settings - The settings file to modify.
      */
+    @JvmStatic
     fun processSettings(settings: Settings) {
         try {
             val campaigns: List<Campaign>? = settings.campaigns

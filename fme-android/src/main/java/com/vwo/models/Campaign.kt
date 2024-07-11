@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.vwo.sdk.fme.models
+package com.vwo.models
 
 import com.fasterxml.jackson.annotation.JsonInclude
 
@@ -71,7 +71,7 @@ class Campaign {
     @get:JsonProperty("variations")
     @set:JsonProperty("variations")
     @JsonProperty("variations")
-    var variations: List<Variation>? = null
+    var variations: List<com.vwo.models.Variation>? = null
 
     @JsonProperty("startRangeVariation")
     var startRangeVariation: Int = 0
@@ -82,7 +82,7 @@ class Campaign {
     @get:JsonProperty("variables")
     @set:JsonProperty("variables")
     @JsonProperty("variables")
-    var variables: List<Variable>? = null
+    var variables: List<com.vwo.models.Variable>? = null
 
     @JsonProperty("weight")
     var weight: Double = 0.0

@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.vwo.sdk.fme.models
+package com.vwo.models
 
 import com.fasterxml.jackson.annotation.JsonInclude
 
@@ -38,10 +38,10 @@ class Variation {
     var endRangeVariation: Int = 0
 
     @JsonProperty("variables")
-    var variables: List<Variable> = ArrayList()
+    var variables: List<com.vwo.models.Variable> = ArrayList()
 
     @JsonProperty("variations")
-    var variations: List<Variation> = ArrayList()
+    var variations: List<com.vwo.models.Variation> = ArrayList()
 
     @JsonProperty("segments")
     var segments: Map<String, Any> = HashMap()

@@ -100,6 +100,7 @@ class LogManager(override val config: Map<String, Any>) : Logger(), ILogManager 
     }
 
     companion object {
+        @JvmStatic
         var instance: LogManager? = null
             private set
     }

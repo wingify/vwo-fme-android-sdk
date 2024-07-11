@@ -13,9 +13,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.vwo.sdk.fme.models.user
+package com.vwo.models.user
 
-import com.vwo.sdk.fme.VWOBuilder
+import com.vwo.VWOBuilder
+import com.vwo.interfaces.networking.NetworkClientInterface
+import com.vwo.packages.segmentation_evaluator.evaluators.SegmentEvaluator
+import com.vwo.packages.storage.Connector
+import com.vwo.interfaces.integration.IntegrationCallback
 
 class VWOInitOptions {
     var sdkKey: String? = null

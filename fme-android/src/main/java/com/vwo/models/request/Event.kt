@@ -13,10 +13,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.vwo.sdk.fme.models.request
+package com.vwo.models.request
 
 class Event {
-    var props: Props? = null
+    var props: com.vwo.models.request.Props? = null
     var name: String? = null
     var time: Long? = null
 }

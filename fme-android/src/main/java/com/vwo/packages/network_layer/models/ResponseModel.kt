@@ -16,8 +16,11 @@
 package com.vwo.packages.network_layer.models
 
 class ResponseModel {
+    @JvmField
     var statusCode: Int = 0
+    @JvmField
     var error: Any? = null
     var headers: Map<String, String>? = null
+    @JvmField
     var data: String? = null
 }

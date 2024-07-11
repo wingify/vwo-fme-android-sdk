@@ -99,6 +99,7 @@ class SegmentationManager {
     }
 
     companion object {
+        @JvmStatic
         var instance: SegmentationManager? = null
             get() {
                 if (field == null) {

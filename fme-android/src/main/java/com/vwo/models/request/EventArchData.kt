@@ -13,16 +13,16 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.vwo.sdk.fme.models.request
+package com.vwo.models.request
 
-import com.vwo.sdk.fme.models.request.visitor.Visitor
+import com.vwo.models.request.visitor.Visitor
 
 class EventArchData {
     var msgId: String? = null
     var visId: String? = null
     var sessionId: Long? = null
-    var event: Event? = null
-    var visitor: Visitor? = null
+    var event: com.vwo.models.request.Event? = null
+    var visitor: com.vwo.models.request.visitor.Visitor? = null
     var visitor_ua: String? = null
     var visitor_ip: String? = null
 }

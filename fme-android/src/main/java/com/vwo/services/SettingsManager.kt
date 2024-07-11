@@ -35,7 +35,9 @@ class SettingsManager(options: VWOInitOptions) {
     private val expiry = Constants.SETTINGS_EXPIRY.toInt()
     private val networkTimeout = Constants.SETTINGS_TIMEOUT.toInt()
     var hostname: String? = null
+    @JvmField
     var port: Int = 0
+    @JvmField
     var protocol: String = "https"
     var isGatewayServiceProvided: Boolean = false
 
@@ -184,6 +186,7 @@ class SettingsManager(options: VWOInitOptions) {
     }
 
     companion object {
+        @JvmStatic
         var instance: SettingsManager? = null
             private set
     }

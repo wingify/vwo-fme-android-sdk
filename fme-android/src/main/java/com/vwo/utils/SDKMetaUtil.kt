@@ -31,6 +31,7 @@ object SDKMetaUtil {
     /**
      * Initializes the SDKMetaUtil with the sdkVersion from pom.xml
      */
+    @JvmStatic
     fun init() {
         try {
             val pomFile = File(POM_FILE_PATH)

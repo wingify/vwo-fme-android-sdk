@@ -13,11 +13,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.vwo.sdk.fme.interfaces.storage
+package com.vwo.interfaces.storage
 
-import com.vwo.sdk.fme.models.Variation
-import com.vwo.sdk.fme.models.user.VWOContext
-import com.vwo.sdk.fme.services.StorageService
+import com.vwo.models.Variation
+import com.vwo.models.user.VWOContext
+import com.vwo.services.StorageService
 
 interface IStorageDecorator {
     /**
@@ -26,7 +26,7 @@ interface IStorageDecorator {
      * @param storageService The storage service instance.
      * @return The stored VariationModel.
      */
-    fun setDataInStorage(data: Map<String?, Any?>?, storageService: StorageService?): Variation?
+    fun setDataInStorage(data: Map<String?, Any?>?, storageService: StorageService?): com.vwo.models.Variation?
 
     /**
      * Retrieves a feature from storage.
@@ -37,7 +37,7 @@ interface IStorageDecorator {
      */
     fun getFeatureFromStorage(
         featureKey: String?,
-        context: VWOContext?,
+        context: com.vwo.models.user.VWOContext?,
         storageService: StorageService?
     ): Any?
 }

@@ -13,15 +13,15 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.vwo.sdk.fme.models.user
+package com.vwo.models.user
 
-import com.vwo.sdk.fme.models.Variable
+import com.vwo.models.Variable
 
 class GetFlag {
     var isEnabled: Boolean = false
-    private var variables: List<Variable> = ArrayList<Variable>()
+    private var variables: List<com.vwo.models.Variable> = ArrayList<com.vwo.models.Variable>()
 
-    fun setVariables(variables: List<Variable>) {
+    fun setVariables(variables: List<com.vwo.models.Variable>) {
         this.variables = variables
     }
 
@@ -46,7 +46,7 @@ class GetFlag {
         return result
     }
 
-    private fun convertVariableModelToMap(variableModel: Variable): Map<String, Any> {
+    private fun convertVariableModelToMap(variableModel: com.vwo.models.Variable): Map<String, Any> {
         val map: MutableMap<String, Any> = HashMap()
         map["key"] = variableModel.getKey()
         map["value"] = variableModel.getValue()

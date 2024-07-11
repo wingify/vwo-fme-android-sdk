@@ -35,19 +35,18 @@ class VWO
          * @param options - Configuration options for setting up VWO.
          * @return A CompletableFuture resolving to the configured VWO instance.
          */
-        private fun setInstance(options: VWOInitOptions?): VWO {
-            if (options!!.vwoBuilder != null) {
+        private fun setInstance(options: VWOInitOptions): VWO {
+            if (options.vwoBuilder != null) {
                 vwoBuilder = options.vwoBuilder
             } else {
                 vwoBuilder = VWOBuilder(options)
             }
-            vwoBuilder
-                .setLogger() // Sets up logging for debugging and monitoring.
-                .setSettingsManager() // Sets the settings manager for configuration management.
-                .setStorage() // Configures storage for data persistence.
-                .setNetworkManager() // Configures network management for API communication.
-                .setSegmentation() // Sets up segmentation for targeted functionality.
-                .initPolling() // Initializes the polling mechanism for fetching settings.
+            vwoBuilder?.setLogger() // Sets up logging for debugging and monitoring.
+                ?.setSettingsManager() // Sets the settings manager for configuration management.
+                ?.setStorage() // Configures storage for data persistence.
+                ?.setNetworkManager() // Configures network management for API communication.
+                ?.setSegmentation() // Sets up segmentation for targeted functionality.
+                ?.initPolling() // Initializes the polling mechanism for fetching settings.
 
             val settings = vwoBuilder!!.getSettings(false)
             val vwoInstance = VWO(settings, options)

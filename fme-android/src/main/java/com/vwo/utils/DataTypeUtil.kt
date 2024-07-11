@@ -44,10 +44,12 @@ object DataTypeUtil {
         return `val` is Number
     }
 
+    @JvmStatic
     fun isInteger(`val`: Any?): Boolean {
         return `val` is Int
     }
 
+    @JvmStatic
     fun isString(`val`: Any?): Boolean {
         return `val` is String
     }
@@ -76,6 +78,7 @@ object DataTypeUtil {
         return val instanceof Promise;
     }
     */
+    @JvmStatic
     fun getType(`val`: Any?): String {
         return if (isObject(`val`)) {
             "Object"

@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.vwo.sdk.fme.constants
+package com.vwo.constants
 
 object Constants {
     const val PLATFORM: String = "server"

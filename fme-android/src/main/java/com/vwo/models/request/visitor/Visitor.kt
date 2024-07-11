@@ -13,13 +13,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.vwo.sdk.fme.models.request.visitor
+package com.vwo.models.request.visitor
 
 class Visitor {
     var props: Map<String, Any>? = null
         private set
 
-    fun setProps(props: Map<String, Any>?): Visitor {
+    fun setProps(props: Map<String, Any>?): com.vwo.models.request.visitor.Visitor {
         this.props = props
         return this
     }

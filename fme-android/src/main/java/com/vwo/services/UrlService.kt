@@ -22,12 +22,14 @@ object UrlService {
      * Initializes the UrlService with the collectionPrefix and gatewayService
      * @param collectionPrefix  collectionPrefix to be used in the URL
      */
+    @JvmStatic
     fun init(collectionPrefix: String?) {
         if (collectionPrefix != null && !collectionPrefix.isEmpty()) {
             UrlService.collectionPrefix = collectionPrefix
         }
     }
 
+    @JvmStatic
     val baseUrl: String?
         /**
          * Returns the base URL for the API requests

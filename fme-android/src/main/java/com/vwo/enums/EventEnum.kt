@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.vwo.sdk.fme.enums
+package com.vwo.enums
 
 enum class EventEnum(val value: String) {
     VWO_VARIATION_SHOWN("vwo_variationShown"),

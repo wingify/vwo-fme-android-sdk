@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.vwo.sdk.fme.models.request.EventArchQueryParams
+package com.vwo.models.request.EventArchQueryParams
 
 import java.util.Calendar
 

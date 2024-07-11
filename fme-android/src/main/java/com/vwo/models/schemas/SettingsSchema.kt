@@ -13,9 +13,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.vwo.sdk.fme.models.schemas
+package com.vwo.models.schemas
 
-import com.vwo.sdk.fme.models.*
+import com.vwo.models.*
 import java.lang.String
 import kotlin.Boolean
 
@@ -69,7 +69,7 @@ class SettingsSchema {
         return true
     }
 
-    private fun isValidCampaignVariation(variation: Variation): Boolean {
+    private fun isValidCampaignVariation(variation: com.vwo.models.Variation): Boolean {
         if (variation.getId() == null || variation.getName() == null || String.valueOf(variation.getWeight())
                 .isEmpty()
         ) {
@@ -87,11 +87,11 @@ class SettingsSchema {
         return true
     }
 
-    private fun isValidVariableObject(variable: Variable): Boolean {
+    private fun isValidVariableObject(variable: com.vwo.models.Variable): Boolean {
         return variable.getId() != null && variable.getType() != null && variable.getKey() != null && variable.getValue() != null
     }
 
-    private fun isValidFeature(feature: Feature): Boolean {
+    private fun isValidFeature(feature: com.vwo.models.Feature): Boolean {
         if (feature.getId() == null || feature.getKey() == null || feature.getStatus() == null || feature.getName() == null || feature.getType() == null) {
             return false
         }
@@ -125,7 +125,7 @@ class SettingsSchema {
         return true
     }
 
-    private fun isValidCampaignMetric(metric: Metric): Boolean {
+    private fun isValidCampaignMetric(metric: com.vwo.models.Metric): Boolean {
         return metric.getId() != null && metric.getType() != null && metric.getIdentifier() != null
     }
 

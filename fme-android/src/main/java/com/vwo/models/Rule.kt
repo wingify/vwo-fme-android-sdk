@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.vwo.sdk.fme.models
+package com.vwo.models
 
 import com.fasterxml.jackson.annotation.JsonInclude
 
