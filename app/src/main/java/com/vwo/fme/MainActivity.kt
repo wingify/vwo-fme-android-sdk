@@ -21,9 +21,9 @@ class MainActivity : AppCompatActivity() {
             insets
         }
         binding.btnAdd.setOnClickListener {
-            /*val calculator = Calculator()
+            val calculator = Calculator()
             val result = calculator.add(2, 5)
-            Toast.makeText(this, "Result: $result", Toast.LENGTH_SHORT).show()*/
+            Toast.makeText(this, "Result: $result", Toast.LENGTH_SHORT).show()
         }
     }
 }
