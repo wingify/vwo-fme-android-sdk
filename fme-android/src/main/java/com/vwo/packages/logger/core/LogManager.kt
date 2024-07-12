@@ -25,24 +25,29 @@ import java.util.Locale
 import java.util.UUID
 
 class LogManager(override val config: Map<String, Any>) : Logger(), ILogManager {
+
     override val transportManager: LogTransportManager = LogTransportManager(config)
+
     override val name: String = config.getOrDefault("name", "VWO Logger") as String
+
     override val requestId: String = UUID.randomUUID().toString()
+
     override val level: LogLevelEnum =
         LogLevelEnum.valueOf(
             config.getOrDefault("level", LogLevelEnum.ERROR.name).toString().uppercase(
                 Locale.getDefault()
             )
         )
+    private val transports: List<Map<String, Any>> = ArrayList()
+
     override val prefix: String = config.getOrDefault("prefix", "VWO-SDK") as String
-    override val dateTimeFormat: SimpleDateFormat =
-        SimpleDateFormat(
-            config.getOrDefault(
-                "dateTimeFormat",
-                "yyyy-MM-dd'T'HH:mm:ss.SSSZ"
-            ) as String
-        )
-    override val transports: List<Map<String, Any>> = ArrayList()
+
+    val dateTimeForm: SimpleDateFormat = SimpleDateFormat(
+        config.getOrDefault(
+            "dateTimeFormat",
+            "yyyy-MM-dd'T'HH:mm:ss.SSSZ"
+        ) as String
+    )
 
     init {
         handleTransports()
@@ -50,34 +55,39 @@ class LogManager(override val config: Map<String, Any>) : Logger(), ILogManager 
     }
 
     private fun handleTransports() {
-        val transportList = config["transports"] as List<Map<String?, Any?>?>?
-        if (transportList != null && !transportList.isEmpty()) {
+        val transportList = config["transports"] as List<Map<String, Any>>?
+        if (!transportList.isNullOrEmpty()) {
             addTransports(transportList)
         } else {
             val defaultTransport = ConsoleTransport(level)
-            val defaultTransportMap: MutableMap<String?, Any?> = HashMap()
+            val defaultTransportMap = mutableMapOf<String, Any>()
             defaultTransportMap["defaultTransport"] = defaultTransport
             addTransport(defaultTransportMap)
         }
     }
 
-    override fun addTransport(transport: Map<String?, Any?>?) {
-        transportManager.addTransport(transport!!["defaultTransport"] as LogTransport?)
+    override fun addTransport(transport: Map<String, Any>) {
+        transportManager.addTransport(transport["defaultTransport"] as LogTransport?)
     }
 
-    override fun addTransports(transportList: List<Map<String?, Any?>?>?) {
-        for (transport in transportList!!) {
+    override fun addTransports(transports: List<Map<String, Any>>) {
+        for (transport in transports) {
             addTransport(transport)
         }
     }
 
     override fun getDateTimeFormat(): String {
-        return dateTimeFormat.toPattern()
+        return dateTimeForm.toPattern()
     }
 
-    override val transport: Map<String, Any>?
-        get() =// This method needs more context, currently returning null.
-            null
+    override fun getTransports(): List<Map<String, Any>> {
+        return transports
+    }
+
+    override fun getTransport(): Map<String, Any>? {
+        // This method needs more context, currently returning null.
+        return null
+    }
 
     override fun trace(message: String?) {
         transportManager.trace(message)

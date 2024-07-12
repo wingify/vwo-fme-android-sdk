@@ -21,17 +21,17 @@ import com.vwo.packages.logger.enums.LogLevelEnum
 
 interface ILogManager {
     val transportManager: LogTransportManager?
-    val config: Map<String?, Any?>?
+    val config: Map<String, Any>
     val name: String?
     val requestId: String?
     val level: LogLevelEnum?
     val prefix: String?
-    val dateTimeFormat: String?
+    fun getDateTimeFormat(): String?
 
-    val transport: Map<String?, Any?>?
-    val transports: List<Map<String?, Any?>?>?
+    fun getTransport(): Map<String, Any>?
+    fun getTransports(): List<Map<String, Any>>
 
-    fun addTransport(transport: Map<String?, Any?>?)
-    fun addTransports(transports: List<Map<String?, Any?>?>?)
+    fun addTransport(transport: Map<String, Any>)
+    fun addTransports(transports: List<Map<String, Any>>)
 }
 

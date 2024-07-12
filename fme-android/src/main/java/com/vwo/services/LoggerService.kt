@@ -20,7 +20,7 @@ import com.vwo.packages.logger.core.LogManager
 import com.vwo.packages.logger.enums.LogLevelEnum
 import com.vwo.utils.LogMessageUtil
 
-class LoggerService(config: Map<String?, Any?>?) {
+class LoggerService(config: Map<String, Any>) {
     init {
         // initialize the LogManager
         LogManager(config)
