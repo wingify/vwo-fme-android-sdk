@@ -16,5 +16,5 @@
 package com.vwo.models.request
 
 class EventArchPayload {
-    var d: com.vwo.models.request.EventArchData? = null
+    var d: EventArchData? = null
 }

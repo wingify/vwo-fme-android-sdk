@@ -16,6 +16,9 @@
 package com.vwo.models.request
 
 import com.fasterxml.jackson.annotation.JsonAnyGetter
+import com.fasterxml.jackson.annotation.JsonAnySetter
+import com.fasterxml.jackson.annotation.JsonIgnore
+import com.fasterxml.jackson.annotation.JsonProperty
 
 class Props {
     @JsonProperty("vwo_sdkName")

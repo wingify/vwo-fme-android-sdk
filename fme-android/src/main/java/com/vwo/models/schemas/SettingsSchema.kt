@@ -16,7 +16,6 @@
 package com.vwo.models.schemas
 
 import com.vwo.models.*
-import java.lang.String
 import kotlin.Boolean
 
 class SettingsSchema {

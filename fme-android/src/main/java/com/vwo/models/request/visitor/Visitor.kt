@@ -19,7 +19,7 @@ class Visitor {
     var props: Map<String, Any>? = null
         private set
 
-    fun setProps(props: Map<String, Any>?): com.vwo.models.request.visitor.Visitor {
+    fun setProps(props: Map<String, Any>?): Visitor {
         this.props = props
         return this
     }

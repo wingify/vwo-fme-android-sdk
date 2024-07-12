@@ -21,8 +21,8 @@ class EventArchData {
     var msgId: String? = null
     var visId: String? = null
     var sessionId: Long? = null
-    var event: com.vwo.models.request.Event? = null
-    var visitor: com.vwo.models.request.visitor.Visitor? = null
+    var event: Event? = null
+    var visitor: Visitor? = null
     var visitor_ua: String? = null
     var visitor_ip: String? = null
 }

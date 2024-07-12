@@ -16,7 +16,7 @@
 package com.vwo.models.request
 
 class Event {
-    var props: com.vwo.models.request.Props? = null
+    var props: Props? = null
     var name: String? = null
     var time: Long? = null
 }
