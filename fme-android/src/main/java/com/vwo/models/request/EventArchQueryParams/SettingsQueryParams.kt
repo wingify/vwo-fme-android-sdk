@@ -16,12 +16,9 @@
 package com.vwo.models.request.EventArchQueryParams
 
 class SettingsQueryParams(private val i: String, private val r: String, private val a: String) {
-    val queryParams: Map<String, String>
-        get() {
-            val path: MutableMap<String, String> = HashMap()
-            path["i"] = i
-            path["r"] = r
-            path["a"] = a
-            return path
-        }
+    val queryParams = mutableMapOf<String, String>().apply {
+        this["i"] = i
+        this["r"] = r
+        this["a"] = a
+    }
 }

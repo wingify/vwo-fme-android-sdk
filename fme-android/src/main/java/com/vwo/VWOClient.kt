@@ -16,10 +16,24 @@
 package com.vwo
 
 import com.fasterxml.jackson.databind.DeserializationFeature
+import com.fasterxml.jackson.databind.ObjectMapper
+import com.vwo.api.GetFlagAPI
+import com.vwo.api.SetAttributeAPI
+import com.vwo.api.TrackEventAPI
 import com.vwo.models.Settings
+import com.vwo.models.schemas.SettingsSchema
+import com.vwo.models.user.GetFlag
+import com.vwo.models.user.VWOContext
+import com.vwo.models.user.VWOInitOptions
 import com.vwo.packages.logger.enums.LogLevelEnum
+import com.vwo.services.HooksManager
+import com.vwo.services.LoggerService
+import com.vwo.services.UrlService
+import com.vwo.utils.DataTypeUtil
+import com.vwo.utils.SDKMetaUtil
+import com.vwo.utils.SettingsUtil
 
-open class VWOClient(settings: String?, options: VWOInitOptions?) {
+class VWOClient(settings: String, options: VWOInitOptions?) {
     private var processedSettings: Settings? = null
     var settings: String? = null
     private var options: VWOInitOptions? = null
@@ -27,14 +41,13 @@ open class VWOClient(settings: String?, options: VWOInitOptions?) {
     init {
         try {
             this.options = options
-            if (settings == null) {
-                return
-            }
             this.settings = settings
             this.processedSettings = objectMapper.readValue(settings, Settings::class.java)
-            SettingsUtil.processSettings(this.processedSettings)
-            // init url version with collection prefix
-            UrlService.init(processedSettings!!.collectionPrefix)
+            this.processedSettings?.let {
+                SettingsUtil.processSettings(it)
+                // init url version with collection prefix
+                UrlService.init(it.collectionPrefix)
+            }
             // init SDKMetaUtil and set sdkVersion
             SDKMetaUtil.init()
             LoggerService.log(LogLevelEnum.INFO, "CLIENT_INITIALIZED", null)
@@ -53,7 +66,7 @@ open class VWOClient(settings: String?, options: VWOInitOptions?) {
     fun updateSettings(newSettings: String?) {
         try {
             this.processedSettings = objectMapper.readValue(newSettings, Settings::class.java)
-            SettingsUtil.processSettings(this.processedSettings)
+            this.processedSettings?.let { SettingsUtil.processSettings(it) }
         } catch (exception: Exception) {
             LoggerService.log(
                 LogLevelEnum.ERROR,
@@ -70,7 +83,7 @@ open class VWOClient(settings: String?, options: VWOInitOptions?) {
      */
     fun getFlag(featureKey: String?, context: VWOContext?): GetFlag {
         val apiName = "getFlag"
-        val getFlag: GetFlag = GetFlag()
+        val getFlag = GetFlag()
         try {
             LoggerService.log(
                 LogLevelEnum.DEBUG,
@@ -80,20 +93,20 @@ open class VWOClient(settings: String?, options: VWOInitOptions?) {
                         put("apiName", apiName)
                     }
                 })
-            val hooksManager: HooksManager = HooksManager(options.integrations)
-            if (context == null || context.id == null || context.id.isEmpty()) {
-                getFlag.setIsEnabled(false)
+            val hooksManager: HooksManager = HooksManager(options?.integrations)
+            if (context.id?.isEmpty() == true) {
+                getFlag.isEnabled=false
                 throw IllegalArgumentException("User ID is required")
             }
 
-            if (featureKey == null || featureKey.isEmpty()) {
-                getFlag.setIsEnabled(false)
+            if (featureKey.isNullOrEmpty()) {
+                getFlag.isEnabled = false
                 throw IllegalArgumentException("Feature Key is required")
             }
 
             if (this.processedSettings == null || !SettingsSchema().isSettingsValid(this.processedSettings)) {
                 LoggerService.log(LogLevelEnum.ERROR, "SETTINGS_SCHEMA_INVALID", null)
-                getFlag.setIsEnabled(false)
+                getFlag.isEnabled=false
                 return getFlag
             }
 
@@ -108,7 +121,7 @@ open class VWOClient(settings: String?, options: VWOInitOptions?) {
                         put("err", exception.toString())
                     }
                 })
-            getFlag.setIsEnabled(false)
+            getFlag.isEnabled = false
             return getFlag
         }
     }
@@ -129,14 +142,12 @@ open class VWOClient(settings: String?, options: VWOInitOptions?) {
         val resultMap: MutableMap<String, Boolean> = HashMap()
         try {
             LoggerService.log(
-                LogLevelEnum.DEBUG,
-                "API_CALLED",
-                object : HashMap<String?, String?>() {
+                LogLevelEnum.DEBUG, "API_CALLED", object : HashMap<String?, String?>() {
                     init {
                         put("apiName", apiName)
                     }
                 })
-            val hooksManager: HooksManager = HooksManager(options.integrations)
+            val hooksManager: HooksManager = HooksManager(options?.integrations)
             if (!DataTypeUtil.isString(eventName)) {
                 LoggerService.log(
                     LogLevelEnum.ERROR,
@@ -152,18 +163,19 @@ open class VWOClient(settings: String?, options: VWOInitOptions?) {
                 throw IllegalArgumentException("TypeError: Event-name should be a string")
             }
 
-            require(!(context == null || context.id == null || context.id.isEmpty())) { "User ID is required" }
+            require(!(context?.id == null || context.id?.isEmpty()==true)) { "User ID is required" }
 
-            if (this.processedSettings == null || !SettingsSchema().isSettingsValid(this.processedSettings)) {
+            val pSettings = this.processedSettings
+            if (pSettings == null || !SettingsSchema().isSettingsValid(this.processedSettings)) {
                 LoggerService.log(LogLevelEnum.ERROR, "SETTINGS_SCHEMA_INVALID", null)
                 resultMap[eventName] = false
                 return resultMap
             }
 
             val result: Boolean = TrackEventAPI.track(
-                this.processedSettings,
+                pSettings,
                 eventName,
-                context,
+                context!!,
                 eventProperties,
                 hooksManager
             )
@@ -223,7 +235,7 @@ open class VWOClient(settings: String?, options: VWOInitOptions?) {
      * @param attributeValue - The value of the attribute to set.
      * @param context User context
      */
-    fun setAttribute(attributeKey: String?, attributeValue: String?, context: VWOContext?) {
+    fun setAttribute(attributeKey: String, attributeValue: String, context: VWOContext?) {
         val apiName = "setAttribute"
         try {
             LoggerService.log(
@@ -264,18 +276,17 @@ open class VWOClient(settings: String?, options: VWOInitOptions?) {
                 throw IllegalArgumentException("TypeError: attributeValue should be a string")
             }
 
-            require(!(context == null || context.id == null || context.id.isEmpty())) { "User ID is required" }
+            require(!(context?.id == null || context.id?.isEmpty()==true)) { "User ID is required" }
 
             if (this.processedSettings == null || !SettingsSchema().isSettingsValid(this.processedSettings)) {
                 LoggerService.log(LogLevelEnum.ERROR, "SETTINGS_SCHEMA_INVALID", null)
                 return
             }
-
             SetAttributeAPI.setAttribute(
-                this.processedSettings,
+                this.processedSettings!!,
                 attributeKey,
                 attributeValue,
-                context
+                context!!
             )
         } catch (exception: Exception) {
             LoggerService.log(

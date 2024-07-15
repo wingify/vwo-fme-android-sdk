@@ -23,6 +23,8 @@ import com.vwo.packages.segmentation_evaluator.core.SegmentationManager
 import com.vwo.packages.storage.Storage
 import com.vwo.services.LoggerService
 import com.vwo.services.SettingsManager
+import com.vwo.utils.DataTypeUtil
+import com.vwo.utils.LogMessageUtil.buildMessage
 
 class VWOBuilder(options: VWOInitOptions?) {
     private var vwoClient: VWOClient? = null
@@ -42,13 +44,12 @@ class VWOBuilder(options: VWOInitOptions?) {
      * @return The VWOBuilder instance.
      */
     fun setNetworkManager(): VWOBuilder {
-        val networkInstance: NetworkManager = NetworkManager.instance
         if (this.options != null && options.networkClientInterface != null) {
-            networkInstance.attachClient(options.networkClientInterface)
+            NetworkManager.attachClient(options.networkClientInterface)
         } else {
-            networkInstance.attachClient()
+            NetworkManager.attachClient()
         }
-        networkInstance.config.developmentMode = false
+        NetworkManager.config?.developmentMode = false
         LoggerService.log(
             LogLevelEnum.DEBUG,
             "SERVICE_INITIALIZED",
@@ -65,7 +66,7 @@ class VWOBuilder(options: VWOInitOptions?) {
      * @return The instance of this builder.
      */
     fun setSegmentation(): VWOBuilder {
-        if (options != null && options.segmentEvaluator != null) {
+        if (options?.segmentEvaluator != null) {
             SegmentationManager.instance?.attachEvaluator(options.segmentEvaluator)
         }
         LoggerService.log(
@@ -84,7 +85,7 @@ class VWOBuilder(options: VWOInitOptions?) {
      * @param forceFetch - Force fetch ignoring cache.
      * @return The fetched settings.
      */
-    fun fetchSettings(forceFetch: Boolean?): String? {
+    fun fetchSettings(forceFetch: Boolean): String? {
         // Check if a fetch operation is already in progress
         if (isSettingsFetchInProgress || settingFileManager == null) {
             // Avoid parallel fetches
@@ -96,7 +97,7 @@ class VWOBuilder(options: VWOInitOptions?) {
 
         try {
             // Retrieve the settings synchronously
-            val settings = settingFileManager!!.getSettings(forceFetch!!)
+            val settings = settingFileManager!!.getSettings(forceFetch)
 
             if (!forceFetch) {
                 // Store the original settings
@@ -130,7 +131,7 @@ class VWOBuilder(options: VWOInitOptions?) {
      * @param forceFetch - Force fetch ignoring cache.
      * @return The fetched settings.
      */
-    fun getSettings(forceFetch: Boolean?): String? {
+    fun getSettings(forceFetch: Boolean): String? {
         return fetchSettings(forceFetch)
     }
 
@@ -177,8 +178,7 @@ class VWOBuilder(options: VWOInitOptions?) {
                     }
                 })
         } catch (e: Exception) {
-            val message: String =
-                buildMessage("Error occurred while initializing Logger : " + e.message, null)
+            val message = buildMessage("Error occurred while initializing Logger : " + e.message, null)
             System.err.println(message)
         }
         return this
@@ -189,14 +189,11 @@ class VWOBuilder(options: VWOInitOptions?) {
      * @return The instance of this builder.
      */
     fun initPolling(): VWOBuilder {
-        if (options.pollInterval == null) {
+        if (options?.pollInterval == null) {
             return this
         }
 
-        if (options.pollInterval != null && !DataTypeUtil.isInteger(
-                options.pollInterval
-            )
-        ) {
+        if (!DataTypeUtil.isInteger(options.pollInterval)) {
             LoggerService.log(
                 LogLevelEnum.ERROR,
                 "INIT_OPTIONS_INVALID",
@@ -209,7 +206,7 @@ class VWOBuilder(options: VWOInitOptions?) {
             return this
         }
 
-        if (options.pollInterval != null && options.pollInterval < 1000) {
+        if ((options.pollInterval ?:0) < 1000) {
             LoggerService.log(
                 LogLevelEnum.ERROR,
                 "INIT_OPTIONS_INVALID",
@@ -231,16 +228,16 @@ class VWOBuilder(options: VWOInitOptions?) {
      * Checks and polls for settings updates at the provided interval.
      */
     private fun checkAndPoll() {
-        val pollingInterval: Int = options.pollInterval
+        val pollingInterval: Int = options?.pollInterval?:1000
 
         while (true) {
             try {
                 val latestSettings = getSettings(true)
                 if (originalSettings != null && latestSettings != null) {
                     val latestSettingJsonNode: JsonNode =
-                        VWOClient.Companion.objectMapper.readTree(latestSettings)
+                        VWOClient.objectMapper.readTree(latestSettings)
                     val originalSettingsJsonNode: JsonNode =
-                        VWOClient.Companion.objectMapper.readTree(originalSettings)
+                        VWOClient.objectMapper.readTree(originalSettings)
                     if (!latestSettingJsonNode.equals(originalSettingsJsonNode)) {
                         originalSettings = latestSettings
                         LoggerService.log(LogLevelEnum.INFO, "POLLING_SET_SETTINGS", null)

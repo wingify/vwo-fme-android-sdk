@@ -18,72 +18,64 @@ package com.vwo
 import com.vwo.models.user.VWOInitOptions
 import com.vwo.utils.LogMessageUtil.buildMessage
 
-class VWO
-/**
- * Constructor for the VWO class.
- * Initializes a new instance of VWO with the provided options.
- * @param options - Configuration options for the VWO instance.
- */
-    (settings: String?, options: VWOInitOptions?) : VWOClient(settings, options) {
-    companion object {
-        private var vwoBuilder: VWOBuilder? = null
-        private var instance: VWO? = null
+object VWO {
+    private var instance: VWO? = null
 
-        /**
-         * Sets the singleton instance of VWO.
-         * Configures and builds the VWO instance using the provided options.
-         * @param options - Configuration options for setting up VWO.
-         * @return A CompletableFuture resolving to the configured VWO instance.
-         */
-        private fun setInstance(options: VWOInitOptions): VWO {
-            if (options.vwoBuilder != null) {
-                vwoBuilder = options.vwoBuilder
-            } else {
-                vwoBuilder = VWOBuilder(options)
-            }
-            vwoBuilder?.setLogger() // Sets up logging for debugging and monitoring.
-                ?.setSettingsManager() // Sets the settings manager for configuration management.
-                ?.setStorage() // Configures storage for data persistence.
-                ?.setNetworkManager() // Configures network management for API communication.
-                ?.setSegmentation() // Sets up segmentation for targeted functionality.
-                ?.initPolling() // Initializes the polling mechanism for fetching settings.
+    /**
+     * Sets the singleton instance of VWO.
+     * Configures and builds the VWO instance using the provided options.
+     * @param options - Configuration options for setting up VWO.
+     * @return A CompletableFuture resolving to the configured VWO instance.
+     */
+    private fun setInstance(options: VWOInitOptions): VWO {
 
-            val settings = vwoBuilder!!.getSettings(false)
-            val vwoInstance = VWO(settings, options)
+        val vwoBuilder: VWOBuilder = options.vwoBuilder?: VWOBuilder(options)
+        vwoBuilder.setLogger() // Sets up logging for debugging and monitoring.
+            .setSettingsManager() // Sets the settings manager for configuration management.
+            .setStorage() // Configures storage for data persistence.
+            .setNetworkManager() // Configures network management for API communication.
+            .setSegmentation() // Sets up segmentation for targeted functionality.
+            .initPolling() // Initializes the polling mechanism for fetching settings.
 
+        val settings = vwoBuilder.getSettings(false)
+        val vwoInstance = this
+        settings?.let {
+            val vwoClient = VWOClient(it, options)
             // Set VWOClient instance in VWOBuilder
-            vwoBuilder!!.setVWOClient(vwoInstance)
-            return vwoInstance
+            vwoBuilder.setVWOClient(vwoClient)
+        }
+        return vwoInstance
+    }
+
+    /**
+     * Gets the singleton instance of VWO.
+     * @return The singleton instance of VWO.
+     */
+    @JvmStatic
+    fun getInstance(): VWO? {
+        return instance
+    }
+
+    @JvmStatic
+    fun init(options: VWOInitOptions): VWO? {
+        if (options.sdkKey.isNullOrEmpty()) {
+            val message = buildMessage(
+                "SDK key is required to initialize VWO. Please provide the sdkKey in the options.",
+                null
+            )
+            System.err.println(message)
         }
 
-        /**
-         * Gets the singleton instance of VWO.
-         * @return The singleton instance of VWO.
-         */
-        fun getInstance(): Any? {
-            return instance
+        if (options.accountId == null) {
+            val message = buildMessage(
+                "Account ID is required to initialize VWO. Please provide the accountId in the options.",
+                null
+            )
+            System.err.println(message)
         }
 
-        fun init(options: VWOInitOptions?): VWO? {
-            if (options?.sdkKey == null || options.sdkKey!!.isEmpty()) {
-                val message = buildMessage(
-                    "SDK key is required to initialize VWO. Please provide the sdkKey in the options.",
-                    null
-                )
-                System.err.println(message)
-            }
-
-            if (options?.accountId == null || options.accountId.toString().isEmpty()) {
-                val message = buildMessage(
-                    "Account ID is required to initialize VWO. Please provide the accountId in the options.",
-                    null
-                )
-                System.err.println(message)
-            }
-
-            instance = setInstance(options)
-            return instance
-        }
+        instance = setInstance(options)
+        return instance
     }
 }
 

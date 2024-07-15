@@ -16,9 +16,13 @@
 package com.vwo.utils
 
 import com.google.gson.Gson
+import com.vwo.enums.CampaignTypeEnum
+import com.vwo.models.Campaign
 import com.vwo.models.Rule
 import com.vwo.models.Settings
+import com.vwo.models.Variation
 import com.vwo.packages.logger.enums.LogLevelEnum
+import com.vwo.services.LoggerService
 import java.util.Objects
 import java.util.function.Consumer
 import java.util.function.Function
@@ -38,12 +42,12 @@ object SettingsUtil {
     @JvmStatic
     fun processSettings(settings: Settings) {
         try {
-            val campaigns: List<Campaign>? = settings.campaigns
+            val campaigns: List<Campaign> = settings.campaigns ?: return
 
-            for (i in campaigns!!.indices) {
+            for (i in campaigns.indices) {
                 val campaign: Campaign = campaigns[i]
                 CampaignUtil.setVariationAllocation(campaign)
-                campaigns.set(i, campaign)
+                //campaigns.set(i, campaign) Redundant call
             }
             addLinkedCampaignsToSettings(settings)
             addIsGatewayServiceRequiredFlag(settings)
@@ -62,17 +66,11 @@ object SettingsUtil {
     private fun addLinkedCampaignsToSettings(settings: Settings) {
         // Create a map for quick access to campaigns by ID
 
-        val campaignMap: Map<Int?, Campaign?> = settings.campaigns!!.stream()
-            .collect(
-                Collectors.toMap<Campaign, Int?, Campaign?>(
-                    Campaign::id,
-                    Function<Campaign, Campaign?> { campaign: Campaign? -> campaign })
-            )
-
+        val campaignMap: Map<Int, Campaign> = settings.campaigns?.associateBy {it.id?:0}.orEmpty()
+        if(settings.features==null) return
         // Loop over all features
         for (feature in settings.features!!) {
-            val rulesLinkedCampaignModel: List<Campaign> = feature.rules!!.stream()
-                .map<Campaign>(Function<Rule, Campaign> { rule: Rule ->
+            val rulesLinkedCampaignModel: List<Campaign>? = feature.rules?.map{ rule: Rule ->
                     val originalCampaign: Campaign = campaignMap[rule.campaignId] ?: return@map null
                     originalCampaign.ruleKey = rule.ruleKey
                     val campaign: Campaign = Campaign()
@@ -80,19 +78,15 @@ object SettingsUtil {
 
                     // If a variationId is specified, find and add the variation
                     if (rule.variationId != null) {
-                        campaign.variations.stream()
-                            .filter(Predicate<Variation> { v: Variation -> v.id == rule.variationId })
-                            .findFirst().ifPresent(Consumer<Variation> { variation: Variation ->
-                                campaign.variations = listOf<Variation>(variation)
-                            })
+                        val variation = campaign.variations
+                            ?.firstOrNull { v: Variation -> v.id == rule.variationId }
+                        variation?.let { campaign.variations = listOf(it) }
                     }
                     campaign
-                })
-                .filter(Predicate<Campaign> { obj: Campaign? -> Objects.nonNull(obj) })
-                .collect<List<Campaign>, Any>(Collectors.toList<Campaign>())
+                }?.filterNotNull()
 
             // Assign the linked campaigns to the feature
-            feature.rulesLinkedCampaign = rulesLinkedCampaignModel
+            feature.rulesLinkedCampaign = rulesLinkedCampaignModel?: emptyList()
         }
     }
 
@@ -106,12 +100,12 @@ object SettingsUtil {
             "\\b(country|region|city|os|device_type|browser_string|ua)\\b|\"custom_variable\"\\s*:\\s*\\{\\s*\"name\"\\s*:\\s*\"inlist\\([^)]*\\)\""
         val pattern = Pattern.compile(patternString)
 
-        for (feature in settings.features!!) {
+        for (feature in settings.features) {
             val rules: List<Campaign> = feature.rulesLinkedCampaign
             for (rule in rules) {
-                var segments: Any =
+                var segments: Map<String, Any>? =
                     if (rule.type == CampaignTypeEnum.ROLLOUT.value || rule.type == CampaignTypeEnum.PERSONALIZE.value) {
-                        rule.variations.get(0).segments
+                        rule.variations?.get(0)?.segments
                     } else {
                         rule.segments
                     }
@@ -135,7 +129,7 @@ object SettingsUtil {
                     }
 
                     if (foundMatch) {
-                        feature.setIsGatewayServiceRequired(true)
+                        feature.isGatewayServiceRequired=true
                         break
                     }
                 }

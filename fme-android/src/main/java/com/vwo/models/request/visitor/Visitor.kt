@@ -16,10 +16,10 @@
 package com.vwo.models.request.visitor
 
 class Visitor {
-    var props: Map<String, Any>? = null
+    var props: MutableMap<String, Any>? = null
         private set
 
-    fun setProps(props: Map<String, Any>?): Visitor {
+    fun setProps(props: MutableMap<String, Any>?): Visitor {
         this.props = props
         return this
     }

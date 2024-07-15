@@ -38,7 +38,7 @@ object TrackEventAPI {
         settings: Settings,
         eventName: String,
         context: VWOContext,
-        eventProperties: Map<String?, *>,
+        eventProperties: Map<String, Any>,
         hooksManager: HooksManager
     ): Boolean {
         try {

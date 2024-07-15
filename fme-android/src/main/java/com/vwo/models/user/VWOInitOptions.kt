@@ -23,7 +23,7 @@ import com.vwo.interfaces.integration.IntegrationCallback
 
 class VWOInitOptions {
     var sdkKey: String? = null
-    var accountId: Int? = null
+    var accountId: Int?=null
     var integrations: IntegrationCallback? = null
     var logger: Map<String, Any> = HashMap()
     var networkClientInterface: NetworkClientInterface? = null
