@@ -27,8 +27,8 @@ import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
 
 
-class NetworkManager {
-    @JvmField
+object NetworkManager {
+
     var config: GlobalRequestModel? = null
     private var client: NetworkClientInterface? = null
 
@@ -92,18 +92,5 @@ class NetworkManager {
         executorService.submit {
             post(request)
         }
-    }
-
-    companion object {
-        @JvmStatic
-        var instance: NetworkManager? = null
-            get() {
-                if (field == null) {
-                    field = NetworkManager()
-                    return field
-                }
-                return field
-            }
-            private set
     }
 }

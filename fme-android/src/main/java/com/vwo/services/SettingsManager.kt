@@ -164,7 +164,7 @@ class SettingsManager(options: VWOInitOptions) {
             try {
                 val settings = fetchSettingsAndCacheInStorage()
                 if (settings == null) {
-                    LoggerService.Companion.log(LogLevelEnum.ERROR, "SETTINGS_SCHEMA_INVALID", null)
+                    LoggerService.log(LogLevelEnum.ERROR, "SETTINGS_SCHEMA_INVALID", null)
                     return null
                 }
                 val settingsValid = SettingsSchema().isSettingsValid(
@@ -176,7 +176,7 @@ class SettingsManager(options: VWOInitOptions) {
                 if (settingsValid) {
                     return settings
                 } else {
-                    LoggerService.Companion.log(LogLevelEnum.ERROR, "SETTINGS_SCHEMA_INVALID", null)
+                    LoggerService.log(LogLevelEnum.ERROR, "SETTINGS_SCHEMA_INVALID", null)
                     return null
                 }
             } catch (e: Exception) {

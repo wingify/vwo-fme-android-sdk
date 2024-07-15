@@ -16,7 +16,8 @@
 package com.vwo.constants
 
 object Constants {
-    const val PLATFORM: String = "server"
+    const val defaultString: String = ""
+    const val PLATFORM: String = "android"
 
     const val MAX_TRAFFIC_PERCENT: Int = 100
     const val MAX_TRAFFIC_VALUE: Int = 10000

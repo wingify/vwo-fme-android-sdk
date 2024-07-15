@@ -21,13 +21,13 @@ import com.fasterxml.jackson.annotation.JsonProperty
 @JsonInclude(JsonInclude.Include.NON_NULL)
 class Settings {
     @JsonProperty("features")
-    var features: List<com.vwo.models.Feature>? = null
+    var features: List<Feature>=emptyList()
 
     @JsonProperty("accountId")
     var accountId: Int? = null
 
     @JsonProperty("groups")
-    var groups: Map<String, com.vwo.models.Groups>? = null
+    var groups: Map<String, Groups>? = null
 
     @JsonProperty("campaignGroups")
     var campaignGroups: Map<String, Int>? = null

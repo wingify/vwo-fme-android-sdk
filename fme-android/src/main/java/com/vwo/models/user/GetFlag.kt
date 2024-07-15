@@ -15,24 +15,25 @@
  */
 package com.vwo.models.user
 
+import com.vwo.constants.Constants.defaultString
 import com.vwo.models.Variable
 
 class GetFlag {
     var isEnabled: Boolean = false
-    private var variables: List<com.vwo.models.Variable> = ArrayList<com.vwo.models.Variable>()
+    private var variables: List<Variable> = ArrayList<Variable>()
 
-    fun setVariables(variables: List<com.vwo.models.Variable>) {
+    fun setVariables(variables: List<Variable>) {
         this.variables = variables
     }
 
-    val variablesValue: List<Any>
+    val variablesValue: List<Variable>
         get() = variables
 
     // get specific value from variables given key
     fun getVariable(key: String?, defaultValue: Any): Any {
         for (variable in variablesValue) {
-            if (variable.getKey().equals(key)) {
-                return variable.getValue()
+            if (variable.key.equals(key)) {
+                return variable.value?:defaultValue
             }
         }
         return defaultValue
@@ -46,12 +47,12 @@ class GetFlag {
         return result
     }
 
-    private fun convertVariableModelToMap(variableModel: com.vwo.models.Variable): Map<String, Any> {
+    private fun convertVariableModelToMap(variableModel: Variable): Map<String, Any> {
         val map: MutableMap<String, Any> = HashMap()
-        map["key"] = variableModel.getKey()
-        map["value"] = variableModel.getValue()
-        map["type"] = variableModel.getType()
-        map["id"] = variableModel.getId()
+        map["key"] = variableModel.key?:defaultString
+        map["value"] = variableModel.value?:defaultString
+        map["type"] = variableModel.type?:defaultString
+        map["id"] = variableModel.id?:0
         return map
     }
 }

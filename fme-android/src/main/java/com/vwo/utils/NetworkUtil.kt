@@ -17,6 +17,7 @@ package com.vwo.utils
 
 import com.vwo.VWOClient
 import com.vwo.constants.Constants
+import com.vwo.constants.Constants.defaultString
 import com.vwo.enums.HeadersEnum
 import com.vwo.enums.UrlEnum
 import com.vwo.models.Settings
@@ -43,7 +44,7 @@ class NetworkUtil {
      * @param accountId The ID of the account.
      * @return
      */
-    fun getSettingsPath(apikey: String?, accountId: Int): Map<String, String> {
+    fun getSettingsPath(apikey: String?, accountId: Int): MutableMap<String, String> {
         val settingsQueryParams =
             SettingsQueryParams(apikey!!, generateRandom(), accountId.toString())
         return settingsQueryParams.queryParams
@@ -60,12 +61,12 @@ class NetworkUtil {
          */
         fun getEventsBaseProperties(
             setting: Settings,
-            eventName: String?,
+            eventName: String,
             visitorUserAgent: String?,
             ipAddress: String?
-        ): Map<String?, String?> {
+        ): Map<String, String> {
             val requestQueryParams = RequestQueryParams(
-                eventName!!,
+                eventName,
                 setting.accountId.toString(),
                 setting.sdkKey!!,
                 visitorUserAgent!!,
@@ -120,11 +121,11 @@ class NetworkUtil {
             visitorUserAgent: String?,
             ipAddress: String?
         ) {
-            if (visitorUserAgent != null && !visitorUserAgent.isEmpty()) {
+            if (!visitorUserAgent.isNullOrEmpty()) {
                 eventArchData.visitor_ua = visitorUserAgent
             }
 
-            if (ipAddress != null && !ipAddress.isEmpty()) {
+            if (!ipAddress.isNullOrEmpty()) {
                 eventArchData.visitor_ip = ipAddress
             }
         }
@@ -152,7 +153,7 @@ class NetworkUtil {
         private fun createProps(settings: Settings): Props {
             val props = Props()
             props.setSdkName(Constants.SDK_NAME)
-            props.setSdkVersion(SDKMetaUtil.getSdkVersion())
+            props.setSdkVersion(SDKMetaUtil.sdkVersion)
             props.setEnvKey(settings.sdkKey)
             return props
         }
@@ -164,8 +165,8 @@ class NetworkUtil {
          */
         private fun createVisitor(settings: Settings): Visitor {
             val visitor = Visitor()
-            val visitorProps: MutableMap<String, Any?> = HashMap()
-            visitorProps[Constants.VWO_FS_ENVIRONMENT] = settings.sdkKey
+            val visitorProps: MutableMap<String, Any> = HashMap()
+            visitorProps[Constants.VWO_FS_ENVIRONMENT] = settings.sdkKey?:defaultString
             visitor.setProps(visitorProps)
             return visitor
         }
@@ -189,7 +190,7 @@ class NetworkUtil {
             variationId: Int,
             visitorUserAgent: String?,
             ipAddress: String?
-        ): Map<String?, Any?> {
+        ): Map<String, Any?> {
             val properties =
                 getEventBasePayload(settings, userId, eventName, visitorUserAgent, ipAddress)
             properties.d!!.event!!.props!!.id = campaignId
@@ -205,7 +206,7 @@ class NetworkUtil {
                         put("campaignId", campaignId.toString())
                     }
                 })
-            val payload: Map<String?, Any?> =
+            val payload: Map<String, Any?> =
                 VWOClient.objectMapper.convertValue(properties, MutableMap::class.java)
             return removeNullValues(payload)
         }
@@ -224,8 +225,8 @@ class NetworkUtil {
             userId: String?,
             eventName: String,
             context: VWOContext,
-            eventProperties: Map<String?, *>?
-        ): Map<String?, Any?> {
+            eventProperties: Map<String, Any>?
+        ): Map<String, Any?> {
             val properties = getEventBasePayload(
                 settings,
                 userId,
@@ -234,7 +235,7 @@ class NetworkUtil {
                 context.ipAddress
             )
             properties.d!!.event!!.props!!.setIsCustomEvent(true)
-            addCustomEventProperties(properties, eventProperties as Map<String?, Any>?)
+            addCustomEventProperties(properties, eventProperties)
             log(
                 LogLevelEnum.DEBUG,
                 "IMPRESSION_FOR_TRACK_GOAL",
@@ -245,7 +246,7 @@ class NetworkUtil {
                         put("userId", userId)
                     }
                 })
-            val payload: Map<String?, Any?> =
+            val payload: Map<String, Any?> =
                 VWOClient.objectMapper.convertValue(properties, MutableMap::class.java)
             return removeNullValues(payload)
         }
@@ -257,10 +258,10 @@ class NetworkUtil {
          */
         private fun addCustomEventProperties(
             properties: EventArchPayload,
-            eventProperties: Map<String?, Any>?
+            eventProperties: Map<String, Any>?
         ) {
             if (eventProperties != null) {
-                properties.d!!.event!!.props!!.setAdditionalProperties(eventProperties)
+                properties.d?.event?.props?.setAdditionalProperties(eventProperties)
             }
         }
 
@@ -277,12 +278,12 @@ class NetworkUtil {
             settings: Settings,
             userId: String?,
             eventName: String,
-            attributeKey: String?,
-            attributeValue: String?
-        ): Map<String?, Any?> {
+            attributeKey: String,
+            attributeValue: String
+        ): Map<String, Any?> {
             val properties = getEventBasePayload(settings, userId, eventName, null, null)
-            properties.d!!.event!!.props!!.setIsCustomEvent(true)
-            properties.d!!.visitor!!.props.put(attributeKey, attributeValue)
+            properties.d?.event?.props?.setIsCustomEvent(true)
+            properties.d?.visitor?.props?.set(attributeKey, attributeValue)
             log(
                 LogLevelEnum.DEBUG,
                 "IMPRESSION_FOR_SYNC_VISITOR_PROP",
@@ -293,7 +294,7 @@ class NetworkUtil {
                         put("userId", userId)
                     }
                 })
-            val payload: Map<String?, Any?> =
+            val payload: Map<String, Any?> =
                 VWOClient.objectMapper.convertValue(properties, MutableMap::class.java)
             return removeNullValues(payload)
         }
@@ -306,13 +307,13 @@ class NetworkUtil {
          * @param ipAddress The IP address of the user.
          */
         fun sendPostApiRequest(
-            properties: Map<String?, String?>?,
-            payload: Map<String?, Any?>?,
+            properties: MutableMap<String, String?>,
+            payload: Map<String, Any?>?,
             userAgent: String?,
             ipAddress: String?
         ) {
             try {
-                NetworkManager.instance!!.attachClient()
+                NetworkManager.attachClient()
                 val headers = createHeaders(userAgent, ipAddress)
                 val request = RequestModel(
                     baseUrl,
@@ -324,7 +325,7 @@ class NetworkUtil {
                     SettingsManager.instance!!.protocol,
                     SettingsManager.instance!!.port
                 )
-                NetworkManager.instance!!.postAsync(request)
+                NetworkManager.postAsync(request)
             } catch (exception: Exception) {
                 log(
                     LogLevelEnum.ERROR,
@@ -343,14 +344,14 @@ class NetworkUtil {
          * @param originalMap The map containing null/non-null values
          * @return  Map containing non-null values.
          */
-        fun removeNullValues(originalMap: Map<String?, Any?>): Map<String?, Any?> {
-            val cleanedMap: MutableMap<String?, Any?> = LinkedHashMap()
+        fun removeNullValues(originalMap: Map<String, Any?>): Map<String, Any?> {
+            val cleanedMap: MutableMap<String, Any?> = LinkedHashMap()
 
             for (entry in originalMap.entries) {
                 var value = entry.value
                 if (value is Map<*, *>) {
                     // Recursively remove null values from nested maps
-                    value = removeNullValues(value as Map<String?, Any?>)
+                    value = removeNullValues(value as Map<String, Any?>)
                 }
                 if (value != null) {
                     cleanedMap[entry.key] = value
@@ -399,12 +400,12 @@ class NetworkUtil {
          * @param ipAddress The IP address of the user.
          * @return Map containing the headers.
          */
-        private fun createHeaders(userAgent: String?, ipAddress: String?): Map<String?, String?> {
-            val headers: MutableMap<String?, String?> = HashMap()
-            if (userAgent != null && !userAgent.isEmpty()) headers[HeadersEnum.USER_AGENT.header] =
-                userAgent
-            if (ipAddress != null && !ipAddress.isEmpty()) headers[HeadersEnum.IP.header] =
-                ipAddress
+        private fun createHeaders(userAgent: String?, ipAddress: String?): MutableMap<String, String> {
+            val headers: MutableMap<String, String> = HashMap()
+            if (!userAgent.isNullOrEmpty())
+                headers[HeadersEnum.USER_AGENT.header] = userAgent
+            if (!ipAddress.isNullOrEmpty())
+                headers[HeadersEnum.IP.header] = ipAddress
             return headers
         }
     }

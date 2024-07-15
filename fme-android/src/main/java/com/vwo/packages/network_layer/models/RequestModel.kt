@@ -21,9 +21,9 @@ class RequestModel(
     var url: String?,
     method: String?,
     var path: String?,
-    var query: MutableMap<String?, String?>,
-    var body: Map<String?, Any?>?,
-    private var headers: MutableMap<String?, String?>?,
+    var query: MutableMap<String, String?>,
+    var body: Map<String, Any?>?,
+    private var headers: MutableMap<String, String>,
     scheme: String?,
     port: Int
 ) {
@@ -39,11 +39,11 @@ class RequestModel(
         }
     }
 
-    fun getHeaders(): Map<String?, String?>? {
+    fun getHeaders(): Map<String, String> {
         return headers
     }
 
-    fun setHeaders(headers: MutableMap<String?, String?>?) {
+    fun setHeaders(headers: MutableMap<String, String>) {
         this.headers = headers
     }
 
@@ -64,9 +64,7 @@ class RequestModel(
             if (port != 80) {
                 options["port"] = port
             }
-            if (headers != null) {
-                options["headers"] = headers
-            }
+            options["headers"] = headers
 
             if (method != null) {
                 options["method"] = method
@@ -74,8 +72,8 @@ class RequestModel(
 
             if (body != null) {
                 val postBody: String = Gson().toJson(body)
-                headers!!["Content-Type"] = "application/json"
-                headers!!["Content-Length"] = postBody.toByteArray().size.toString()
+                headers["Content-Type"] = "application/json"
+                headers["Content-Length"] = postBody.toByteArray().size.toString()
                 options["headers"] = headers
                 options["body"] = body
             }
