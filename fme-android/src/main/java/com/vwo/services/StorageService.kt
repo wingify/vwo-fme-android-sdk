@@ -28,11 +28,11 @@ class StorageService {
      * @return The data retrieved or an error/storage status enum.
      */
     fun getDataInStorage(featureKey: String?, context: VWOContext): Map<String, Any>? {
-        val storageInstance = Storage.instance!!.getConnector() ?: return null
+        val storageInstance = Storage.instance?.getConnector() ?: return null
         try {
-            return (storageInstance as Connector).get(featureKey, context.id) as Map<String, Any>?
+            return (storageInstance as Connector).get(featureKey, context.id) as Map<String, Any>
         } catch (e: Exception) {
-            LoggerService.Companion.log(
+            LoggerService.log(
                 LogLevelEnum.ERROR,
                 "STORED_DATA_ERROR",
                 object : HashMap<String?, String?>() {
@@ -49,7 +49,7 @@ class StorageService {
      * @param data The data to be stored as a map.
      * @return true if data is successfully stored, otherwise false.
      */
-    fun setDataInStorage(data: Map<String?, Any?>?): Boolean {
+    fun setDataInStorage(data: Map<String, Any>): Boolean {
         val storageInstance = Storage.instance!!.getConnector() ?: return false
 
         try {

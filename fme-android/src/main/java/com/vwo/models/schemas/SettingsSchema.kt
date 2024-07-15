@@ -25,25 +25,24 @@ class SettingsSchema {
         }
 
         // Validate SettingsModel fields
-        if (settings.getVersion() == null || settings.getAccountId() == null) {
+        if (settings.version == null || settings.accountId == null) {
             return false
         }
 
-        if (settings.getCampaigns() == null || settings.getCampaigns().isEmpty()) {
+        val campaigns = settings.campaigns
+        if (campaigns.isNullOrEmpty()) {
             return false
         }
 
-        for (campaign in settings.getCampaigns()) {
+        for (campaign in campaigns) {
             if (!isValidCampaign(campaign)) {
                 return false
             }
         }
 
-        if (settings.getFeatures() != null) {
-            for (feature in settings.getFeatures()) {
-                if (!isValidFeature(feature)) {
-                    return false
-                }
+        for (feature in settings.features) {
+            if (!isValidFeature(feature)) {
+                return false
             }
         }
 
@@ -51,15 +50,16 @@ class SettingsSchema {
     }
 
     private fun isValidCampaign(campaign: Campaign): Boolean {
-        if (campaign.getId() == null || campaign.getType() == null || campaign.getKey() == null || campaign.getStatus() == null || campaign.getName() == null) {
+        if (campaign.id == null || campaign.type == null || campaign.key == null || campaign.status == null || campaign.name == null) {
             return false
         }
 
-        if (campaign.getVariations() == null || campaign.getVariations().isEmpty()) {
+        val variations = campaign.variations
+        if (variations.isNullOrEmpty()) {
             return false
         }
 
-        for (variation in campaign.getVariations()) {
+        for (variation in variations) {
             if (!isValidCampaignVariation(variation)) {
                 return false
             }
@@ -69,52 +69,51 @@ class SettingsSchema {
     }
 
     private fun isValidCampaignVariation(variation: com.vwo.models.Variation): Boolean {
-        if (variation.getId() == null || variation.getName() == null || String.valueOf(variation.getWeight())
-                .isEmpty()
-        ) {
+        if (variation.id == null || variation.name == null) {
             return false
         }
 
-        if (variation.getVariables() != null) {
-            for (variable in variation.getVariables()) {
-                if (!isValidVariableObject(variable)) {
-                    return false
-                }
+        for (variable in variation.variables) {
+            if (!isValidVariableObject(variable)) {
+                return false
             }
         }
 
         return true
     }
 
-    private fun isValidVariableObject(variable: com.vwo.models.Variable): Boolean {
-        return variable.getId() != null && variable.getType() != null && variable.getKey() != null && variable.getValue() != null
+    private fun isValidVariableObject(variable: Variable): Boolean {
+        return variable.id != null && variable.type != null && variable.key != null && variable.value != null
     }
 
-    private fun isValidFeature(feature: com.vwo.models.Feature): Boolean {
-        if (feature.getId() == null || feature.getKey() == null || feature.getStatus() == null || feature.getName() == null || feature.getType() == null) {
+    private fun isValidFeature(feature: Feature): Boolean {
+        if (feature.id == null || feature.key == null || feature.status == null || feature.name == null || feature.type == null) {
             return false
         }
 
-        if (feature.getMetrics() == null || feature.getMetrics().isEmpty()) {
+        val metrics = feature.metrics
+        if (metrics.isNullOrEmpty()) {
             return false
         }
 
-        for (metric in feature.getMetrics()) {
+        for (metric in metrics) {
             if (!isValidCampaignMetric(metric)) {
                 return false
             }
         }
 
-        if (feature.getRules() != null) {
-            for (rule in feature.getRules()) {
+        val rules = feature.rules
+        if (rules != null) {
+            for (rule in rules) {
                 if (!isValidRule(rule)) {
                     return false
                 }
             }
         }
 
-        if (feature.getVariables() != null) {
-            for (variable in feature.getVariables()) {
+        val variables = feature.variables
+        if (variables != null) {
+            for (variable in variables) {
                 if (!isValidVariableObject(variable)) {
                     return false
                 }
@@ -124,11 +123,11 @@ class SettingsSchema {
         return true
     }
 
-    private fun isValidCampaignMetric(metric: com.vwo.models.Metric): Boolean {
-        return metric.getId() != null && metric.getType() != null && metric.getIdentifier() != null
+    private fun isValidCampaignMetric(metric: Metric): Boolean {
+        return metric.id != null && metric.type != null && metric.identifier != null
     }
 
     private fun isValidRule(rule: Rule): Boolean {
-        return rule.getType() != null && rule.getRuleKey() != null && rule.getCampaignId() != null
+        return rule.type != null && rule.ruleKey != null && rule.campaignId != null
     }
 }

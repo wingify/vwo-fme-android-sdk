@@ -34,9 +34,11 @@ class SettingsManager(options: VWOInitOptions) {
     // TODO -- check expiry logic
     private val expiry = Constants.SETTINGS_EXPIRY.toInt()
     private val networkTimeout = Constants.SETTINGS_TIMEOUT.toInt()
-    var hostname: String? = null
+    var hostname: String
+
     @JvmField
     var port: Int = 0
+
     @JvmField
     var protocol: String = "https"
     var isGatewayServiceProvided: Boolean = false
@@ -67,7 +69,7 @@ class SettingsManager(options: VWOInitOptions) {
                     this.port = gatewayServicePort.toString().toInt()
                 }
             } catch (e: Exception) {
-                LoggerService.Companion.log(
+                LoggerService.log(
                     LogLevelEnum.ERROR,
                     "Error occurred while parsing gateway service URL: " + e.message
                 )
@@ -105,11 +107,10 @@ class SettingsManager(options: VWOInitOptions) {
     private fun fetchSettings(): String? {
         require(!(sdkKey == null || accountId == null)) { "SDK Key and Account ID are required to fetch settings. Aborting!" }
 
-        val networkInstance = NetworkManager.instance
         val options = NetworkUtil().getSettingsPath(sdkKey, accountId)
         options["api-version"] = "3"
 
-        if (!networkInstance!!.config!!.developmentMode) {
+        if (!NetworkManager.config!!.developmentMode) {
             options["s"] = "prod"
         }
 
@@ -126,7 +127,7 @@ class SettingsManager(options: VWOInitOptions) {
             )
             request.timeout = networkTimeout
 
-            val response = networkInstance.get(request)
+            val response = NetworkManager.get(request)
             if (response!!.statusCode != 200) {
                 LoggerService.Companion.log(
                     LogLevelEnum.ERROR,
@@ -140,9 +141,7 @@ class SettingsManager(options: VWOInitOptions) {
             }
             return response.data
         } catch (e: Exception) {
-            LoggerService.Companion.log(
-                LogLevelEnum.ERROR,
-                "SETTINGS_FETCH_ERROR",
+            LoggerService.log(LogLevelEnum.ERROR, "SETTINGS_FETCH_ERROR",
                 object : HashMap<String?, String?>() {
                     init {
                         put("err", e.toString())

@@ -22,6 +22,7 @@ import com.vwo.packages.logger.enums.LogLevelEnum
 import com.vwo.services.HooksManager
 import com.vwo.services.LoggerService.Companion.log
 import com.vwo.utils.FunctionUtil.doesEventBelongToAnyFeature
+import com.vwo.utils.ImpressionUtil.encodeURIComponent
 import com.vwo.utils.NetworkUtil
 
 object TrackEventAPI {
@@ -78,7 +79,7 @@ object TrackEventAPI {
         settings: Settings,
         eventName: String,
         context: VWOContext,
-        eventProperties: Map<String?, *>
+        eventProperties: Map<String, Any>
     ) {
         // Get base properties for the event
         val properties = NetworkUtil.getEventsBaseProperties(

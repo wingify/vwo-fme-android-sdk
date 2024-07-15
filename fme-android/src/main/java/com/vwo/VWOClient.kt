@@ -81,7 +81,7 @@ class VWOClient(settings: String, options: VWOInitOptions?) {
      * @param context User context
      * @return GetFlag object containing the flag values
      */
-    fun getFlag(featureKey: String?, context: VWOContext?): GetFlag {
+    fun getFlag(featureKey: String?, context: VWOContext): GetFlag {
         val apiName = "getFlag"
         val getFlag = GetFlag()
         try {
@@ -103,14 +103,14 @@ class VWOClient(settings: String, options: VWOInitOptions?) {
                 getFlag.isEnabled = false
                 throw IllegalArgumentException("Feature Key is required")
             }
-
-            if (this.processedSettings == null || !SettingsSchema().isSettingsValid(this.processedSettings)) {
+            val procSettings = this.processedSettings
+            if (procSettings == null || !SettingsSchema().isSettingsValid(procSettings)) {
                 LoggerService.log(LogLevelEnum.ERROR, "SETTINGS_SCHEMA_INVALID", null)
                 getFlag.isEnabled=false
                 return getFlag
             }
+            return GetFlagAPI.getFlag(featureKey, procSettings, context, hooksManager)
 
-            return GetFlagAPI.getFlag(featureKey, this.processedSettings, context, hooksManager)
         } catch (exception: Exception) {
             LoggerService.log(
                 LogLevelEnum.ERROR,
@@ -136,7 +136,7 @@ class VWOClient(settings: String, options: VWOInitOptions?) {
     private fun track(
         eventName: String,
         context: VWOContext?,
-        eventProperties: Map<String, *>
+        eventProperties: Map<String, Any>
     ): Map<String, Boolean> {
         val apiName = "trackEvent"
         val resultMap: MutableMap<String, Boolean> = HashMap()
@@ -211,7 +211,7 @@ class VWOClient(settings: String, options: VWOInitOptions?) {
     fun trackEvent(
         eventName: String,
         context: VWOContext?,
-        eventProperties: Map<String, *>
+        eventProperties: Map<String, Any>
     ): Map<String, Boolean> {
         return track(eventName, context, eventProperties)
     }

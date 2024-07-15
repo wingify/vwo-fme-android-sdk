@@ -24,21 +24,21 @@ import com.vwo.services.StorageService
 
 class StorageDecorator : IStorageDecorator {
     override fun getFeatureFromStorage(
-        featureKey: String?,
-        context: VWOContext?,
-        storageService: StorageService?
+        featureKey: String,
+        context: VWOContext,
+        storageService: StorageService
     ): Map<String, Any>? {
-        return storageService!!.getDataInStorage(featureKey, context!!)
+        return storageService.getDataInStorage(featureKey, context)
     }
 
     override fun setDataInStorage(
-        data: Map<String?, Any?>?,
-        storageService: StorageService?
+        data: Map<String, Any>,
+        storageService: StorageService
     ): Variation? {
-        val featureKey = data!!["featureKey"] as String?
-        val userId = data["user"].toString()
+        val featureKey = data["featureKey"] as String?
+        val userId = data["user"]?.toString()
 
-        if (featureKey == null || featureKey.isEmpty()) {
+        if (featureKey.isNullOrEmpty()) {
             log(LogLevelEnum.ERROR, "STORING_DATA_ERROR", object : HashMap<String?, String?>() {
                 init {
                     put("key", "featureKey")
@@ -47,7 +47,7 @@ class StorageDecorator : IStorageDecorator {
             return null
         }
 
-        if (userId == null || userId.isEmpty()) {
+        if (userId.isNullOrEmpty()) {
             log(LogLevelEnum.ERROR, "STORING_DATA_ERROR", object : HashMap<String?, String?>() {
                 init {
                     put("key", "Context or Context.id")
@@ -70,7 +70,7 @@ class StorageDecorator : IStorageDecorator {
             return null
         }
 
-        if (experimentKey != null && !experimentKey.isEmpty() && experimentVariationId == null) {
+        if (!experimentKey.isNullOrEmpty() && experimentVariationId == null) {
             log(LogLevelEnum.ERROR, "STORING_DATA_ERROR", object : HashMap<String?, String?>() {
                 init {
                     put("key", "Variation:(experimentKey or rolloutVariationId)")
@@ -79,7 +79,7 @@ class StorageDecorator : IStorageDecorator {
             return null
         }
 
-        storageService!!.setDataInStorage(data)
+        storageService.setDataInStorage(data)
 
         return Variation() // Assuming you need to return a new VariationModel instance.
     }

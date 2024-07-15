@@ -30,20 +30,20 @@ object UrlService {
     }
 
     @JvmStatic
-    val baseUrl: String?
+    val baseUrl: String
         /**
          * Returns the base URL for the API requests
          */
         get() {
-            val baseUrl: String = SettingsManager.Companion.getInstance().hostname
+            val baseUrl: String = SettingsManager.instance?.hostname?:""
 
-            if (SettingsManager.Companion.getInstance().isGatewayServiceProvided) {
+            if (SettingsManager.instance?.isGatewayServiceProvided==true) {
                 return baseUrl
             }
 
             // Construct URL with collectionPrefix if it exists
-            if (collectionPrefix != null && !collectionPrefix!!.isEmpty()) {
-                return baseUrl + "/" + collectionPrefix
+            if (!collectionPrefix.isNullOrEmpty()) {
+                return "$baseUrl/$collectionPrefix"
             }
 
             return baseUrl

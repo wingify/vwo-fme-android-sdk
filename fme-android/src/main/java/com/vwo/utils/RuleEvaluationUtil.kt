@@ -41,11 +41,11 @@ object RuleEvaluationUtil {
         feature: Feature?,
         campaign: Campaign,
         context: VWOContext,
-        evaluatedFeatureMap: MutableMap<String?, Any>,
-        megGroupWinnerCampaigns: MutableMap<Int?, Int?>?,
+        evaluatedFeatureMap: MutableMap<String, Any>,
+        megGroupWinnerCampaigns: MutableMap<Int, Int>?,
         storageService: StorageService,
-        decision: MutableMap<String?, Any?>
-    ): Map<String, Any?> {
+        decision: MutableMap<String, Any>
+    ): Map<String, Any> {
         // Perform whitelisting and pre-segmentation checks
         try {
             // Check if the campaign satisfies the whitelisting and pre-segmentation
@@ -81,9 +81,9 @@ object RuleEvaluationUtil {
             }
 
             // Return the results of the evaluation
-            val result: MutableMap<String, Any?> = HashMap()
+            val result: MutableMap<String, Any> = HashMap()
             result["preSegmentationResult"] = preSegmentationResult
-            result["whitelistedObject"] = whitelistedObject
+            whitelistedObject?.let { result["whitelistedObject"] = it }
             result["updatedDecision"] = decision
             return result
         } catch (exception: Exception) {

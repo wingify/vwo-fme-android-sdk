@@ -39,10 +39,10 @@ class Variation {
     var endRangeVariation: Int = 0
 
     @JsonProperty("variables")
-    var variables: List<com.vwo.models.Variable> = ArrayList()
+    var variables: List<Variable> = ArrayList()
 
     @JsonProperty("variations")
-    var variations: List<com.vwo.models.Variation> = ArrayList()
+    var variations: List<Variation> = ArrayList()
 
     @JsonProperty("segments")
     var segments: Map<String, Any> = HashMap()

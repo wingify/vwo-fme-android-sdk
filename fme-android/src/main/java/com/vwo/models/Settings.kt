@@ -21,7 +21,7 @@ import com.fasterxml.jackson.annotation.JsonProperty
 @JsonInclude(JsonInclude.Include.NON_NULL)
 class Settings {
     @JsonProperty("features")
-    var features: List<Feature>=emptyList()
+    var features: List<Feature> =emptyList()
 
     @JsonProperty("accountId")
     var accountId: Int? = null

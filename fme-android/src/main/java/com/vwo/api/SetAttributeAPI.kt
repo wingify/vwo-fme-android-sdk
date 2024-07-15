@@ -18,6 +18,7 @@ package com.vwo.api
 import com.vwo.enums.EventEnum
 import com.vwo.models.Settings
 import com.vwo.models.user.VWOContext
+import com.vwo.utils.ImpressionUtil.encodeURIComponent
 import com.vwo.utils.NetworkUtil
 
 object SetAttributeAPI {
