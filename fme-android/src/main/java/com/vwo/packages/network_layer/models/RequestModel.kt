@@ -25,19 +25,13 @@ class RequestModel(
     var body: Map<String, Any?>?,
     private var headers: MutableMap<String, String>,
     scheme: String?,
-    port: Int
+    val port: Int
 ) {
     var method: String? = method ?: "GET"
     var scheme: String? = scheme ?: "http"
     var port: Int = 0
     @JvmField
     var timeout: Int = 0
-
-    init {
-        if (port != 0) {
-            this.port = port
-        }
-    }
 
     fun getHeaders(): Map<String, String> {
         return headers

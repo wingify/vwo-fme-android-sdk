@@ -156,10 +156,10 @@ class CampaignDecisionService {
                 })
             return true
         } else {
-            val preSegmentationResult = SegmentationManager.instance!!.validateSegmentation(
-                segments, context.customVariables as Map<String?, Any?>
+            val preSegmentationResult = SegmentationManager.validateSegmentation(
+                segments, context.customVariables
             )
-            LoggerService.Companion.log(
+            LoggerService.log(
                 LogLevelEnum.INFO,
                 "SEGMENTATION_STATUS",
                 object : HashMap<String?, String?>() {

@@ -16,6 +16,7 @@
 package com.vwo.packages.segmentation_evaluator.core
 
 import com.fasterxml.jackson.databind.JsonNode
+import com.vwo.VWOClient
 import com.vwo.constants.Constants
 import com.vwo.enums.UrlEnum
 import com.vwo.models.Feature
@@ -28,7 +29,7 @@ import com.vwo.services.LoggerService
 import com.vwo.services.UrlService
 import com.vwo.utils.GatewayServiceUtil
 
-class SegmentationManager {
+object SegmentationManager {
     private var evaluator: SegmentEvaluator? = null
 
     fun attachEvaluator(segmentEvaluator: SegmentEvaluator?) {
@@ -56,23 +57,16 @@ class SegmentationManager {
             && (context.vwo == null)) {
 
             val queryParams: MutableMap<String, String> = HashMap()
-            if ((context.userAgent == null || context.userAgent.isEmpty()) && (context.ipAddress == null || context.ipAddress.isEmpty())) {
+            if (context.userAgent.isEmpty() && context.ipAddress.isEmpty()) {
                 return
             }
-            if (context.userAgent != null) {
-                queryParams["userAgent"] = context.userAgent
-            }
-
-            if (context.ipAddress != null) {
-                queryParams["ipAddress"] = context.ipAddress
-            }
+            queryParams["userAgent"] = context.userAgent
+            queryParams["ipAddress"] = context.ipAddress
 
             try {
-                val params: Map<String, String> = GatewayServiceUtil.getQueryParams(queryParams)
-                val _vwo: String =
-                    GatewayServiceUtil.getFromGatewayService(params, UrlEnum.GET_USER_DATA.url)
-                val gatewayServiceModel: GatewayService =
-                    VWOClient.objectMapper.readValue(_vwo, GatewayService::class.java)
+                val params = GatewayServiceUtil.getQueryParams(queryParams)
+                val vwo = GatewayServiceUtil.getFromGatewayService(params, UrlEnum.GET_USER_DATA.url)
+                val gatewayServiceModel = VWOClient.objectMapper.readValue(vwo, GatewayService::class.java)
                 context.vwo = gatewayServiceModel
             } catch (err: Exception) {
                 LoggerService.log(
@@ -89,13 +83,13 @@ class SegmentationManager {
      * @param properties  Map containing the properties required for segmentation.
      * @return  Boolean value indicating whether the segmentation is valid or not.
      */
-    fun validateSegmentation(dsl: Any, properties: Map<String?, Any?>?): Boolean {
+    fun validateSegmentation(dsl: Any, properties: Map<String, Any>): Boolean {
         try {
             val dslNodes: JsonNode = if (dsl is String) VWOClient.objectMapper.readValue(
                 dsl.toString(),
                 JsonNode::class.java
             ) else VWOClient.objectMapper.valueToTree(dsl)
-            return evaluator.isSegmentationValid(dslNodes, properties)
+            return evaluator?.isSegmentationValid(dslNodes, properties)?:false
         } catch (exception: Exception) {
             LoggerService.log(
                 LogLevelEnum.ERROR,
@@ -103,17 +97,5 @@ class SegmentationManager {
             )
             return false
         }
-    }
-
-    companion object {
-        @JvmStatic
-        var instance: SegmentationManager? = null
-            get() {
-                if (field == null) {
-                    field = SegmentationManager()
-                }
-                return field
-            }
-            private set
     }
 }

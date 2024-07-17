@@ -67,7 +67,7 @@ class VWOBuilder(options: VWOInitOptions?) {
      */
     fun setSegmentation(): VWOBuilder {
         if (options?.segmentEvaluator != null) {
-            SegmentationManager.instance?.attachEvaluator(options.segmentEvaluator)
+            SegmentationManager.attachEvaluator(options.segmentEvaluator)
         }
         LoggerService.log(
             LogLevelEnum.DEBUG,

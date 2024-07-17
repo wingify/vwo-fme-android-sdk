@@ -45,12 +45,12 @@ object GatewayServiceUtil {
                 queryParams,
                 null,
                 null,
-                SettingsManager.instance!!.protocol,
-                SettingsManager.instance!!.port
+                SettingsManager.instance?.protocol,
+                SettingsManager.instance?.port ?: 0
             )
             val response = networkInstance!!.get(request)
 
-            return response!!.data
+            return response?.data
         } catch (e: Exception) {
             return null
         }
@@ -61,7 +61,7 @@ object GatewayServiceUtil {
      * @param queryParams The query parameters to encode
      * @return The encoded query parameters
      */
-    fun getQueryParams(queryParams: Map<String, String?>): Map<String, String> {
+    fun getQueryParams(queryParams: Map<String, String?>): MutableMap<String, String> {
         val encodedParams: MutableMap<String, String> = HashMap()
 
         for ((key, value) in queryParams) {

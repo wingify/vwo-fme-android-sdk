@@ -16,14 +16,22 @@
 package com.vwo.packages.segmentation_evaluator.evaluators
 
 import com.fasterxml.jackson.databind.JsonNode
+import com.vwo.enums.UrlEnum
+import com.vwo.models.user.VWOContext
 import com.vwo.packages.logger.enums.LogLevelEnum
+import com.vwo.packages.segmentation_evaluator.enums.SegmentOperandRegexEnum
+import com.vwo.packages.segmentation_evaluator.enums.SegmentOperandValueEnum
+import com.vwo.packages.segmentation_evaluator.utils.SegmentUtil
+import com.vwo.services.LoggerService
+import com.vwo.utils.DataTypeUtil
+import com.vwo.utils.GatewayServiceUtil
 import java.net.URLDecoder
 import java.util.regex.Pattern
 
 class SegmentOperandEvaluator {
     fun evaluateCustomVariableDSL(
-        dslOperandValue: JsonNode?,
-        properties: Map<String?, Any>
+        dslOperandValue: JsonNode,
+        properties: Map<String, Any>
     ): Boolean {
         val entry: Map.Entry<String, JsonNode> = SegmentUtil.getKeyValue(dslOperandValue)
         val operandKey = entry.key
@@ -49,7 +57,7 @@ class SegmentOperandEvaluator {
             val attributeValue = preProcessTagValue(tagValue.toString())
             val queryParamsObj: MutableMap<String, String> = HashMap()
             queryParamsObj["attribute"] = attributeValue
-            queryParamsObj["listId"] = listId
+            if (listId != null) queryParamsObj["listId"] = listId
 
             // Make a web service call to check the attribute against the list
             val gatewayServiceResponse: String = GatewayServiceUtil.getFromGatewayService(
@@ -75,28 +83,27 @@ class SegmentOperandEvaluator {
         }
     }
 
-    fun preProcessOperandValue(operand: String?): Map<String, Any?> {
+    fun preProcessOperandValue(operand: String): Map<String, Any?> {
         val operandType: SegmentOperandValueEnum
-        var operandValue: String? = null
+        var operandValue: String?
 
-        if (SegmentUtil.matchWithRegex(operand, SegmentOperandRegexEnum.LOWER_MATCH.getRegex())) {
+        if (SegmentUtil.matchWithRegex(operand, SegmentOperandRegexEnum.LOWER_MATCH.regex)) {
             operandType = SegmentOperandValueEnum.LOWER_VALUE
-            operandValue =
-                extractOperandValue(operand, SegmentOperandRegexEnum.LOWER_MATCH.getRegex())
+            operandValue = extractOperandValue(operand, SegmentOperandRegexEnum.LOWER_MATCH.regex)
         } else if (SegmentUtil.matchWithRegex(
                 operand,
-                SegmentOperandRegexEnum.WILDCARD_MATCH.getRegex()
+                SegmentOperandRegexEnum.WILDCARD_MATCH.regex
             )
         ) {
             operandValue =
-                extractOperandValue(operand, SegmentOperandRegexEnum.WILDCARD_MATCH.getRegex())
+                extractOperandValue(operand, SegmentOperandRegexEnum.WILDCARD_MATCH.regex)
             val startingStar: Boolean = SegmentUtil.matchWithRegex(
                 operandValue,
-                SegmentOperandRegexEnum.STARTING_STAR.getRegex()
+                SegmentOperandRegexEnum.STARTING_STAR.regex
             )
             val endingStar: Boolean = SegmentUtil.matchWithRegex(
                 operandValue,
-                SegmentOperandRegexEnum.ENDING_STAR.getRegex()
+                SegmentOperandRegexEnum.ENDING_STAR.regex
             )
             operandType = if (startingStar && endingStar) {
                 SegmentOperandValueEnum.STARTING_ENDING_STAR_VALUE
@@ -108,51 +115,46 @@ class SegmentOperandEvaluator {
                 SegmentOperandValueEnum.REGEX_VALUE
             }
             operandValue =
-                operandValue.replace(SegmentOperandRegexEnum.STARTING_STAR.getRegex().toRegex(), "")
-                    .replace(SegmentOperandRegexEnum.ENDING_STAR.getRegex().toRegex(), "")
-        } else if (SegmentUtil.matchWithRegex(
-                operand,
-                SegmentOperandRegexEnum.REGEX_MATCH.getRegex()
-            )
-        ) {
+                operandValue?.replace(SegmentOperandRegexEnum.STARTING_STAR.regex.toRegex(), "")
+                    ?.replace(SegmentOperandRegexEnum.ENDING_STAR.regex.toRegex(), "")
+        } else if (SegmentUtil.matchWithRegex(operand, SegmentOperandRegexEnum.REGEX_MATCH.regex)) {
             operandType = SegmentOperandValueEnum.REGEX_VALUE
-            operandValue =
-                extractOperandValue(operand, SegmentOperandRegexEnum.REGEX_MATCH.getRegex())
+            operandValue = extractOperandValue(operand, SegmentOperandRegexEnum.REGEX_MATCH.regex)
         } else if (SegmentUtil.matchWithRegex(
                 operand,
-                SegmentOperandRegexEnum.GREATER_THAN_MATCH.getRegex()
+                SegmentOperandRegexEnum.GREATER_THAN_MATCH.regex
             )
         ) {
             operandType = SegmentOperandValueEnum.GREATER_THAN_VALUE
             operandValue =
-                extractOperandValue(operand, SegmentOperandRegexEnum.GREATER_THAN_MATCH.getRegex())
+                extractOperandValue(operand, SegmentOperandRegexEnum.GREATER_THAN_MATCH.regex)
         } else if (SegmentUtil.matchWithRegex(
                 operand,
-                SegmentOperandRegexEnum.GREATER_THAN_EQUAL_TO_MATCH.getRegex()
+                SegmentOperandRegexEnum.GREATER_THAN_EQUAL_TO_MATCH.regex
             )
         ) {
             operandType = SegmentOperandValueEnum.GREATER_THAN_EQUAL_TO_VALUE
             operandValue = extractOperandValue(
                 operand,
-                SegmentOperandRegexEnum.GREATER_THAN_EQUAL_TO_MATCH.getRegex()
+                SegmentOperandRegexEnum.GREATER_THAN_EQUAL_TO_MATCH.regex
             )
         } else if (SegmentUtil.matchWithRegex(
                 operand,
-                SegmentOperandRegexEnum.LESS_THAN_MATCH.getRegex()
+                SegmentOperandRegexEnum.LESS_THAN_MATCH.regex
             )
         ) {
             operandType = SegmentOperandValueEnum.LESS_THAN_VALUE
             operandValue =
-                extractOperandValue(operand, SegmentOperandRegexEnum.LESS_THAN_MATCH.getRegex())
+                extractOperandValue(operand, SegmentOperandRegexEnum.LESS_THAN_MATCH.regex)
         } else if (SegmentUtil.matchWithRegex(
                 operand,
-                SegmentOperandRegexEnum.LESS_THAN_EQUAL_TO_MATCH.getRegex()
+                SegmentOperandRegexEnum.LESS_THAN_EQUAL_TO_MATCH.regex
             )
         ) {
             operandType = SegmentOperandValueEnum.LESS_THAN_EQUAL_TO_VALUE
             operandValue = extractOperandValue(
                 operand,
-                SegmentOperandRegexEnum.LESS_THAN_EQUAL_TO_MATCH.getRegex()
+                SegmentOperandRegexEnum.LESS_THAN_EQUAL_TO_MATCH.regex
             )
         } else {
             operandType = SegmentOperandValueEnum.EQUAL_VALUE
@@ -165,7 +167,7 @@ class SegmentOperandEvaluator {
         return result
     }
 
-    fun evaluateUserDSL(dslOperandValue: String, properties: Map<String?, Any>): Boolean {
+    fun evaluateUserDSL(dslOperandValue: String, properties: Map<String, Any>): Boolean {
         val users =
             dslOperandValue.split(",".toRegex()).dropLastWhile { it.isEmpty() }.toTypedArray()
         for (user in users) {
@@ -176,8 +178,8 @@ class SegmentOperandEvaluator {
         return false
     }
 
-    fun evaluateUserAgentDSL(dslOperandValue: String?, context: VWOContext?): Boolean {
-        if (context == null || context.userAgent == null) {
+    fun evaluateUserAgentDSL(dslOperandValue: String, context: VWOContext?): Boolean {
+        if (context?.userAgent == null) {
             //LogManager.getInstance().info("To Evaluate UserAgent segmentation, please provide userAgent in context");
             return false
         }
@@ -185,8 +187,7 @@ class SegmentOperandEvaluator {
         val preProcessOperandValue = preProcessOperandValue(dslOperandValue)
         val processedValues = processValues(preProcessOperandValue["operandValue"], tagValue)
         tagValue = processedValues["tagValue"] as String?
-        val operandType: SegmentOperandValueEnum? =
-            preProcessOperandValue["operandType"] as SegmentOperandValueEnum?
+        val operandType = preProcessOperandValue["operandType"] as SegmentOperandValueEnum?
         return extractResult(
             operandType,
             processedValues["operandValue"].toString().trim { it <= ' ' }
@@ -234,22 +235,22 @@ class SegmentOperandEvaluator {
     fun extractResult(
         operandType: SegmentOperandValueEnum?,
         operandValue: Any,
-        tagValue: String?
+        tagValue: String
     ): Boolean {
-        var result = false
+        var result: Boolean
 
         when (operandType) {
             SegmentOperandValueEnum.LOWER_VALUE -> result =
                 operandValue.toString().equals(tagValue, ignoreCase = true)
 
             SegmentOperandValueEnum.STARTING_ENDING_STAR_VALUE -> result =
-                tagValue!!.contains(operandValue.toString())
+                tagValue.contains(operandValue.toString())
 
             SegmentOperandValueEnum.STARTING_STAR_VALUE -> result =
-                tagValue!!.endsWith(operandValue.toString())
+                tagValue.endsWith(operandValue.toString())
 
             SegmentOperandValueEnum.ENDING_STAR_VALUE -> result =
-                tagValue!!.startsWith(operandValue.toString())
+                tagValue.startsWith(operandValue.toString())
 
             SegmentOperandValueEnum.REGEX_VALUE -> try {
                 val pattern = Pattern.compile(operandValue.toString())
@@ -260,16 +261,16 @@ class SegmentOperandEvaluator {
             }
 
             SegmentOperandValueEnum.GREATER_THAN_VALUE -> result =
-                tagValue!!.toFloat() > operandValue.toString().toFloat()
+                tagValue.toFloat() > operandValue.toString().toFloat()
 
             SegmentOperandValueEnum.GREATER_THAN_EQUAL_TO_VALUE -> result =
-                tagValue!!.toFloat() >= operandValue.toString().toFloat()
+                tagValue.toFloat() >= operandValue.toString().toFloat()
 
             SegmentOperandValueEnum.LESS_THAN_VALUE -> result =
-                tagValue!!.toFloat() < operandValue.toString().toFloat()
+                tagValue.toFloat() < operandValue.toString().toFloat()
 
             SegmentOperandValueEnum.LESS_THAN_EQUAL_TO_VALUE -> result =
-                tagValue!!.toFloat() <= operandValue.toString().toFloat()
+                tagValue.toFloat() <= operandValue.toString().toFloat()
 
             else -> result = tagValue == operandValue.toString()
         }
@@ -283,7 +284,7 @@ class SegmentOperandEvaluator {
      * @param regex The regex pattern to match the operand against.
      * @return The extracted operand value or the original operand if no match is found.
      */
-    fun extractOperandValue(operand: String?, regex: String?): String? {
+    fun extractOperandValue(operand: String, regex: String): String? {
         val pattern = Pattern.compile(regex)
         val matcher = pattern.matcher(operand)
         if (matcher.find()) {

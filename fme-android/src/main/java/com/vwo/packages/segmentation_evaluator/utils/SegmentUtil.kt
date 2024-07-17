@@ -27,8 +27,8 @@ object SegmentUtil {
      * @return A boolean indicating if all actual values match the expected values.
      */
     fun checkValuePresent(
-        expectedMap: Map<String?, List<String>>,
-        actualMap: Map<String?, String?>
+        expectedMap: Map<String, List<String>>,
+        actualMap: Map<String, String>
     ): Boolean {
         for (key in actualMap.keys) {
             if (expectedMap.containsKey(key)) {
@@ -73,7 +73,7 @@ object SegmentUtil {
      */
     fun valuesMatch(
         expectedLocationMap: Map<String, Any>,
-        userLocation: Map<String?, String?>
+        userLocation: Map<String, String>
     ): Boolean {
         for ((key, value) in expectedLocationMap) {
             if (userLocation.containsKey(key)) {

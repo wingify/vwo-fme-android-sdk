@@ -111,20 +111,18 @@ object DecisionUtil {
                     .isEmpty() && groupWinnerCampaignId == campaignId
             ) {
                 // If the campaign is the winner of the MEG, return true
-                return object : HashMap<String?, Any?>() {
+                return object : HashMap<String, Any>() {
                     init {
                         put("preSegmentationResult", true)
-                        put("whitelistedObject", null)
+                        remove("whitelistedObject")
                     }
                 }
-            } else if (groupWinnerCampaignId != null && !groupWinnerCampaignId.toString()
-                    .isEmpty()
-            ) {
+            } else if (groupWinnerCampaignId != null && groupWinnerCampaignId.toString().isNotEmpty()) {
                 // If the campaign is not the winner of the MEG, return false
-                return object : HashMap<String?, Any?>() {
+                return object : HashMap<String, Any>() {
                     init {
                         put("preSegmentationResult", false)
-                        put("whitelistedObject", null)
+                        remove("whitelistedObject")
                     }
                 }
             }
@@ -134,7 +132,7 @@ object DecisionUtil {
         val isPreSegmentationPassed =
             CampaignDecisionService().getPreSegmentationDecision(campaign, context)
 
-        if (isPreSegmentationPassed && groupId != null && !groupId.isEmpty()) {
+        if (isPreSegmentationPassed && !groupId.isNullOrEmpty()) {
             val variationModel = MegUtil.evaluateGroups(
                 settings,
                 feature,
@@ -144,26 +142,25 @@ object DecisionUtil {
                 storageService
             )
             if (variationModel?.id != null && variationModel.id == campaignId) {
-                return object : HashMap<String?, Any?>() {
+                return object : HashMap<String, Any>() {
                     init {
                         put("preSegmentationResult", true)
-                        put("whitelistedObject", null)
+                        remove("whitelistedObject")
                     }
                 }
             }
-            megGroupWinnerCampaigns!![groupId.toInt()] =
-                if (variationModel?.id != null) variationModel.id else 0
-            return object : HashMap<String?, Any?>() {
+            megGroupWinnerCampaigns!![groupId.toInt()] = variationModel?.id?:0
+            return object : HashMap<String, Any>() {
                 init {
                     put("preSegmentationResult", false)
-                    put("whitelistedObject", null)
+                    remove("whitelistedObject")
                 }
             }
         }
-        return object : HashMap<String?, Any?>() {
+        return object : HashMap<String, Any>() {
             init {
                 put("preSegmentationResult", isPreSegmentationPassed)
-                put("whitelistedObject", null)
+                remove("whitelistedObject")
             }
         }
     }
@@ -243,7 +240,7 @@ object DecisionUtil {
      * @return  Whitelisted variation or null if not whitelisted
      */
     private fun evaluateWhitelisting(campaign: Campaign, context: VWOContext): Map<String, Any?>? {
-        val targetedVariations: MutableList<Variation?> = ArrayList()
+        val targetedVariations: MutableList<Variation> = ArrayList()
 
         for (variation in campaign.variations!!) {
             if (variation.segments != null && variation.segments.isEmpty()) {
@@ -262,9 +259,9 @@ object DecisionUtil {
 
             // Check for segmentation and evaluate
             if (variation.segments != null) {
-                val segmentationResult = SegmentationManager.instance!!.validateSegmentation(
+                val segmentationResult = SegmentationManager.validateSegmentation(
                     variation.segments,
-                    context.variationTargetingVariables as Map<String?, Any?>
+                    context.variationTargetingVariables
                 )
 
                 if (segmentationResult) {
@@ -278,7 +275,7 @@ object DecisionUtil {
         if (targetedVariations.size > 1) {
             CampaignUtil.scaleVariationWeights(targetedVariations)
             var currentAllocation = 0
-            var stepFactor = 0
+            var stepFactor: Int
             for (variation in targetedVariations) {
                 stepFactor = CampaignUtil.assignRangeValues(variation, currentAllocation)
                 currentAllocation += stepFactor

@@ -16,10 +16,17 @@
 package com.vwo.packages.segmentation_evaluator.evaluators
 
 import com.fasterxml.jackson.databind.JsonNode
+import com.vwo.VWOClient
+import com.vwo.decorators.StorageDecorator
 import com.vwo.models.Feature
 import com.vwo.models.Settings
 import com.vwo.models.Storage
+import com.vwo.models.user.VWOContext
 import com.vwo.packages.logger.enums.LogLevelEnum
+import com.vwo.packages.segmentation_evaluator.enums.SegmentOperatorValueEnum
+import com.vwo.packages.segmentation_evaluator.utils.SegmentUtil
+import com.vwo.services.LoggerService
+import com.vwo.services.StorageService
 
 class SegmentEvaluator {
     var context: VWOContext? = null
@@ -32,14 +39,14 @@ class SegmentEvaluator {
      * @param properties The properties against which the DSL rules are evaluated.
      * @return A boolean indicating if the segmentation is valid.
      */
-    fun isSegmentationValid(dsl: JsonNode?, properties: Map<String?, Any>): Boolean {
+    fun isSegmentationValid(dsl: JsonNode, properties: Map<String, Any>): Boolean {
         val entry: Map.Entry<String, JsonNode> = SegmentUtil.getKeyValue(dsl)
         val operator = entry.key
         val subDsl: JsonNode = entry.value
 
         // Evaluate based on the type of segmentation operator
         val operatorEnum: SegmentOperatorValueEnum =
-            SegmentOperatorValueEnum.Companion.fromValue(operator)
+            SegmentOperatorValueEnum.fromValue(operator)
 
         when (operatorEnum) {
             SegmentOperatorValueEnum.NOT -> {
@@ -74,7 +81,7 @@ class SegmentEvaluator {
      * @param customVariables Custom variables provided for evaluation.
      * @return A boolean indicating if any of the nodes are valid.
      */
-    fun some(dslNodes: JsonNode, customVariables: Map<String?, Any>): Boolean {
+    fun some(dslNodes: JsonNode, customVariables: Map<String, Any>): Boolean {
         val uaParserMap: MutableMap<String, MutableList<String>> = HashMap()
         var keyCount = 0 // Initialize count of keys encountered
         var isUaParser = false
@@ -117,15 +124,16 @@ class SegmentEvaluator {
                         val featureIdValue: String = featureIdObject.get(featureIdKey).asText()
 
                         if (featureIdValue == "on") {
-                            val features: List<Feature?>? = settings!!.features
-                            val feature = features!!.stream()
-                                .filter { f: Feature? -> f!!.id == featureIdKey.toInt() }
-                                .findFirst()
-                                .orElse(null)
+                            val features: List<Feature?>? = settings?.features
+                            val feature = features?.firstOrNull { it?.id == featureIdKey.toInt() }
 
                             if (feature != null) {
                                 val featureKey = feature.key
-                                val result = checkInUserStorage(settings, featureKey, context)
+                                val result = context?.let {
+                                    if (featureKey != null) {
+                                        checkInUserStorage(featureKey, it)
+                                    } else false
+                                }?:false
                                 return result
                             } else {
                                 LoggerService.log(
@@ -166,7 +174,7 @@ class SegmentEvaluator {
      * @param customVariables Custom variables provided for evaluation.
      * @return A boolean indicating if all nodes are valid.
      */
-    fun every(dslNodes: JsonNode, customVariables: Map<String?, Any>): Boolean {
+    fun every(dslNodes: JsonNode, customVariables: Map<String, Any>): Boolean {
         val locationMap: MutableMap<String, Any> = HashMap()
         for (dsl in dslNodes) {
             val fieldNames: Iterator<String> = dsl.fieldNames()
@@ -200,15 +208,15 @@ class SegmentEvaluator {
     fun addLocationValuesToMap(dsl: JsonNode, locationMap: MutableMap<String, Any>) {
         // Add country, region, and city information to the location map if present
         val keyEnum: SegmentOperatorValueEnum =
-            SegmentOperatorValueEnum.Companion.fromValue(dsl.fieldNames().next())
+            SegmentOperatorValueEnum.fromValue(dsl.fieldNames().next())
         if (keyEnum == SegmentOperatorValueEnum.COUNTRY) {
-            locationMap[keyEnum.getValue()] = dsl.get(keyEnum.getValue()).asText()
+            locationMap[keyEnum.value] = dsl.get(keyEnum.value).asText()
         }
         if (keyEnum == SegmentOperatorValueEnum.REGION) {
-            locationMap[keyEnum.getValue()] = dsl.get(keyEnum.getValue()).asText()
+            locationMap[keyEnum.value] = dsl.get(keyEnum.value).asText()
         }
         if (keyEnum == SegmentOperatorValueEnum.CITY) {
-            locationMap[keyEnum.getValue()] = dsl.get(keyEnum.getValue()).asText()
+            locationMap[keyEnum.value] = dsl.get(keyEnum.value).asText()
         }
     }
 
@@ -217,9 +225,10 @@ class SegmentEvaluator {
      * @param locationMap Map of expected location values.
      * @return A boolean indicating if the location matches.
      */
-    fun checkLocationPreSegmentation(locationMap: Map<String, Any>?): Boolean {
+    fun checkLocationPreSegmentation(locationMap: Map<String, Any>): Boolean {
         // Ensure user's IP address is available
-        if (context == null || context.ipAddress == null || context.ipAddress.isEmpty()) {
+        val ipAddress = context?.ipAddress
+        if (ipAddress.isNullOrEmpty()) {
             LoggerService.log(
                 LogLevelEnum.INFO,
                 "To evaluate location pre Segment, please pass ipAddress in context object"
@@ -227,10 +236,11 @@ class SegmentEvaluator {
             return false
         }
         // Check if location data is available and matches the expected values
-        if (context.vwo == null || context.vwo.location == null || context.vwo.location.isEmpty()) {
+        val location = context?.vwo?.location
+        if (location.isNullOrEmpty()) {
             return false
         }
-        return SegmentUtil.valuesMatch(locationMap, context.vwo.location)
+        return SegmentUtil.valuesMatch(locationMap, location)
     }
 
     /**
@@ -238,21 +248,22 @@ class SegmentEvaluator {
      * @param uaParserMap Map of expected user agent values.
      * @return A boolean indicating if the user agent matches.
      */
-    fun checkUserAgentParser(uaParserMap: Map<String, MutableList<String>>?): Boolean {
+    fun checkUserAgentParser(uaParserMap: Map<String, MutableList<String>>): Boolean {
         // Ensure user's user agent is available
-        if (context == null || context.userAgent == null || context.userAgent.isEmpty()) {
-            LoggerService.log(
-                LogLevelEnum.INFO,
+        val userAgent = context?.userAgent
+        if (userAgent.isNullOrEmpty()) {
+            LoggerService.log(LogLevelEnum.INFO,
                 "To evaluate user agent related segments, please pass userAgent in context object"
             )
             return false
         }
         // Check if user agent data is available and matches the expected values
-        if (context.vwo == null || context.vwo.userAgent == null || context.vwo.userAgent.isEmpty()) {
+        val userAgentContext = context?.vwo?.userAgent
+        if (userAgentContext.isNullOrEmpty()) {
             return false
         }
 
-        return SegmentUtil.checkValuePresent(uaParserMap, context.vwo.userAgent)
+        return SegmentUtil.checkValuePresent(uaParserMap, userAgentContext)
     }
 
     /**
@@ -263,20 +274,18 @@ class SegmentEvaluator {
      * @return A boolean indicating if the feature is enabled for the user.
      */
     fun checkInUserStorage(
-        settings: Settings?,
-        featureKey: String?,
-        context: VWOContext?
+        featureKey: String,
+        context: VWOContext
     ): Boolean {
-        val storageService: StorageService = StorageService()
-        val storedDataMap: Map<String, Any> =
-            StorageDecorator().getFeatureFromStorage(featureKey, context, storageService)
+        val storageService = StorageService()
+        val storedDataMap: Map<String, Any>? = StorageDecorator().getFeatureFromStorage(featureKey, context, storageService)
         try {
             val storageMapAsString: String =
                 VWOClient.objectMapper.writeValueAsString(storedDataMap)
             val storedData: Storage =
                 VWOClient.objectMapper.readValue(storageMapAsString, Storage::class.java)
 
-            return storedData != null && storedDataMap.size > 1
+            return storedData != null && (storedDataMap?.size ?: 0) > 1
         } catch (exception: Exception) {
             LoggerService.log(
                 LogLevelEnum.ERROR,

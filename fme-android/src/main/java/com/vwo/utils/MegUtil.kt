@@ -41,7 +41,7 @@ object MegUtil {
         settings: Settings,
         feature: Feature?,
         groupId: Int,
-        evaluatedFeatureMap: MutableMap<String?, Any>,
+        evaluatedFeatureMap: MutableMap<String, Any>,
         context: VWOContext,
         storageService: StorageService
     ): Variation? {
@@ -140,8 +140,9 @@ object MegUtil {
         featureToSkip: MutableList<String?>, context: VWOContext,
         storageService: StorageService
     ): Boolean {
-        if (evaluatedFeatureMap.containsKey(feature!!.key) &&
-            (evaluatedFeatureMap[feature.key] as Map<String?, Any?>?)!!.containsKey("rolloutId")
+        val featureKey = feature.key ?: return false
+        if (evaluatedFeatureMap.containsKey(featureKey) &&
+            (evaluatedFeatureMap[featureKey] as Map<String?, Any?>?)!!.containsKey("rolloutId")
         ) {
             return true
         }
@@ -176,16 +177,17 @@ object MegUtil {
                 )
                 if (variation != null) {
                     val rollOutInformation: MutableMap<String, Any> = HashMap()
-                    rollOutInformation["rolloutId"] = variation.id
-                    rollOutInformation["rolloutKey"] = variation.name
-                    rollOutInformation["rolloutVariationId"] = variation.id
-                    evaluatedFeatureMap[feature.key] = rollOutInformation
+                    variation.id?.let { rollOutInformation["rolloutId"] = it }
+                    variation.name?.let { rollOutInformation["rolloutKey"] = it }
+                    variation.id?.let { rollOutInformation["rolloutVariationId"] = it }
+                    evaluatedFeatureMap[featureKey] = rollOutInformation
+
                     return true
                 }
             }
 
             // no rollout rule passed
-            featureToSkip.add(feature.key)
+            featureToSkip.add(featureKey)
             return false
         }
 
@@ -195,7 +197,7 @@ object MegUtil {
             "MEG_SKIP_ROLLOUT_EVALUATE_EXPERIMENTS",
             object : HashMap<String?, String?>() {
                 init {
-                    put("featureKey", feature.key)
+                    put("featureKey", featureKey)
                 }
             })
         return true
