@@ -19,9 +19,9 @@ class VWOContext {
     var id: String? = null
     var userAgent: String = ""
     var ipAddress: String = ""
-    var customVariables: Map<String, *> = HashMap<String, Any>()
+    var customVariables: MutableMap<String, Any> = HashMap()
 
-    var variationTargetingVariables: Map<String, *> = HashMap<String, Any>()
+    var variationTargetingVariables: MutableMap<String, Any> = HashMap()
 
-    var vwo: com.vwo.models.user.GatewayService? = null
+    var vwo: GatewayService? = null
 }

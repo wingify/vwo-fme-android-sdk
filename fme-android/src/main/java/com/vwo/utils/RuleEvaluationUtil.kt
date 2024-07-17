@@ -61,21 +61,23 @@ object RuleEvaluationUtil {
             )
 
             // Extract the results of the evaluation
-            val preSegmentationResult = checkResult!!["preSegmentationResult"] as Boolean
+            val preSegmentationResult = checkResult["preSegmentationResult"] as Boolean
             val whitelistedObject = checkResult["whitelistedObject"] as Variation?
 
             // If pre-segmentation is successful and a whitelisted object exists, proceed to send an impression
-            if (preSegmentationResult && whitelistedObject != null && whitelistedObject.id != null) {
+            val whilistedId = whitelistedObject?.id
+            if (preSegmentationResult && whilistedId != null) {
                 // Update the decision object with campaign and variation details
-                decision["experimentId"] = campaign.id
-                decision["experimentKey"] = campaign.key
-                decision["experimentVariationId"] = whitelistedObject.id
+                val cmpId = campaign.id?:0
+                decision["experimentId"] = cmpId
+                decision["experimentKey"] = campaign.key?:""
+                decision["experimentVariationId"] = whilistedId
 
                 // Send an impression for the variation shown
                 ImpressionUtil.createAndSendImpressionForVariationShown(
                     settings,
-                    campaign.id!!,
-                    whitelistedObject.id!!,
+                    cmpId,
+                    whilistedId,
                     context
                 )
             }

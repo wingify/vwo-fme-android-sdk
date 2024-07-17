@@ -17,9 +17,16 @@ package com.vwo.packages.segmentation_evaluator.core
 
 import com.fasterxml.jackson.databind.JsonNode
 import com.vwo.constants.Constants
+import com.vwo.enums.UrlEnum
 import com.vwo.models.Feature
 import com.vwo.models.Settings
+import com.vwo.models.user.GatewayService
+import com.vwo.models.user.VWOContext
 import com.vwo.packages.logger.enums.LogLevelEnum
+import com.vwo.packages.segmentation_evaluator.evaluators.SegmentEvaluator
+import com.vwo.services.LoggerService
+import com.vwo.services.UrlService
+import com.vwo.utils.GatewayServiceUtil
 
 class SegmentationManager {
     private var evaluator: SegmentEvaluator? = null
@@ -40,14 +47,14 @@ class SegmentationManager {
      */
     fun setContextualData(settings: Settings, feature: Feature, context: VWOContext) {
         this.attachEvaluator()
-        evaluator.context = context
-        evaluator.settings = settings
-        evaluator.feature = feature
+        evaluator?.context = context
+        evaluator?.settings = settings
+        evaluator?.feature = feature
 
         // If gateway service is required and the base URL is not the default one, fetch the data from the gateway service
-        if (feature.getIsGatewayServiceRequired() && !UrlService.getBaseUrl()
-                .contains(Constants.HOST_NAME) && (context.vwo == null)
-        ) {
+        if (feature.isGatewayServiceRequired && !UrlService.baseUrl.contains(Constants.HOST_NAME)
+            && (context.vwo == null)) {
+
             val queryParams: MutableMap<String, String> = HashMap()
             if ((context.userAgent == null || context.userAgent.isEmpty()) && (context.ipAddress == null || context.ipAddress.isEmpty())) {
                 return
