@@ -18,5 +18,5 @@ package com.vwo.interfaces.logger
 import com.vwo.packages.logger.enums.LogLevelEnum
 
 interface LogTransport {
-    fun log(level: LogLevelEnum?, message: String?)
+    fun log(level: LogLevelEnum, message: String?)
 }

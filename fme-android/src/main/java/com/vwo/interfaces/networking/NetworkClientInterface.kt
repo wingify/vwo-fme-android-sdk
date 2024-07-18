@@ -24,12 +24,12 @@ interface NetworkClientInterface {
      * @param request - The RequestModel containing the URL and parameters for the GET request.
      * @return A ResponseModel containing the response data.
      */
-    fun GET(request: RequestModel?): ResponseModel?
+    fun GET(request: RequestModel): ResponseModel
 
     /**
      * Sends a POST request to the server.
      * @param request - The RequestModel containing the URL, headers, and body of the POST request.
      * @return A ResponseModel containing the response data.
      */
-    fun POST(request: RequestModel?): ResponseModel?
+    fun POST(request: RequestModel): ResponseModel
 }
