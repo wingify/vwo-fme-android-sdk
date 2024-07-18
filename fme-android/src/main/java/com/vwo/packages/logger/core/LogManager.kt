@@ -28,25 +28,22 @@ class LogManager(override val config: Map<String, Any>) : Logger(), ILogManager 
 
     override val transportManager: LogTransportManager = LogTransportManager(config)
 
-    override val name: String = config.getOrDefault("name", "VWO Logger") as String
+    override val name: String = config["name"] as? String ?: "VWO Logger"
 
     override val requestId: String = UUID.randomUUID().toString()
 
-    override val level: LogLevelEnum =
-        LogLevelEnum.valueOf(
-            config.getOrDefault("level", LogLevelEnum.ERROR.name).toString().uppercase(
-                Locale.getDefault()
-            )
-        )
+    override val level: LogLevelEnum by lazy {
+        val level = (config["level"] as? String?)?.uppercase(Locale.getDefault())
+        level?.let { LogLevelEnum.valueOf(it) } ?: LogLevelEnum.ERROR
+    }
+
     private val transports: List<Map<String, Any>> = ArrayList()
 
-    override val prefix: String = config.getOrDefault("prefix", "VWO-SDK") as String
+    override val prefix: String = (config["prefix"] as? String) ?: "VWO-SDK"
 
-    val dateTimeForm: SimpleDateFormat = SimpleDateFormat(
-        config.getOrDefault(
-            "dateTimeFormat",
-            "yyyy-MM-dd'T'HH:mm:ss.SSSZ"
-        ) as String
+    val dateTimeForm = SimpleDateFormat(
+        (config["dateTimeFormat"] as? String) ?: "yyyy-MM-dd'T'HH:mm:ss.SSSZ",
+        Locale.getDefault()
     )
 
     init {
@@ -55,7 +52,7 @@ class LogManager(override val config: Map<String, Any>) : Logger(), ILogManager 
     }
 
     private fun handleTransports() {
-        val transportList = config["transports"] as List<Map<String, Any>>?
+        val transportList = config["transports"] as? List<Map<String, Any>>
         if (!transportList.isNullOrEmpty()) {
             addTransports(transportList)
         } else {

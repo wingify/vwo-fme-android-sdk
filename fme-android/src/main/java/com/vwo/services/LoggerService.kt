@@ -18,9 +18,12 @@ package com.vwo.services
 import com.vwo.VWOClient
 import com.vwo.packages.logger.core.LogManager
 import com.vwo.packages.logger.enums.LogLevelEnum
+import com.vwo.utils.DataTypeUtil.filterStringMap
 import com.vwo.utils.LogMessageUtil
+import com.vwo.utils.NetworkUtil
 
 class LoggerService(config: Map<String, Any>) {
+
     init {
         // initialize the LogManager
         LogManager(config)
@@ -38,8 +41,9 @@ class LoggerService(config: Map<String, Any>) {
      */
     private fun readLogFiles(fileName: String): Map<String, String> {
         try {
-            val inputStream = this.javaClass.classLoader.getResourceAsStream(fileName)
-            return VWOClient.objectMapper.readValue(inputStream, MutableMap::class.java)
+            val inputStream = this.javaClass.classLoader?.getResourceAsStream(fileName)
+            val values = VWOClient.objectMapper.readValue(inputStream, MutableMap::class.java)
+            return filterStringMap(values)
         } catch (ex: Exception) {
             ex.printStackTrace()
         }
@@ -48,52 +52,45 @@ class LoggerService(config: Map<String, Any>) {
     }
 
     companion object {
-        var debugMessages: Map<String, String>
-        var errorMessages: Map<String, String>
-        var infoMessages: Map<String, String>
-        var warningMessages: Map<String, String>
-        var traceMessages: Map<String, String>
 
-        fun log(level: LogLevelEnum?, key: String, map: Map<String?, String?>?) {
-            val logManager = LogManager.instance
+        var debugMessages = emptyMap<String, String>()
+        var errorMessages = emptyMap<String, String>()
+        var infoMessages = emptyMap<String, String>()
+        var warningMessages = emptyMap<String, String>()
+        var traceMessages = emptyMap<String, String>()
+
+        fun log(level: LogLevelEnum, key: String, map: Map<String?, String?>?) {
+            val logManager = LogManager.instance ?: return
             when (level) {
-                LogLevelEnum.DEBUG -> logManager!!.debug(
-                    LogMessageUtil.buildMessage(
-                        debugMessages[key], map
-                    )
+                LogLevelEnum.DEBUG -> logManager.debug(
+                    LogMessageUtil.buildMessage(debugMessages[key], map)
                 )
 
-                LogLevelEnum.INFO -> logManager!!.info(
-                    LogMessageUtil.buildMessage(
-                        infoMessages[key], map
-                    )
+                LogLevelEnum.INFO -> logManager.info(
+                    LogMessageUtil.buildMessage(infoMessages[key], map)
                 )
 
-                LogLevelEnum.TRACE -> logManager!!.trace(
-                    LogMessageUtil.buildMessage(
-                        traceMessages[key], map
-                    )
+                LogLevelEnum.TRACE -> logManager.trace(
+                    LogMessageUtil.buildMessage(traceMessages[key], map)
                 )
 
-                LogLevelEnum.WARN -> logManager!!.warn(
-                    LogMessageUtil.buildMessage(
-                        warningMessages[key], map
-                    )
+                LogLevelEnum.WARN -> logManager.warn(
+                    LogMessageUtil.buildMessage(warningMessages[key], map)
                 )
 
-                else -> logManager!!.error(LogMessageUtil.buildMessage(errorMessages[key], map))
+                else -> logManager.error(LogMessageUtil.buildMessage(errorMessages[key], map))
             }
         }
 
         @JvmStatic
         fun log(level: LogLevelEnum?, message: String?) {
-            val logManager = LogManager.instance
+            val logManager = LogManager.instance ?: return
             when (level) {
-                LogLevelEnum.DEBUG -> logManager!!.debug(message)
-                LogLevelEnum.INFO -> logManager!!.info(message)
-                LogLevelEnum.TRACE -> logManager!!.trace(message)
-                LogLevelEnum.WARN -> logManager!!.warn(message)
-                else -> logManager!!.error(message)
+                LogLevelEnum.DEBUG -> logManager.debug(message)
+                LogLevelEnum.INFO -> logManager.info(message)
+                LogLevelEnum.TRACE -> logManager.trace(message)
+                LogLevelEnum.WARN -> logManager.warn(message)
+                else -> logManager.error(message)
             }
         }
     }

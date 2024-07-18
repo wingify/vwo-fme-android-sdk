@@ -15,7 +15,6 @@
  */
 package com.vwo.packages.logger.core
 
-import com.vwo.interfaces.logger.ILogManager.level
 import com.vwo.interfaces.logger.LogTransport
 import com.vwo.packages.logger.LogMessageBuilder
 import com.vwo.packages.logger.Logger
@@ -24,10 +23,11 @@ import com.vwo.packages.logger.enums.LogLevelNumberEnum
 import java.util.Locale
 
 class LogTransportManager(private val config: Map<String, Any>) : Logger(), LogTransport {
-    private val transports: MutableList<LogTransport?> = ArrayList()
+    private val transports: MutableList<LogTransport> = ArrayList()
 
     fun addTransport(transport: LogTransport?) {
-        transports.add(transport)
+        if (transport != null)
+            transports.add(transport)
     }
 
     fun shouldLog(transportLevel: String, configLevel: String): Boolean {
@@ -58,12 +58,13 @@ class LogTransportManager(private val config: Map<String, Any>) : Logger(), LogT
         log(LogLevelEnum.ERROR, message)
     }
 
-    override fun log(level: LogLevelEnum?, message: String?) {
+    override fun log(level: LogLevelEnum, message: String?) {
         for (transport in transports) {
             val logMessageBuilder = LogMessageBuilder(config, transport)
             val formattedMessage = logMessageBuilder.formatMessage(level, message)
-            if (shouldLog(level!!.name, LogManager.Companion.getInstance().level.toString())) {
-                transport!!.log(level, formattedMessage)
+            val levelString = (LogManager.instance?.level ?: LogLevelEnum.ERROR).toString()
+            if (shouldLog(level.name, levelString)) {
+                transport.log(level, formattedMessage)
             }
         }
     }

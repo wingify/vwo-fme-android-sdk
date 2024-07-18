@@ -26,7 +26,7 @@ interface IStorageDecorator {
      * @param storageService The storage service instance.
      * @return The stored VariationModel.
      */
-    fun setDataInStorage(data: Map<String?, Any?>?, storageService: StorageService?): com.vwo.models.Variation?
+    fun setDataInStorage(data: Map<String, Any>, storageService: StorageService): Variation?
 
     /**
      * Retrieves a feature from storage.
@@ -36,9 +36,9 @@ interface IStorageDecorator {
      * @return The retrieved feature or relevant status.
      */
     fun getFeatureFromStorage(
-        featureKey: String?,
-        context: com.vwo.models.user.VWOContext?,
-        storageService: StorageService?
-    ): Any?
+        featureKey: String,
+        context: VWOContext,
+        storageService: StorageService
+    ): Map<String, Any>?
 }
 

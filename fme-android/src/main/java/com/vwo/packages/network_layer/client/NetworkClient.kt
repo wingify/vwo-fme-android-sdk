@@ -29,13 +29,13 @@ import java.util.Locale
 class NetworkClient : NetworkClientInterface {
     /**
      * Performs a GET request using the provided RequestModel.
-     * @param requestModel The model containing request options.
+     * @param request The model containing request options.
      * @return A ResponseModel with the response data.
      */
-    override fun GET(requestModel: RequestModel?): ResponseModel? {
+    override fun GET(request: RequestModel): ResponseModel {
         val responseModel = ResponseModel()
         try {
-            val networkOptions = requestModel.getOptions()
+            val networkOptions = request.options
             val url = URL(constructUrl(networkOptions))
 
             val connection = url.openConnection() as HttpURLConnection
@@ -80,17 +80,17 @@ class NetworkClient : NetworkClientInterface {
      * @param request The model containing request options.
      * @return A ResponseModel with the response data.
      */
-    override fun POST(request: RequestModel?): ResponseModel? {
+    override fun POST(request: RequestModel): ResponseModel {
         val responseModel = ResponseModel()
         try {
-            val networkOptions = request.getOptions()
+            val networkOptions = request.options
             val url = URL(constructUrl(networkOptions))
 
             val connection = url.openConnection() as HttpURLConnection
             connection.requestMethod = "POST"
             connection.doOutput = true
             // set headers
-            for ((key, value) in networkOptions!!) {
+            for ((key, value) in networkOptions) {
                 if (key == "headers") {
                     val headers = value as Map<String, String>
                     for ((key1, value1) in headers) {
@@ -100,14 +100,14 @@ class NetworkClient : NetworkClientInterface {
             }
 
             connection.outputStream.use { os ->
-                val body = networkOptions!!["body"]
+                val body = networkOptions["body"]
                 if (body is LinkedHashMap<*, *>) {
                     // Convert LinkedHashMap to JSON string
                     val jsonBody: String = VWOClient.objectMapper.writeValueAsString(body)
                     val input = jsonBody.toByteArray(StandardCharsets.UTF_8)
                     os.write(input, 0, input.size)
                 } else if (body is String) {
-                    val input = (body as String).toByteArray(StandardCharsets.UTF_8)
+                    val input = body.toByteArray(StandardCharsets.UTF_8)
                     os.write(input, 0, input.size)
                 } else {
                     throw IllegalArgumentException("Unsupported body type: " + body!!.javaClass.name)
@@ -141,8 +141,8 @@ class NetworkClient : NetworkClientInterface {
     }
 
     companion object {
-        fun constructUrl(networkOptions: Map<String?, Any?>?): String {
-            var hostname = networkOptions!!["hostname"] as String?
+        fun constructUrl(networkOptions: Map<String, Any?>): String {
+            var hostname = networkOptions["hostname"] as String?
             val path = networkOptions["path"] as String?
             if (networkOptions["port"] != null && networkOptions["port"].toString().toInt() != 0) {
                 hostname += ":" + networkOptions["port"]
