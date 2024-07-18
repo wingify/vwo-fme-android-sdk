@@ -87,20 +87,20 @@ object CampaignUtil {
      * Scales the weights of variations to sum up to 100%.
      * @param variations The list of variations to scale.
      */
-    fun scaleVariationWeights(variations: List<Variation?>) {
+    fun scaleVariationWeights(variations: List<Variation>) {
         // Calculate the total weight of all variations
-        val totalWeight = variations.stream().mapToDouble(Variation::weight).sum()
+        val totalWeight = variations.sumOf { it.weight }
 
         // If total weight is zero, assign equal weight to each variation
         if (totalWeight == 0.0) {
             val equalWeight = 100.0 / variations.size
             for (variation in variations) {
-                variation!!.weight = equalWeight
+                variation.weight = equalWeight
             }
         } else {
             // Scale each variation's weight to make the total 100%
             for (variation in variations) {
-                variation!!.weight = (variation.weight / totalWeight) * 100
+                variation.weight = (variation.weight / totalWeight) * 100
             }
         }
     }
@@ -131,24 +131,14 @@ object CampaignUtil {
     fun getVariationFromCampaignKey(
         settings: Settings,
         campaignKey: String?,
-        variationId: Int
+        variationId: Int?
     ): Variation? {
         // Find the campaign by its key
-        val campaign = settings.campaigns!!.stream()
-            .filter { c: Campaign -> c.key == campaignKey }
-            .findFirst()
-            .orElse(null)
+        val campaign = settings.campaigns?.firstOrNull { it.key == campaignKey }
 
-        if (campaign != null) {
-            // Find the variation by its ID within the found campaign
-            val variation = campaign.variations!!.stream()
-                .filter { v: Variation -> v.id == variationId }
-                .findFirst()
-                .orElse(null)
-            return variation
-        }
-        return null
+        return campaign?.variations?.firstOrNull { it.id == variationId }
     }
+
 
     /**
      * Sets the allocation ranges for a list of campaigns.
@@ -226,10 +216,10 @@ object CampaignUtil {
      * @param groupId The ID of the group.
      * @return An array of campaigns associated with the specified group ID.
      */
-    fun getCampaignsByGroupId(settings: Settings, groupId: Int): List<Int>? {
+    fun getCampaignsByGroupId(settings: Settings, groupId: Int): List<Int> {
         // find the group
-        val group = settings.groups!![groupId.toString()]
-        return group!!.campaigns
+        val group = settings.groups?.get(groupId.toString())
+        return group?.campaigns?: emptyList()
     }
 
     /**
@@ -238,15 +228,15 @@ object CampaignUtil {
      * @param campaignIds An array of campaign IDs.
      * @return An array of feature keys associated with the provided campaign IDs.
      */
-    fun getFeatureKeysFromCampaignIds(settings: Settings, campaignIds: List<Int>?): List<String?> {
-        val featureKeys: MutableList<String?> = ArrayList()
-        for (campaignId in campaignIds!!) {
-            for (feature in settings.features!!) {
-                feature.rules!!.forEach(Consumer { rule: Rule ->
+    fun getFeatureKeysFromCampaignIds(settings: Settings, campaignIds: List<Int>): List<String> {
+        val featureKeys: MutableList<String> = ArrayList()
+        for (campaignId in campaignIds) {
+            for (feature in settings.features) {
+                feature.rules?.forEach { rule: Rule ->
                     if (rule.campaignId == campaignId) {
-                        featureKeys.add(feature.key)
+                        feature.key?.let { featureKeys.add(it) }
                     }
-                })
+                }
             }
         }
         return featureKeys
@@ -294,11 +284,9 @@ object CampaignUtil {
      * @return The rule type if found, otherwise an empty string.
      */
     fun getRuleTypeUsingCampaignIdFromFeature(feature: Feature, campaignId: Int): String {
-        return feature.rules!!.stream()
-            .filter { rule: Rule -> rule.campaignId == campaignId }
-            .map(Rule::type)
-            .findFirst()
-            .orElse("")
+        return feature.rules?.filter { rule -> rule.campaignId == campaignId }
+            ?.map { it.type }
+            ?.firstOrNull() ?: ""
     }
 
     /**

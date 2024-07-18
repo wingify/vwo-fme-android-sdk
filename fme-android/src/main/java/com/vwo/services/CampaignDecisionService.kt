@@ -69,8 +69,8 @@ class CampaignDecisionService {
      * @param bucketValue  Bucket value assigned to the user.
      * @return  VariationModel object containing the variation for the user.
      */
-    fun getVariation(variations: List<Variation>?, bucketValue: Int): Variation? {
-        for (variation in variations!!) {
+    fun getVariation(variations: List<Variation>, bucketValue: Int): Variation? {
+        for (variation in variations) {
             if (bucketValue >= variation.startRangeVariation && bucketValue <= variation.endRangeVariation) {
                 return variation
             }
@@ -110,7 +110,7 @@ class CampaignDecisionService {
         val bucketValue =
             DecisionMaker().generateBucketValue(hashValue, Constants.MAX_TRAFFIC_VALUE, multiplier)
 
-        LoggerService.Companion.log(
+        LoggerService.log(
             LogLevelEnum.DEBUG,
             "USER_BUCKET_TO_VARIATION",
             object : HashMap<String?, String?>() {
@@ -123,7 +123,7 @@ class CampaignDecisionService {
                 }
             })
 
-        return getVariation(campaign.variations, bucketValue)
+        return campaign.variations?.let { getVariation(it, bucketValue) }
     }
 
     /**
@@ -145,7 +145,7 @@ class CampaignDecisionService {
             }
 
         if (segments!!.isEmpty()) {
-            LoggerService.Companion.log(
+            LoggerService.log(
                 LogLevelEnum.INFO,
                 "SEGMENTATION_SKIP",
                 object : HashMap<String?, String?>() {

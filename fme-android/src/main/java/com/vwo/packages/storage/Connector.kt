@@ -19,7 +19,7 @@ package com.vwo.packages.storage
 abstract class Connector {
     // Abstract methods to be implemented by subclasses
     @Throws(Exception::class)
-    abstract fun set(data: Map<String?, Any?>?)
+    abstract fun set(data: Map<String, Any>)
     @Throws(Exception::class)
     abstract fun get(featureKey: String?, userId: String?): Any?
 }

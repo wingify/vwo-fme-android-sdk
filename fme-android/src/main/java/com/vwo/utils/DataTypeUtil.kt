@@ -15,6 +15,7 @@
  */
 package com.vwo.utils
 
+import com.vwo.utils.NetworkUtil.Companion
 import java.util.Date
 import java.util.function.Function
 
@@ -109,5 +110,22 @@ object DataTypeUtil {
         } else {
             "Unknown Type"
         }
+    }
+
+    fun filterStringMap(originalMap: Map<*, *>): Map<String, String> {
+        val cleanedMap: MutableMap<String, String> = mutableMapOf()
+
+        for (entry in originalMap.entries) {
+            var value = entry.value
+            if (value is Map<*, *>) {
+                // Recursively remove null values from nested maps
+                value = NetworkUtil.removeNullValues(value)
+            }
+            if (value != null && entry.key is String && value is String) {
+                cleanedMap[entry.key as String] = value
+            }
+        }
+
+        return cleanedMap
     }
 }

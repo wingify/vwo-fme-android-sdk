@@ -40,8 +40,8 @@ class ConsoleTransport(private val level: LogLevelEnum) : Logger(), LogTransport
         log(LogLevelEnum.ERROR, message)
     }
 
-    override fun log(level: LogLevelEnum?, message: String?) {
-        if (this.level.ordinal <= level!!.ordinal) {
+    override fun log(level: LogLevelEnum, message: String?) {
+        if (this.level.ordinal <= level.ordinal) {
             println(message)
         }
     }

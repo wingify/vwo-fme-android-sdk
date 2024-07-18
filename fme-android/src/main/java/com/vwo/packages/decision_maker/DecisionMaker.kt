@@ -17,6 +17,7 @@ package com.vwo.packages.decision_maker
 
 import com.github.eprst.murmur3.MurmurHash3
 import kotlin.math.floor
+import kotlin.math.pow
 
 class DecisionMaker {
     /**
@@ -30,7 +31,7 @@ class DecisionMaker {
      */
     fun generateBucketValue(hashValue: Long, maxValue: Int, multiplier: Int): Int {
         val ratio: Double =
-            hashValue.toDouble() / 2.pow(32.0) // Calculate the ratio of the hash value to the maximum hash value
+            hashValue.toDouble() / 2.0.pow(32.0) // Calculate the ratio of the hash value to the maximum hash value
         val multipliedValue =
             (maxValue * ratio + 1) * multiplier // Apply the multiplier after scaling the hash value
         return floor(multipliedValue).toInt() // Floor the value to get an integer bucket value
@@ -39,7 +40,7 @@ class DecisionMaker {
     fun generateBucketValue(hashValue: Long, maxValue: Int): Int {
         val multiplier = 1
         val ratio: Double =
-            hashValue.toDouble() / 2.pow(32.0) // Calculate the ratio of the hash value to the maximum hash value
+            hashValue.toDouble() / 2.0.pow(32.0) // Calculate the ratio of the hash value to the maximum hash value
         val multipliedValue =
             (maxValue * ratio + 1) * multiplier // Apply the multiplier after scaling the hash value
         return floor(multipliedValue).toInt() // Floor the value to get an integer bucket value
