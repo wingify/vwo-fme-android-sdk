@@ -28,32 +28,30 @@ class RequestHandler {
      * @param config The global request configuration model.
      * @return The merged request model or null if both URLs are missing.
      */
-    fun createRequest(request: RequestModel, config: GlobalRequestModel?): RequestModel? {
+    fun createRequest(request: RequestModel, config: GlobalRequestModel): RequestModel? {
         // Check if both the request URL and the configuration base URL are missing
-        if ((config.getBaseUrl() == null || config.getBaseUrl().isEmpty())
-            && (request.url == null || request.url.isEmpty())
-        ) {
+        if (config.baseUrl.isNullOrEmpty() && request.url.isNullOrEmpty()) {
             return null // Return null if no URL is specified
         }
 
         // Set the request URL, defaulting to the configuration base URL if not set
-        if (request.url == null || request.url.isEmpty()) {
-            request.url = config.getBaseUrl()
+        if (request.url.isNullOrEmpty()) {
+            request.url = config.baseUrl
         }
 
         // Set the request timeout, defaulting to the configuration timeout if not set
         if (request.timeout == -1) {
-            request.timeout = config.getTimeout()
+            request.timeout = config.timeout
         }
 
         // Set the request body, defaulting to the configuration body if not set
         if (request.body == null) {
-            request.body = config.getBody()
+            request.body = config.body
         }
 
         // Set the request headers, defaulting to the configuration headers if not set
         if (request.headers == null) {
-            request.headers = config.getHeaders()
+            request.headers = config.headers?: mutableMapOf()
         }
 
         // Initialize request query parameters, defaulting to an empty map if not set
@@ -63,15 +61,20 @@ class RequestHandler {
         }
 
         // Initialize configuration query parameters, defaulting to an empty map if not set
-        var configQueryParams = config.getQuery()
+        var configQueryParams = config.query
         if (configQueryParams == null) {
             configQueryParams = HashMap()
         }
 
         // Merge configuration query parameters into the request query parameters if they don't exist
         for ((key, value) in configQueryParams) {
-            requestQueryParams.putIfAbsent(key, value as String)
+            (value as? String)?.let {
+                if (!requestQueryParams.containsKey(key)) {
+                    requestQueryParams[key] = it
+                }
+            }
         }
+
 
         // Set the merged query parameters back to the request
         request.query = requestQueryParams

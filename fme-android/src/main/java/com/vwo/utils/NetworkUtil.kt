@@ -64,7 +64,7 @@ class NetworkUtil {
             eventName: String,
             visitorUserAgent: String?,
             ipAddress: String?
-        ): Map<String, String> {
+        ): MutableMap<String, String> {
             val requestQueryParams = RequestQueryParams(
                 eventName,
                 setting.accountId.toString(),
@@ -190,7 +190,7 @@ class NetworkUtil {
             variationId: Int,
             visitorUserAgent: String?,
             ipAddress: String?
-        ): Map<String, Any?> {
+        ): Map<String, Any> {
             val properties =
                 getEventBasePayload(settings, userId, eventName, visitorUserAgent, ipAddress)
             properties.d!!.event!!.props!!.id = campaignId
@@ -206,7 +206,7 @@ class NetworkUtil {
                         put("campaignId", campaignId.toString())
                     }
                 })
-            val payload: Map<String, Any?> =
+            val payload: Map<*, *> =
                 VWOClient.objectMapper.convertValue(properties, MutableMap::class.java)
             return removeNullValues(payload)
         }
@@ -225,7 +225,7 @@ class NetworkUtil {
             userId: String?,
             eventName: String,
             context: VWOContext,
-            eventProperties: Map<String, Any>?
+            eventProperties: Map<String, Any>
         ): Map<String, Any?> {
             val properties = getEventBasePayload(
                 settings,
@@ -246,7 +246,7 @@ class NetworkUtil {
                         put("userId", userId)
                     }
                 })
-            val payload: Map<String, Any?> =
+            val payload: Map<*, *> =
                 VWOClient.objectMapper.convertValue(properties, MutableMap::class.java)
             return removeNullValues(payload)
         }
@@ -294,7 +294,7 @@ class NetworkUtil {
                         put("userId", userId)
                     }
                 })
-            val payload: Map<String, Any?> =
+            val payload: Map<*, *> =
                 VWOClient.objectMapper.convertValue(properties, MutableMap::class.java)
             return removeNullValues(payload)
         }
@@ -307,7 +307,7 @@ class NetworkUtil {
          * @param ipAddress The IP address of the user.
          */
         fun sendPostApiRequest(
-            properties: MutableMap<String, String?>,
+            properties: MutableMap<String, String>,
             payload: Map<String, Any?>?,
             userAgent: String?,
             ipAddress: String?
@@ -344,17 +344,17 @@ class NetworkUtil {
          * @param originalMap The map containing null/non-null values
          * @return  Map containing non-null values.
          */
-        fun removeNullValues(originalMap: Map<String, Any?>): Map<String, Any?> {
-            val cleanedMap: MutableMap<String, Any?> = LinkedHashMap()
+        fun removeNullValues(originalMap: Map<*, *>): Map<String, Any> {
+            val cleanedMap: MutableMap<String, Any> = mutableMapOf()
 
             for (entry in originalMap.entries) {
                 var value = entry.value
                 if (value is Map<*, *>) {
                     // Recursively remove null values from nested maps
-                    value = removeNullValues(value as Map<String, Any?>)
+                    value = removeNullValues(value)
                 }
-                if (value != null) {
-                    cleanedMap[entry.key] = value
+                if (value != null && entry.key is String) {
+                    cleanedMap[entry.key as String] = value
                 }
             }
 

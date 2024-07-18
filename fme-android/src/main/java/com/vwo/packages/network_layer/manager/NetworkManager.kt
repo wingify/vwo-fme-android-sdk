@@ -46,9 +46,9 @@ object NetworkManager {
         this.config = GlobalRequestModel(null, null, null, null) // Initialize with default config
     }
 
-    fun createRequest(request: RequestModel): RequestModel? {
+    private fun createRequest(request: RequestModel): RequestModel? {
         val handler = RequestHandler()
-        return handler.createRequest(request, this.config) // Merge and create request
+        return this.config?.let { handler.createRequest(request, it) } // Merge and create request
     }
 
     fun get(request: RequestModel): ResponseModel? {
@@ -57,7 +57,7 @@ object NetworkManager {
             return if (networkOptions == null) {
                 null
             } else {
-                client!!.GET(request)
+                client?.GET(request)
             }
         } catch (error: Exception) {
             LoggerService.log(LogLevelEnum.ERROR, "Error when creating get request, error: $error")

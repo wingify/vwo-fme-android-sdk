@@ -29,17 +29,16 @@ class RequestQueryParams(
     private val random = Math.random()
     private val p = "FS"
 
-    val queryParams: Map<String, String>
-        get() {
-            val path: MutableMap<String, String> = HashMap()
-            path["en"] = en
-            path["a"] = a
-            path["env"] = env
-            path["eTime"] = eTime.toString()
-            path["random"] = random.toString()
-            path["p"] = p
-            path["visitor_ua"] = visitor_ua
-            path["visitor_ip"] = visitor_ip
-            return path
-        }
+    val queryParams: MutableMap<String, String> by lazy {
+        val path = mutableMapOf<String, String>()
+        path["en"] = en
+        path["a"] = a
+        path["env"] = env
+        path["eTime"] = eTime.toString()
+        path["random"] = random.toString()
+        path["p"] = p
+        path["visitor_ua"] = visitor_ua
+        path["visitor_ip"] = visitor_ip
+        path
+    }
 }

@@ -21,31 +21,25 @@ class RequestModel(
     var url: String?,
     method: String?,
     var path: String?,
-    var query: MutableMap<String, String?>,
+    var query: MutableMap<String, String>?,
     var body: Map<String, Any?>?,
-    private var headers: MutableMap<String, String>,
+    var headers: MutableMap<String, String>?,
     scheme: String?,
     val port: Int
 ) {
     var method: String? = method ?: "GET"
     var scheme: String? = scheme ?: "http"
-    var port: Int = 0
+
     @JvmField
     var timeout: Int = 0
-
-    fun getHeaders(): Map<String, String> {
-        return headers
-    }
-
-    fun setHeaders(headers: MutableMap<String, String>) {
-        this.headers = headers
-    }
 
     val options: Map<String, Any?>
         get() {
             val queryParams = StringBuilder()
-            for (key in query.keys) {
-                queryParams.append(key).append('=').append(query[key]).append('&')
+            query?.let {
+                for ((key, value) in it) {
+                    queryParams.append(key).append('=').append(value).append('&')
+                }
             }
 
             val options: MutableMap<String, Any?> = HashMap()
@@ -66,15 +60,15 @@ class RequestModel(
 
             if (body != null) {
                 val postBody: String = Gson().toJson(body)
-                headers["Content-Type"] = "application/json"
-                headers["Content-Length"] = postBody.toByteArray().size.toString()
+                headers?.set("Content-Type", "application/json")
+                headers?.set("Content-Length", postBody.toByteArray().size.toString())
                 options["headers"] = headers
                 options["body"] = body
             }
 
             if (path != null) {
                 var combinedPath = path
-                if (queryParams.length > 0) {
+                if (queryParams.isNotEmpty()) {
                     combinedPath += "?" + queryParams.substring(0, queryParams.length - 1)
                 }
                 options["path"] = combinedPath
