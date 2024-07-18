@@ -31,9 +31,11 @@ object GatewayServiceUtil {
      * @param endpoint The endpoint to send the request to
      * @return The response data from the gateway service
      */
-    fun getFromGatewayService(queryParams: Map<String?, String?>?, endpoint: String?): String? {
-        val networkInstance = NetworkManager.instance
-        if (baseUrl!!.contains(Constants.HOST_NAME)) {
+    fun getFromGatewayService(
+        queryParams: MutableMap<String, String>,
+        endpoint: String
+    ): String? {
+        if (baseUrl.contains(Constants.HOST_NAME)) {
             log(LogLevelEnum.ERROR, "GATEWAY_URL_ERROR", null)
             return null
         }
@@ -48,7 +50,7 @@ object GatewayServiceUtil {
                 SettingsManager.instance?.protocol,
                 SettingsManager.instance?.port ?: 0
             )
-            val response = networkInstance!!.get(request)
+            val response = NetworkManager.get(request)
 
             return response?.data
         } catch (e: Exception) {

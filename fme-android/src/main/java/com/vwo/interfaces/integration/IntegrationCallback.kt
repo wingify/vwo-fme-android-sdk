@@ -16,5 +16,5 @@
 package com.vwo.interfaces.integration
 
 interface IntegrationCallback {
-    fun execute(properties: Map<String?, Any?>?)
+    fun execute(properties: Map<String, Any>)
 }

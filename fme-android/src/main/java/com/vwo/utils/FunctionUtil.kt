@@ -16,7 +16,10 @@
 package com.vwo.utils
 
 import com.google.gson.Gson
+import com.vwo.enums.CampaignTypeEnum
+import com.vwo.models.Campaign
 import com.vwo.models.Feature
+import com.vwo.models.Metric
 import com.vwo.models.Settings
 import java.util.function.Predicate
 import java.util.stream.Collectors
@@ -66,15 +69,11 @@ object FunctionUtil {
      * @return A list of rules that match the type.
      */
     fun getSpecificRulesBasedOnType(feature: Feature?, type: CampaignTypeEnum?): List<Campaign> {
-        if (feature?.rulesLinkedCampaign == null) {
-            return emptyList<Campaign>()
-        }
-        if (type != null) {
-            return feature.rulesLinkedCampaign.stream()
-                .filter(Predicate<Campaign> { rule: Campaign -> rule.type == type.value })
-                .collect(Collectors.toList<Campaign>())
-        }
-        return feature.rulesLinkedCampaign
+        return feature?.rulesLinkedCampaign?.let { rules ->
+            type?.let { t ->
+                rules.filter { it.type == t.value }
+            } ?: rules
+        } ?: emptyList()
     }
 
     /**
@@ -83,12 +82,9 @@ object FunctionUtil {
      * @return A list of AB and Personalize rules.
      */
     fun getAllExperimentRules(feature: Feature?): List<Campaign> {
-        if (feature?.rulesLinkedCampaign == null) {
-            return emptyList<Campaign>()
-        }
-        return feature.rulesLinkedCampaign.stream()
-            .filter(Predicate<Campaign> { rule: Campaign -> rule.type == CampaignTypeEnum.AB.value || rule.type == CampaignTypeEnum.PERSONALIZE.value })
-            .collect(Collectors.toList<Campaign>())
+        return feature?.rulesLinkedCampaign?.filter {
+            it.type == CampaignTypeEnum.AB.value || it.type == CampaignTypeEnum.PERSONALIZE.value
+        } ?: emptyList()
     }
 
     /**
@@ -98,20 +94,14 @@ object FunctionUtil {
      * @return The feature if found, otherwise null.
      */
     fun getFeatureFromKey(settings: Settings?, featureKey: String): Feature? {
-        if (settings?.features == null) {
-            return null
-        }
-        return settings.features!!.stream()
-            .filter { feature: Feature -> feature.key == featureKey }
-            .findFirst()
-            .orElse(null)
+        return settings?.features?.firstOrNull { it.key == featureKey }
     }
 
     fun doesEventBelongToAnyFeature(eventName: String, settings: Settings): Boolean {
-        return settings.features!!.stream()
-            .anyMatch { feature: Feature ->
-                feature.metrics!!.stream()
-                    .anyMatch(Predicate<Metric> { metric: Metric -> metric.identifier == eventName })
-            }
+        return settings.features.any { feature ->
+            feature.metrics?.any { metric ->
+                metric.identifier == eventName
+            } ?: false
+        }
     }
 }

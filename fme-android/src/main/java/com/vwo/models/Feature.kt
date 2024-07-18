@@ -24,7 +24,7 @@ class Feature {
     var key: String? = null
 
     @JsonProperty("metrics")
-    var metrics: List<com.vwo.models.Metric>? = null
+    var metrics: List<Metric>? = null
 
     @JsonProperty("status")
     var status: String? = null
@@ -33,10 +33,10 @@ class Feature {
     var id: Int? = null
 
     @JsonProperty("rules")
-    var rules: List<com.vwo.models.Rule>? = null
+    var rules: List<Rule>? = null
 
     @JsonProperty("impactCampaign")
-    var impactCampaign: com.vwo.models.ImpactCampaign = com.vwo.models.ImpactCampaign()
+    var impactCampaign: ImpactCampaign = ImpactCampaign()
 
     @JsonProperty("name")
     var name: String? = null
@@ -45,11 +45,11 @@ class Feature {
     var type: String? = null
 
     @JsonProperty("rulesLinkedCampaign")
-    var rulesLinkedCampaign: List<com.vwo.models.Campaign> = ArrayList()
+    var rulesLinkedCampaign: List<Campaign> = ArrayList()
 
     @JsonProperty("isGatewayServiceRequired")
     var isGatewayServiceRequired: Boolean = false
 
     @JsonProperty("variables")
-    var variables: List<com.vwo.models.Variable>? = null
+    var variables: List<Variable>? = null
 }

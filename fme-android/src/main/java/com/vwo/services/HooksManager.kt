@@ -25,8 +25,8 @@ class HooksManager(private val callback: IntegrationCallback?) {
      *
      * @param properties Properties from the callback
      */
-    fun execute(properties: Map<String?, Any?>?) {
-        if (this.callback != null) {
+    fun execute(properties: Map<String, Any>?) {
+        if (this.callback != null && properties!=null) {
             callback.execute(properties)
         }
     }

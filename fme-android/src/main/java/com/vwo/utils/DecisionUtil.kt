@@ -46,70 +46,54 @@ object DecisionUtil {
         feature: Feature?,
         campaign: Campaign,
         context: VWOContext,
-        evaluatedFeatureMap: MutableMap<String?, Any>,
-        megGroupWinnerCampaigns: MutableMap<Int?, Int?>?,
+        evaluatedFeatureMap: MutableMap<String, Any>,
+        megGroupWinnerCampaigns: MutableMap<Int, Int>?,
         storageService: StorageService,
-        decision: MutableMap<String?, Any?>
+        decision: MutableMap<String, Any>
     ): Map<String, Any> {
         val vwoUserId = UUIDUtils.getUUID(context.id, settings.accountId.toString())
-        val campaignId = campaign.id!!
+        val campaignId = campaign.id
 
         // If the campaign is of type AB, set the _vwoUserId for variation targeting variables
         if (campaign.type == CampaignTypeEnum.AB.value) {
             // set _vwoUserId for variation targeting variables
-            context.variationTargetingVariables = object : HashMap<String?, Any?>() {
-                init {
-                    putAll(context.variationTargetingVariables)
-                    put(
-                        "_vwoUserId",
-                        if (campaign.getIsUserListEnabled()) vwoUserId else context.id
-                    )
-                }
-            }
+            val id = if (campaign.isUserListEnabled == true) vwoUserId else context.id
+            id?.let { context.variationTargetingVariables.put("_vwoUserId", it) }
 
-            decision["variationTargetingVariables"] =
-                context.variationTargetingVariables // for integration
+            // for integration
+            decision["variationTargetingVariables"] = context.variationTargetingVariables
 
             // check if the campaign satisfies the whitelisting
-            if (campaign.getIsForcedVariationEnabled()) {
+            if (campaign.isForcedVariationEnabled==true) {
                 val whitelistedVariation = checkCampaignWhitelisting(campaign, context)
                 if (whitelistedVariation != null) {
-                    return object : HashMap<String?, Any?>() {
-                        init {
-                            put("preSegmentationResult", true)
-                            put("whitelistedObject", whitelistedVariation["variation"])
-                        }
-                    }
+                    val variation = whitelistedVariation["variation"]?:""
+                    return mapOf(
+                        "preSegmentationResult" to true,
+                        "whitelistedObject" to variation
+                    )
                 }
             } else {
-                log(LogLevelEnum.INFO, "WHITELISTING_SKIP", object : HashMap<String?, String?>() {
-                    init {
-                        put("userId", context.id)
-                        put("campaignKey", campaign.ruleKey)
-                    }
-                })
+                log(LogLevelEnum.INFO, "WHITELISTING_SKIP", mapOf(
+                        "userId" to context.id,
+                        "campaignKey" to campaign.ruleKey,
+                ))
             }
         }
 
         // set _vwoUserId for custom variables
-        context.customVariables = object : HashMap<String?, Any?>() {
-            init {
-                putAll(context.customVariables)
-                put("_vwoUserId", if (campaign.getIsUserListEnabled()) vwoUserId else context.id)
-            }
-        }
+        val userId=if (campaign.isUserListEnabled == true) vwoUserId else context.id
+        context.customVariables["_vwoUserId"] = userId?:""
 
 
         decision["customVariables"] = context.customVariables // for integration
 
         // Check if RUle being evaluated is part of Mutually Exclusive Group
-        val groupId =
-            CampaignUtil.getGroupDetailsIfCampaignPartOfIt(settings, campaignId)["groupId"]
-        if (groupId != null && !groupId.isEmpty()) {
+        val groupId = CampaignUtil.getGroupDetailsIfCampaignPartOfIt(settings, campaignId?:0)["groupId"]
+        if (!groupId.isNullOrEmpty()) {
             val groupWinnerCampaignId = megGroupWinnerCampaigns!![groupId.toInt()]
-            if (groupWinnerCampaignId != null && !groupWinnerCampaignId.toString()
-                    .isEmpty() && groupWinnerCampaignId == campaignId
-            ) {
+            if (groupWinnerCampaignId != null && groupWinnerCampaignId.toString().isNotEmpty()
+                && groupWinnerCampaignId == campaignId) {
                 // If the campaign is the winner of the MEG, return true
                 return object : HashMap<String, Any>() {
                     init {
@@ -243,14 +227,14 @@ object DecisionUtil {
         val targetedVariations: MutableList<Variation> = ArrayList()
 
         for (variation in campaign.variations!!) {
-            if (variation.segments != null && variation.segments.isEmpty()) {
+            if (variation.segments.isEmpty()) {
                 log(LogLevelEnum.INFO, "WHITELISTING_SKIP", object : HashMap<String?, String?>() {
                     init {
                         put("userId", context.id)
                         put("campaignKey", campaign.ruleKey)
                         put(
                             "variation",
-                            if (!variation.name!!.isEmpty()) "for variation: " + variation.name else ""
+                            if (variation.name?.isNotEmpty()==true) "for variation: " + variation.name else ""
                         )
                     }
                 })

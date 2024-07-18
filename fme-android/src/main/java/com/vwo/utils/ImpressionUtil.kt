@@ -39,7 +39,7 @@ object ImpressionUtil {
         context: VWOContext
     ) {
         // Get base properties for the event
-        val properties: Map<String?, String?> = NetworkUtil.Companion.getEventsBaseProperties(
+        val properties: MutableMap<String, String> = NetworkUtil.getEventsBaseProperties(
             settings,
             EventEnum.VWO_VARIATION_SHOWN.value,
             encodeURIComponent(context.userAgent),
@@ -47,7 +47,7 @@ object ImpressionUtil {
         )
 
         // Construct payload data for tracking the user
-        val payload: Map<String?, Any?> = NetworkUtil.Companion.getTrackUserPayloadData(
+        val payload: Map<String, Any> = NetworkUtil.getTrackUserPayloadData(
             settings,
             context.id,
             EventEnum.VWO_VARIATION_SHOWN.value,
@@ -58,7 +58,7 @@ object ImpressionUtil {
         )
 
         // Send the constructed properties and payload as a POST request
-        NetworkUtil.Companion.sendPostApiRequest(
+        NetworkUtil.sendPostApiRequest(
             properties,
             payload,
             context.userAgent,
@@ -71,7 +71,7 @@ object ImpressionUtil {
      * @param value The query parameters to encode
      * @return The encoded query parameters
      */
-    fun encodeURIComponent(value: String?): String {
+    fun encodeURIComponent(value: String): String {
         try {
             return URLEncoder.encode(value, "UTF-8")
         } catch (e: UnsupportedEncodingException) {
