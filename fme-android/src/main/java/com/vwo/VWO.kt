@@ -17,6 +17,10 @@ package com.vwo
 
 import com.vwo.models.user.VWOInitOptions
 import com.vwo.utils.LogMessageUtil.buildMessage
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
+import kotlinx.coroutines.launch
 
 object VWO {
     private var instance: VWO? = null
@@ -57,25 +61,25 @@ object VWO {
     }
 
     @JvmStatic
-    fun init(options: VWOInitOptions): VWO? {
-        if (options.sdkKey.isNullOrEmpty()) {
-            val message = buildMessage(
-                "SDK key is required to initialize VWO. Please provide the sdkKey in the options.",
-                null
-            )
-            System.err.println(message)
-        }
+    fun init(options: VWOInitOptions, initListener: IVwoInitCallback) {
+        CoroutineScope(Dispatchers.IO).launch {
+            if (options.sdkKey.isNullOrEmpty()) {
+                val message = "SDK key is required to initialize VWO. Please provide the sdkKey in " +
+                        "the options."
+                initListener.vwoInitFailed(message)
+                return@launch
+            }
 
-        if (options.accountId == null) {
-            val message = buildMessage(
-                "Account ID is required to initialize VWO. Please provide the accountId in the options.",
-                null
-            )
-            System.err.println(message)
-        }
+            if (options.accountId == null) {
+                val message = "Account ID is required to initialize VWO. Please provide the " +
+                        "accountId in the options."
+                initListener.vwoInitFailed(message)
+                return@launch
+            }
 
-        instance = setInstance(options)
-        return instance
+            instance = setInstance(options)
+            instance?.let { initListener.vwoInitSuccess(it, "VWO initialized successfully") }
+        }
     }
 }
 
