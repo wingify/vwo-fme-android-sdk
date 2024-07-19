@@ -29,11 +29,11 @@ class LoggerService(config: Map<String, Any>) {
         LogManager(config)
 
         // read the log files
-        debugMessages = readLogFiles("debug-messages.json")
-        infoMessages = readLogFiles("info-messages.json")
-        errorMessages = readLogFiles("error-messages.json")
-        warningMessages = readLogFiles("warn-messages.json")
-        traceMessages = readLogFiles("trace-messages.json")
+        debugMessages = readLogFiles("assets/debug-messages.json")
+        infoMessages = readLogFiles("assets/info-messages.json")
+        errorMessages = readLogFiles("assets/error-messages.json")
+        warningMessages = readLogFiles("assets/warn-messages.json")
+        traceMessages = readLogFiles("assets/trace-messages.json")
     }
 
     /**

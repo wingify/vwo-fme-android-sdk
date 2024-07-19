@@ -88,7 +88,7 @@ class SettingsManager(options: VWOInitOptions) {
         try {
             return fetchSettings()
         } catch (e: Exception) {
-            LoggerService.Companion.log(
+            LoggerService.log(
                 LogLevelEnum.ERROR,
                 "SETTINGS_FETCH_ERROR",
                 object : HashMap<String?, String?>() {
@@ -128,13 +128,13 @@ class SettingsManager(options: VWOInitOptions) {
             request.timeout = networkTimeout
 
             val response = NetworkManager.get(request)
-            if (response!!.statusCode != 200) {
+            if (response?.statusCode != 200) {
                 LoggerService.Companion.log(
                     LogLevelEnum.ERROR,
                     "SETTINGS_FETCH_ERROR",
                     object : HashMap<String?, String?>() {
                         init {
-                            put("err", response.error.toString())
+                            put("err", response?.error.toString())
                         }
                     })
                 return null

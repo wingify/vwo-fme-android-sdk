@@ -20,6 +20,7 @@ import com.vwo.interfaces.logger.LogTransport
 import com.vwo.packages.logger.Logger
 import com.vwo.packages.logger.enums.LogLevelEnum
 import com.vwo.packages.logger.transports.ConsoleTransport
+import com.vwo.packages.logger.transports.LogcatTransport
 import java.text.SimpleDateFormat
 import java.util.Locale
 import java.util.UUID
@@ -56,7 +57,7 @@ class LogManager(override val config: Map<String, Any>) : Logger(), ILogManager 
         if (!transportList.isNullOrEmpty()) {
             addTransports(transportList)
         } else {
-            val defaultTransport = ConsoleTransport(level)
+            val defaultTransport = LogcatTransport(level)
             val defaultTransportMap = mutableMapOf<String, Any>()
             defaultTransportMap["defaultTransport"] = defaultTransport
             addTransport(defaultTransportMap)

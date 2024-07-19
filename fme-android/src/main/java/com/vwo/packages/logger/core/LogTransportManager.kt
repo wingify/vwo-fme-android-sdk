@@ -16,7 +16,6 @@
 package com.vwo.packages.logger.core
 
 import com.vwo.interfaces.logger.LogTransport
-import com.vwo.packages.logger.LogMessageBuilder
 import com.vwo.packages.logger.Logger
 import com.vwo.packages.logger.enums.LogLevelEnum
 import com.vwo.packages.logger.enums.LogLevelNumberEnum
@@ -30,7 +29,7 @@ class LogTransportManager(private val config: Map<String, Any>) : Logger(), LogT
             transports.add(transport)
     }
 
-    fun shouldLog(transportLevel: String, configLevel: String): Boolean {
+    private fun shouldLog(transportLevel: String, configLevel: String): Boolean {
         val targetLevel =
             LogLevelNumberEnum.valueOf(transportLevel.uppercase(Locale.getDefault())).level
         val desiredLevel =
@@ -60,11 +59,9 @@ class LogTransportManager(private val config: Map<String, Any>) : Logger(), LogT
 
     override fun log(level: LogLevelEnum, message: String?) {
         for (transport in transports) {
-            val logMessageBuilder = LogMessageBuilder(config, transport)
-            val formattedMessage = logMessageBuilder.formatMessage(level, message)
             val levelString = (LogManager.instance?.level ?: LogLevelEnum.ERROR).toString()
             if (shouldLog(level.name, levelString)) {
-                transport.log(level, formattedMessage)
+                transport.log(level, message)
             }
         }
     }

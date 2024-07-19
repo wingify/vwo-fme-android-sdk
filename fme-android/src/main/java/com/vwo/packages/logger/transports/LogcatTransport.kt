@@ -17,50 +17,42 @@ package com.vwo.packages.logger.transports
 
 import android.util.Log
 import com.vwo.interfaces.logger.LogTransport
-import com.vwo.packages.logger.Logger
 import com.vwo.packages.logger.enums.LogLevelEnum
 
 class LogcatTransport(private val level: LogLevelEnum) : LogTransport {
+    private val tag = "Vwo-fme-android"
+
     fun trace(tag: String, message: String) {
-        log(LogLevelEnum.TRACE, message) { tag, msg ->
-            Log.v(tag, msg)
-        }
+        Log.v(tag, message)
     }
 
     fun debug(tag: String, message: String) {
-        log(LogLevelEnum.DEBUG, message) { tag, msg ->
-            Log.d(tag, msg)
-        }
+        Log.d(tag, message)
     }
 
     fun info(tag: String, message: String) {
-        log(LogLevelEnum.INFO, message) { tag, msg ->
-            Log.i(tag, msg)
-        }
+        Log.i(tag, message)
     }
 
     fun warn(tag: String, message: String) {
-        log(LogLevelEnum.WARN, message) { tag, msg ->
-            Log.w(tag, msg)
-        }
+        Log.w(tag, message)
     }
 
     fun error(tag: String, message: String) {
-        log(LogLevelEnum.ERROR, message) { tag, msg ->
-            Log.e(tag, msg)
-        }
-    }
-
-    fun log(level: LogLevelEnum, message: String?, logFunction: (String, String) -> Unit) {
-        if (message == null) return
-        if (this.level.ordinal <= level.ordinal) {
-            logFunction("Vwo", message)
-        }
+        Log.e(tag, message)
     }
 
     override fun log(level: LogLevelEnum, message: String?) {
+        if (message == null) return
+
         if (this.level.ordinal <= level.ordinal) {
-            println(message)
+            when (level) {
+                LogLevelEnum.TRACE -> trace(tag, message)
+                LogLevelEnum.ERROR -> error(tag, message)
+                LogLevelEnum.DEBUG -> debug(tag, message)
+                LogLevelEnum.WARN -> warn(tag, message)
+                else -> info(tag, message)
+            }
         }
     }
 }
