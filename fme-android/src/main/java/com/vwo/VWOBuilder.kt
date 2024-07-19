@@ -85,7 +85,7 @@ class VWOBuilder(options: VWOInitOptions?) {
      * @param forceFetch - Force fetch ignoring cache.
      * @return The fetched settings.
      */
-    fun fetchSettings(forceFetch: Boolean): String? {
+    private fun fetchSettings(forceFetch: Boolean): String? {
         // Check if a fetch operation is already in progress
         if (isSettingsFetchInProgress || settingFileManager == null) {
             // Avoid parallel fetches

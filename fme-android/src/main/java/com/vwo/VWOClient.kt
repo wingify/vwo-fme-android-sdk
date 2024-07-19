@@ -147,7 +147,7 @@ class VWOClient(settings: String, options: VWOInitOptions?) {
                         put("apiName", apiName)
                     }
                 })
-            val hooksManager: HooksManager = HooksManager(options?.integrations)
+            val hooksManager = HooksManager(options?.integrations)
             if (!DataTypeUtil.isString(eventName)) {
                 LoggerService.log(
                     LogLevelEnum.ERROR,

@@ -110,7 +110,7 @@ class SettingsManager(options: VWOInitOptions) {
         val options = NetworkUtil().getSettingsPath(sdkKey, accountId)
         options["api-version"] = "3"
 
-        if (!NetworkManager.config!!.developmentMode) {
+        if (NetworkManager.config?.developmentMode != true) {
             options["s"] = "prod"
         }
 
