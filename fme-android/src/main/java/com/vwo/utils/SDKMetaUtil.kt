@@ -15,35 +15,12 @@
  */
 package com.vwo.utils
 
-import org.w3c.dom.Element
-import java.io.File
-import javax.xml.parsers.DocumentBuilderFactory
+import com.vwo.sdk.fme.BuildConfig
 
 object SDKMetaUtil {
-    private const val POM_FILE_PATH = "pom.xml"
 
     /**
      * Returns the sdkVersion
      */
-    var sdkVersion: String? = null
-        private set
-
-    /**
-     * Initializes the SDKMetaUtil with the sdkVersion from pom.xml
-     */
-    @JvmStatic
-    fun init() {
-        try {
-            val pomFile = File(POM_FILE_PATH)
-            val dbFactory = DocumentBuilderFactory.newInstance()
-            val dBuilder = dbFactory.newDocumentBuilder()
-            val doc = dBuilder.parse(pomFile)
-            doc.documentElement.normalize()
-            val versionElement = doc.getElementsByTagName("version").item(0) as Element
-            sdkVersion = versionElement.textContent
-        } catch (e: Exception) {
-            sdkVersion = "1.0.0-error"
-            throw RuntimeException("Failed to read version from pom.xml", e)
-        }
-    }
+    val sdkVersion: String = BuildConfig.SDK_VERSION
 }

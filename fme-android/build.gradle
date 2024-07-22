@@ -9,6 +9,8 @@ android {
 
     defaultConfig {
         minSdk 21
+        versionName VERSION_NAME
+        buildConfigField 'String', 'SDK_VERSION', "\"$VERSION_NAME\""
 
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         consumerProguardFiles "consumer-rules.pro"

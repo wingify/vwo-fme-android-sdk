@@ -49,7 +49,7 @@ class VWOClient(settings: String, options: VWOInitOptions?) {
                 UrlService.init(it.collectionPrefix)
             }
             // init SDKMetaUtil and set sdkVersion
-            SDKMetaUtil.init()
+            //SDKMetaUtil.init()
             LoggerService.log(LogLevelEnum.INFO, "CLIENT_INITIALIZED", null)
         } catch (exception: Exception) {
             LoggerService.log(
