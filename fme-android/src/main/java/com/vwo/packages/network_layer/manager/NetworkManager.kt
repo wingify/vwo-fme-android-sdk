@@ -76,7 +76,7 @@ object NetworkManager {
             return if (networkOptions == null) {
                 null
             } else {
-                client!!.POST(request)
+                client?.POST(request)
             }
         } catch (error: Exception) {
             LoggerService.log(LogLevelEnum.ERROR, "Error when creating post request, error: $error")

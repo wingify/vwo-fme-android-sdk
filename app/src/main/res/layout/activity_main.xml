@@ -17,11 +17,29 @@
         app:layout_constraintTop_toTopOf="parent" />
 
     <Button
-        android:id="@+id/btn_add"
+        android:id="@+id/btn_init_sdk"
         android:layout_width="0dp"
-        android:text="@string/add_2_5"
         android:layout_height="wrap_content"
+        android:text="@string/initSdk"
+        app:layout_constraintBottom_toTopOf="@+id/btn_get_flag"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent" />
+
+    <Button
+        android:id="@+id/btn_get_flag"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:text="@string/getFlag"
+        app:layout_constraintBottom_toTopOf="@+id/btn_get_variable"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent" />
+
+    <Button
+        android:id="@+id/btn_get_variable"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:text="@string/getVariable"
         app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintEnd_toEndOf="parent"/>
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent" />
 </androidx.constraintlayout.widget.ConstraintLayout>

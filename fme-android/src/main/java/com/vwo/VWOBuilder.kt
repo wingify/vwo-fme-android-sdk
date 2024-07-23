@@ -140,8 +140,8 @@ class VWOBuilder(options: VWOInitOptions?) {
      * @return  The instance of this builder.
      */
     fun setStorage(): VWOBuilder {
-        if (options != null && options.storage != null) {
-            Storage.instance!!.attachConnector(options.storage)
+        if (options?.storage != null) {
+            Storage.instance?.attachConnector(options.storage)
         }
         return this
     }
