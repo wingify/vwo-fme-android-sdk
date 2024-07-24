@@ -110,7 +110,7 @@ class NetworkClient : NetworkClientInterface {
                     val input = body.toByteArray(StandardCharsets.UTF_8)
                     os.write(input, 0, input.size)
                 } else {
-                    throw IllegalArgumentException("Unsupported body type: " + body!!.javaClass.name)
+                    throw IllegalArgumentException("Unsupported body type: " + body?.javaClass?.name)
                 }
             }
             val statusCode = connection.responseCode

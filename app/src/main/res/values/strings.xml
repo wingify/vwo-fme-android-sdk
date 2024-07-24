@@ -3,4 +3,5 @@
     <string name="initSdk">Init SDK</string>
     <string name="getFlag">Get Flag</string>
     <string name="getVariable">Get Variable</string>
+    <string name="track">Track</string>
 </resources>

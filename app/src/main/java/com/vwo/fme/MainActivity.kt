@@ -20,6 +20,7 @@ class MainActivity : AppCompatActivity() {
 
     private var vwo: VWO? = null
     private var featureFlag: GetFlag? = null
+    private lateinit var userContext: VWOContext
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -56,6 +57,9 @@ class MainActivity : AppCompatActivity() {
             binding.btnGetVariable.setOnClickListener {
                 featureFlag?.let { getVariable(it) }
             }
+            binding.btnTrack.setOnClickListener {
+                track()
+            }
 
             /*val calculator = Calculator()
             val result = calculator.add(2, 5)
@@ -65,7 +69,7 @@ class MainActivity : AppCompatActivity() {
 
     private fun getFlag(vwo: VWO) {
         // Create VWOContext object
-        val userContext = VWOContext()
+        userContext = VWOContext()
         // Set User ID
         userContext.id = "unique_user_id1"
         userContext.customVariables = mutableMapOf<String, Any>("name" to "Swapnil")
@@ -107,9 +111,20 @@ class MainActivity : AppCompatActivity() {
         } else {
             // Your code when feature flag is disabled
             Log.d(
-                "SwapnilFlag",
-                "Feature flag is disabled: ${featureFlag.isEnabled} ${featureFlag.getVariables()}"
+                "SwapnilFlag", "Feature flag is disabled: ${featureFlag.isEnabled} " +
+                        "${featureFlag.getVariables()}"
             )
         }
+    }
+
+    private fun track() {
+
+        if(!::userContext.isInitialized) return
+
+        val properties = mutableMapOf<String, Any>("cartvalue" to 10)
+        // Track the event for the given event name and user context
+        val trackResponse = vwo?.trackEvent("swapnilevent", userContext, properties)
+        Log.d("SwapnilFlag", "track=$trackResponse")
+        vwo?.setAttribute("attribute-name", "attribute-value", userContext)
     }
 }

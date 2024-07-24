@@ -20,6 +20,7 @@
         android:id="@+id/btn_init_sdk"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
+        android:layout_margin="16dp"
         android:text="@string/initSdk"
         app:layout_constraintBottom_toTopOf="@+id/btn_get_flag"
         app:layout_constraintEnd_toEndOf="parent"
@@ -29,6 +30,7 @@
         android:id="@+id/btn_get_flag"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
+        android:layout_margin="16dp"
         android:text="@string/getFlag"
         app:layout_constraintBottom_toTopOf="@+id/btn_get_variable"
         app:layout_constraintEnd_toEndOf="parent"
@@ -38,7 +40,18 @@
         android:id="@+id/btn_get_variable"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
+        android:layout_margin="16dp"
         android:text="@string/getVariable"
+        app:layout_constraintBottom_toTopOf="@+id/btn_track"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent" />
+
+    <Button
+        android:id="@+id/btn_track"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_margin="16dp"
+        android:text="@string/track"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent" />
