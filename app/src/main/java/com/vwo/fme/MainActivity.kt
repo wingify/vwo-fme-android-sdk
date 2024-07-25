@@ -40,7 +40,7 @@ class MainActivity : AppCompatActivity() {
             vwoInitOptions.accountId = ACCOUNT_ID
 
             vwoInitOptions.logger = mutableMapOf<String, Any>().apply { put("level", "TRACE") }
-            // create VWO instance with the vwoInitOptions
+            // Create VWO instance with the vwoInitOptions
             VWO.init(vwoInitOptions, object : IVwoInitCallback {
                 override fun vwoInitSuccess(vwo: VWO, message: String) {
                     Log.d("SwapnilFlag", "vwoInitSuccess $message")
@@ -60,72 +60,55 @@ class MainActivity : AppCompatActivity() {
             binding.btnTrack.setOnClickListener {
                 track()
             }
-
-            /*val calculator = Calculator()
-            val result = calculator.add(2, 5)
-            Toast.makeText(this, "Result: $result", Toast.LENGTH_SHORT).show()*/
+            binding.btnAttribute.setOnClickListener {
+                sendAttribute()
+            }
         }
     }
 
     private fun getFlag(vwo: VWO) {
-        // Create VWOContext object
         userContext = VWOContext()
-        // Set User ID
         userContext.id = "unique_user_id"
         userContext.customVariables = mutableMapOf("name" to "Swapnil")
 
         // Get feature flag object
         featureFlag = vwo.getFlag("swapnilFlag", userContext)
 
-        // Get the flag value
         val isFeatureFlagEnabled = featureFlag?.isEnabled
         Log.d("SwapnilFlag", "isFeatureFlagEnabled=$isFeatureFlagEnabled")
-        // Determine the application flow based on feature flag status
-        if (isFeatureFlagEnabled == true) {
-            // Your code when feature flag is enabled
-            // To get value of a single variable
-            val variable1 = featureFlag?.getVariable("Variable1", false)
-
-            // To get value of all variables in object format
-            val getAllVariables = featureFlag?.getVariables()//)
-            Log.d("SwapnilFlag", "getAllVariables=$getAllVariables")
-            Log.d("SwapnilFlag", "variable1=$variable1")
-        } else {
-            // Your code when feature flag is disabled
-        }
     }
 
     private fun getVariable(featureFlag: GetFlag) {
         val isFeatureFlagEnabled = featureFlag.isEnabled
         Log.d("SwapnilFlag", "isFeatureFlagEnabled=$isFeatureFlagEnabled")
+
         // Determine the application flow based on feature flag status
         if (isFeatureFlagEnabled) {
-            // Your code when feature flag is enabled
             // To get value of a single variable
             val variable1 = featureFlag.getVariable("Variable1", false)
 
             // To get value of all variables in object format
-            val getAllVariables = featureFlag.getVariables()//)
-            Log.d("SwapnilFlag", "getAllVariables=$getAllVariables")
-            Log.d("SwapnilFlag", "variable1=$variable1")
+            val getAllVariables = featureFlag.getVariables()
+            Log.d("SwapnilFlag", "variable1=$variable1 getAllVariables=$getAllVariables")
         } else {
             // Your code when feature flag is disabled
-            Log.d(
-                "SwapnilFlag", "Feature flag is disabled: ${featureFlag.isEnabled} " +
-                        "${featureFlag.getVariables()}"
-            )
+            Log.d("SwapnilFlag", "Feature flag is disabled: ${featureFlag.isEnabled} " +
+                        "${featureFlag.getVariables()}")
         }
     }
 
     private fun track() {
 
-        if(!::userContext.isInitialized) return
+        if (!::userContext.isInitialized) return
 
         val properties = mutableMapOf<String, Any>("cartvalue" to 10)
         // Track the event for the given event name and user context
-//        val trackResponse = vwo?.trackEvent("swapnilevent", userContext, properties)
-        val trackResponse = vwo?.trackEvent("swapnilevent", userContext)
+        val trackResponse = vwo?.trackEvent("swapnilevent", userContext, properties)
+        //val trackResponse = vwo?.trackEvent("swapnilevent", userContext)
         Log.d("SwapnilFlag", "track=$trackResponse")
+    }
+
+    private fun sendAttribute() {
         vwo?.setAttribute("attribute-name", "attribute-value", userContext)
     }
 }
