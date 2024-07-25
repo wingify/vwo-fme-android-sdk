@@ -71,8 +71,8 @@ class MainActivity : AppCompatActivity() {
         // Create VWOContext object
         userContext = VWOContext()
         // Set User ID
-        userContext.id = "unique_user_id1"
-        userContext.customVariables = mutableMapOf<String, Any>("name" to "Swapnil")
+        userContext.id = "unique_user_id"
+        userContext.customVariables = mutableMapOf("name" to "Swapnil")
 
         // Get feature flag object
         featureFlag = vwo.getFlag("swapnilFlag", userContext)
@@ -123,7 +123,8 @@ class MainActivity : AppCompatActivity() {
 
         val properties = mutableMapOf<String, Any>("cartvalue" to 10)
         // Track the event for the given event name and user context
-        val trackResponse = vwo?.trackEvent("swapnilevent", userContext, properties)
+//        val trackResponse = vwo?.trackEvent("swapnilevent", userContext, properties)
+        val trackResponse = vwo?.trackEvent("swapnilevent", userContext)
         Log.d("SwapnilFlag", "track=$trackResponse")
         vwo?.setAttribute("attribute-name", "attribute-value", userContext)
     }

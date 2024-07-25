@@ -50,7 +50,7 @@ class CampaignDecisionService {
             DecisionMaker().getBucketValueForUser(campaign.id.toString() + "_" + userId)
         val isUserPart = valueAssignedToUser != 0 && valueAssignedToUser <= trafficAllocation
 
-        LoggerService.Companion.log(
+        LoggerService.log(
             LogLevelEnum.INFO,
             "USER_PART_OF_CAMPAIGN",
             object : HashMap<String?, String?>() {
