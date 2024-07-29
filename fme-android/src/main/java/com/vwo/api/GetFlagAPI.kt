@@ -155,7 +155,7 @@ object GetFlagAPI {
                 }
             }
         } catch (e: Exception) {
-            LoggerService.log(LogLevelEnum.ERROR, "Error parsing stored data: " + e.message)
+            LoggerService.log(LogLevelEnum.DEBUG, "Error parsing stored data: " + e.message)
         }
 
         /**
