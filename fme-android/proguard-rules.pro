@@ -19,3 +19,14 @@
 # If you keep the line number information, uncomment this to
 # hide the original source file name.
 #-renamesourcefileattribute SourceFile
+-keepparameternames
+-renamesourcefileattribute SourceFile
+-keepattributes Exceptions,InnerClasses,Signature,Deprecated,SourceFile,LineNumberTable,*Annotation*,EnclosingMethod
+
+-repackageclasses 'secret'
+-allowaccessmodification
+-keeppackagenames doNotKeepAThing
+
+-keep class com.vwo.VWO { *; }
+-keep class com.vwo.interfaces.IVwoInitCallback { *; }
+-keep class com.vwo.models.user.** { *; }
