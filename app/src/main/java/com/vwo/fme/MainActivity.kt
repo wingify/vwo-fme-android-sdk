@@ -72,7 +72,7 @@ class MainActivity : AppCompatActivity() {
         userContext.customVariables = mutableMapOf("name" to "Swapnil")
 
         // Get feature flag object
-        featureFlag = vwo.getFlag("swapnilFlag", userContext)
+        featureFlag = vwo.getFlag("swapnilFlag2", userContext)
 
         val isFeatureFlagEnabled = featureFlag?.isEnabled
         Log.d("SwapnilFlag", "isFeatureFlagEnabled=$isFeatureFlagEnabled")
@@ -85,11 +85,12 @@ class MainActivity : AppCompatActivity() {
         // Determine the application flow based on feature flag status
         if (isFeatureFlagEnabled) {
             // To get value of a single variable
-            val variable1 = featureFlag.getVariable("Variable1", false)
+            val variable1 = featureFlag.getVariable("SwapnilFlag2Variable1", "def-value1")
+            val variable2 = featureFlag.getVariable("SwapnilFlag2Variable2", "def-value2")
 
             // To get value of all variables in object format
             val getAllVariables = featureFlag.getVariables()
-            Log.d("SwapnilFlag", "variable1=$variable1 getAllVariables=$getAllVariables")
+            Log.d("SwapnilFlag", "variable1=$variable1 variable2=$variable2 getAllVariables=$getAllVariables")
         } else {
             // Your code when feature flag is disabled
             Log.d("SwapnilFlag", "Feature flag is disabled: ${featureFlag.isEnabled} " +
@@ -109,6 +110,10 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun sendAttribute() {
-        vwo?.setAttribute("attribute-name", "attribute-value", userContext)
+        if (!::userContext.isInitialized) return
+
+        vwo?.setAttribute("attribute-name", "attribute-value1", userContext)
+        vwo?.setAttribute("attribute-name-float", 1.01, userContext)
+        vwo?.setAttribute("attribute-name-boolean", true, userContext)
     }
 }

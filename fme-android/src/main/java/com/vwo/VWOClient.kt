@@ -30,6 +30,9 @@ import com.vwo.services.HooksManager
 import com.vwo.services.LoggerService
 import com.vwo.services.UrlService
 import com.vwo.utils.DataTypeUtil
+import com.vwo.utils.DataTypeUtil.isBoolean
+import com.vwo.utils.DataTypeUtil.isNumber
+import com.vwo.utils.DataTypeUtil.isString
 import com.vwo.utils.SettingsUtil
 
 class VWOClient(settings: String?, options: VWOInitOptions?) {
@@ -149,7 +152,7 @@ class VWOClient(settings: String?, options: VWOInitOptions?) {
                     }
                 })
             val hooksManager = HooksManager(options?.integrations)
-            if (!DataTypeUtil.isString(eventName)) {
+            if (!isString(eventName)) {
                 LoggerService.log(
                     LogLevelEnum.ERROR,
                     "API_INVALID_PARAM",
@@ -236,7 +239,7 @@ class VWOClient(settings: String?, options: VWOInitOptions?) {
      * @param attributeValue - The value of the attribute to set.
      * @param context User context
      */
-    fun setAttribute(attributeKey: String, attributeValue: String, context: VWOContext?) {
+    fun setAttribute(attributeKey: String, attributeValue: Any, context: VWOContext?) {
         val apiName = "setAttribute"
         try {
             LoggerService.log(
@@ -247,7 +250,7 @@ class VWOClient(settings: String?, options: VWOInitOptions?) {
                         put("apiName", apiName)
                     }
                 })
-            if (!DataTypeUtil.isString(attributeKey)) {
+            if (!isString(attributeKey)) {
                 LoggerService.log(
                     LogLevelEnum.ERROR,
                     "API_INVALID_PARAM",
@@ -262,7 +265,7 @@ class VWOClient(settings: String?, options: VWOInitOptions?) {
                 throw IllegalArgumentException("TypeError: attributeKey should be a string")
             }
 
-            if (!DataTypeUtil.isString(attributeValue)) {
+            if (!isString(attributeValue) && !isNumber(attributeValue) && !isBoolean(attributeValue)) {
                 LoggerService.log(
                     LogLevelEnum.ERROR,
                     "API_INVALID_PARAM",
@@ -271,10 +274,10 @@ class VWOClient(settings: String?, options: VWOInitOptions?) {
                             put("apiName", apiName)
                             put("key", "eventName")
                             put("type", DataTypeUtil.getType(attributeValue))
-                            put("correctType", "String")
+                            put("correctType", "String, Number, Boolean")
                         }
                     })
-                throw IllegalArgumentException("TypeError: attributeValue should be a string")
+                throw IllegalArgumentException("TypeError: attributeValue should be a String, Number or Boolean")
             }
 
             require(!(context?.id == null || context.id?.isEmpty()==true)) { "User ID is required" }

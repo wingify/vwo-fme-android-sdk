@@ -135,7 +135,7 @@ object VWO {
      * @param attributeValue - The value of the attribute to set.
      * @param context User context
      */
-    fun setAttribute(attributeKey: String, attributeValue: String, context: VWOContext) {
+    fun setAttribute(attributeKey: String, attributeValue: Any, context: VWOContext) {
         vwoClient?.setAttribute(attributeKey, attributeValue, context)
     }
 }

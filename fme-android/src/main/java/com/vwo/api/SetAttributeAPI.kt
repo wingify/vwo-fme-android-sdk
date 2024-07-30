@@ -33,7 +33,7 @@ object SetAttributeAPI {
     fun setAttribute(
         settings: Settings,
         attributeKey: String,
-        attributeValue: String,
+        attributeValue: Any,
         context: VWOContext
     ) {
         createAndSendImpressionForSetAttribute(settings, attributeKey, attributeValue, context)
@@ -52,7 +52,7 @@ object SetAttributeAPI {
     private fun createAndSendImpressionForSetAttribute(
         settings: Settings,
         attributeKey: String,
-        attributeValue: String,
+        attributeValue: Any,
         context: VWOContext
     ) {
         // Get base properties for the event
