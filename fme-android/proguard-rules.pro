@@ -29,4 +29,4 @@
 
 -keep class com.vwo.VWO { *; }
 -keep class com.vwo.interfaces.IVwoInitCallback { *; }
--keep class com.vwo.models.user.** { *; }
+-keep class com.vwo.models.** { *; }
