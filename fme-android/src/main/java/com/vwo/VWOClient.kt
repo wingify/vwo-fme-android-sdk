@@ -30,10 +30,9 @@ import com.vwo.services.HooksManager
 import com.vwo.services.LoggerService
 import com.vwo.services.UrlService
 import com.vwo.utils.DataTypeUtil
-import com.vwo.utils.SDKMetaUtil
 import com.vwo.utils.SettingsUtil
 
-class VWOClient(settings: String, options: VWOInitOptions?) {
+class VWOClient(settings: String?, options: VWOInitOptions?) {
     private var processedSettings: Settings? = null
     var settings: String? = null
     private var options: VWOInitOptions? = null
@@ -41,16 +40,18 @@ class VWOClient(settings: String, options: VWOInitOptions?) {
     init {
         try {
             this.options = options
-            this.settings = settings
-            this.processedSettings = objectMapper.readValue(settings, Settings::class.java)
-            this.processedSettings?.let {
-                SettingsUtil.processSettings(it)
-                // init url version with collection prefix
-                UrlService.init(it.collectionPrefix)
+            if (settings != null) {
+                this.settings = settings
+                this.processedSettings = objectMapper.readValue(settings, Settings::class.java)
+                this.processedSettings?.let {
+                    SettingsUtil.processSettings(it)
+                    // init url version with collection prefix
+                    UrlService.init(it.collectionPrefix)
+                }
+                // init SDKMetaUtil and set sdkVersion
+                //SDKMetaUtil.init()
+                LoggerService.log(LogLevelEnum.INFO, "CLIENT_INITIALIZED", null)
             }
-            // init SDKMetaUtil and set sdkVersion
-            //SDKMetaUtil.init()
-            LoggerService.log(LogLevelEnum.INFO, "CLIENT_INITIALIZED", null)
         } catch (exception: Exception) {
             LoggerService.log(
                 LogLevelEnum.ERROR,

@@ -47,11 +47,8 @@ object VWO {
 
         val settings = vwoBuilder.getSettings(false)
         val vwoInstance = this
-        settings?.let {
-            vwoClient = VWOClient(it, options)
-            // Set VWOClient instance in VWOBuilder
-            vwoBuilder.setVWOClient(vwoClient)
-        }
+        vwoClient = VWOClient(settings, options)
+        vwoBuilder.setVWOClient(vwoClient)
         return vwoInstance
     }
 
