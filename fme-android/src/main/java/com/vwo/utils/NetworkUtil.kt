@@ -279,7 +279,7 @@ class NetworkUtil {
             userId: String?,
             eventName: String,
             attributeKey: String,
-            attributeValue: String
+            attributeValue: Any
         ): Map<String, Any?> {
             val properties = getEventBasePayload(settings, userId, eventName, null, null)
             properties.d?.event?.props?.setIsCustomEvent(true)
