@@ -43,12 +43,12 @@ class MainActivity : AppCompatActivity() {
             // Create VWO instance with the vwoInitOptions
             VWO.init(vwoInitOptions, object : IVwoInitCallback {
                 override fun vwoInitSuccess(vwo: VWO, message: String) {
-                    Log.d("SwapnilFlag", "vwoInitSuccess $message")
+                    Log.d("Vwo", "vwoInitSuccess $message")
                     this@MainActivity.vwo = vwo
                 }
 
                 override fun vwoInitFailed(message: String) {
-                    Log.d("SwapnilFlag", "vwoInitFailed: $message")
+                    Log.d("Vwo", "vwoInitFailed: $message")
                 }
             })
             binding.btnGetFlag.setOnClickListener {
@@ -72,28 +72,28 @@ class MainActivity : AppCompatActivity() {
         userContext.customVariables = mutableMapOf("name1" to 21,"name2" to 0,"name3" to 5,"name4" to 11)
 
         // Get feature flag object
-        featureFlag = vwo.getFlag("swapnilFlag2", userContext)
+        featureFlag = vwo.getFlag("feature_flag_name", userContext)
 
         val isFeatureFlagEnabled = featureFlag?.isEnabled
-        Log.d("SwapnilFlag", "isFeatureFlagEnabled=$isFeatureFlagEnabled")
+        Log.d("Vwo", "isFeatureFlagEnabled=$isFeatureFlagEnabled")
     }
 
     private fun getVariable(featureFlag: GetFlag) {
         val isFeatureFlagEnabled = featureFlag.isEnabled
-        Log.d("SwapnilFlag", "isFeatureFlagEnabled=$isFeatureFlagEnabled")
+        Log.d("Vwo", "isFeatureFlagEnabled=$isFeatureFlagEnabled")
 
         // Determine the application flow based on feature flag status
         if (isFeatureFlagEnabled) {
             // To get value of a single variable
-            val variable1 = featureFlag.getVariable("SwapnilFlag2Variable1", "def-value1")
-            val variable2 = featureFlag.getVariable("SwapnilFlag2Variable2", "def-value2")
+            val variable1 = featureFlag.getVariable("feature_flag_variable1", "default-value1")
+            val variable2 = featureFlag.getVariable("feature_flag_variable2", "default-value2")
 
             // To get value of all variables in object format
             val getAllVariables = featureFlag.getVariables()
-            Log.d("SwapnilFlag", "variable1=$variable1 variable2=$variable2 getAllVariables=$getAllVariables")
+            Log.d("Vwo", "variable1=$variable1 variable2=$variable2 getAllVariables=$getAllVariables")
         } else {
             // Your code when feature flag is disabled
-            Log.d("SwapnilFlag", "Feature flag is disabled: ${featureFlag.isEnabled} " +
+            Log.d("Vwo", "Feature flag is disabled: ${featureFlag.isEnabled} " +
                         "${featureFlag.getVariables()}")
         }
     }
@@ -104,9 +104,9 @@ class MainActivity : AppCompatActivity() {
 
         val properties = mutableMapOf<String, Any>("cartvalue" to 10)
         // Track the event for the given event name and user context
-        val trackResponse = vwo?.trackEvent("swapnilevent", userContext, properties)
-        //val trackResponse = vwo?.trackEvent("swapnilevent", userContext)
-        Log.d("SwapnilFlag", "track=$trackResponse")
+        val trackResponse = vwo?.trackEvent("vwoevent", userContext, properties)
+        //val trackResponse = vwo?.trackEvent("vwoevent", userContext)
+        Log.d("Vwo", "track=$trackResponse")
     }
 
     private fun sendAttribute() {
