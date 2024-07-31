@@ -26,6 +26,7 @@ import com.vwo.services.LoggerService
 import com.vwo.utils.DataTypeUtil
 import com.vwo.utils.GatewayServiceUtil
 import java.net.URLDecoder
+import java.text.DecimalFormat
 import java.util.regex.Pattern
 
 class SegmentOperandEvaluator {
@@ -68,16 +69,30 @@ class SegmentOperandEvaluator {
             return gatewayServiceResponse.toBoolean()
         } else {
             // Process other types of operands
-            var tagValue = properties[operandKey]
+            var tagValue:Any? = properties[operandKey]
+            if (tagValue == null) {
+                tagValue = ""
+            }
             tagValue = preProcessTagValue(tagValue.toString())
             val preProcessOperandValue = preProcessOperandValue(operandValue)
-            val processedValues = processValues(preProcessOperandValue["operandValue"], tagValue)
-            tagValue = processedValues["tagValue"]
-            val operandType: SegmentOperandValueEnum? =
-                preProcessOperandValue["operandType"] as SegmentOperandValueEnum?
+            val processedValues = preProcessOperandValue["operandValue"]?.let {
+                processValues(it, tagValue as String)
+            }
+
+            // Convert numeric values to strings if processing wildcard pattern
+            val operandType = preProcessOperandValue["operandType"] as SegmentOperandValueEnum?
+            if (operandType == SegmentOperandValueEnum.STARTING_ENDING_STAR_VALUE ||
+                operandType == SegmentOperandValueEnum.STARTING_STAR_VALUE ||
+                operandType == SegmentOperandValueEnum.ENDING_STAR_VALUE ||
+                operandType == SegmentOperandValueEnum.REGEX_VALUE) {
+                processedValues?.set("tagValue", processedValues["tagValue"].toString())
+            }
+
+            tagValue = processedValues?.get("tagValue")
             return extractResult(
                 operandType,
-                processedValues["operandValue"].toString().trim { it <= ' ' }
+                processedValues?.get("operandValue").toString()
+                    .trim { it <= ' ' }
                     .replace("\"", ""),
                 tagValue.toString())
         }
@@ -90,13 +105,8 @@ class SegmentOperandEvaluator {
         if (SegmentUtil.matchWithRegex(operand, SegmentOperandRegexEnum.LOWER_MATCH.regex)) {
             operandType = SegmentOperandValueEnum.LOWER_VALUE
             operandValue = extractOperandValue(operand, SegmentOperandRegexEnum.LOWER_MATCH.regex)
-        } else if (SegmentUtil.matchWithRegex(
-                operand,
-                SegmentOperandRegexEnum.WILDCARD_MATCH.regex
-            )
-        ) {
-            operandValue =
-                extractOperandValue(operand, SegmentOperandRegexEnum.WILDCARD_MATCH.regex)
+        } else if (SegmentUtil.matchWithRegex(operand, SegmentOperandRegexEnum.WILDCARD_MATCH.regex)) {
+            operandValue = extractOperandValue(operand, SegmentOperandRegexEnum.WILDCARD_MATCH.regex)
             val startingStar: Boolean = SegmentUtil.matchWithRegex(
                 operandValue,
                 SegmentOperandRegexEnum.STARTING_STAR.regex
@@ -185,7 +195,10 @@ class SegmentOperandEvaluator {
         }
         var tagValue = URLDecoder.decode(context.userAgent)
         val preProcessOperandValue = preProcessOperandValue(dslOperandValue)
-        val processedValues = processValues(preProcessOperandValue["operandValue"], tagValue)
+        val processedValues = preProcessOperandValue["operandValue"]?.let {
+            processValues(it, tagValue)
+        }?:return false
+
         tagValue = processedValues["tagValue"] as String?
         val operandType = preProcessOperandValue["operandType"] as SegmentOperandValueEnum?
         return extractResult(
@@ -195,7 +208,7 @@ class SegmentOperandEvaluator {
             tagValue)
     }
 
-    fun preProcessTagValue(tagValue: String?): String {
+    fun preProcessTagValue(tagValue: String): String {
         if (tagValue == null) {
             return ""
         }
@@ -205,24 +218,37 @@ class SegmentOperandEvaluator {
         return tagValue.trim { it <= ' ' }
     }
 
-    private fun processValues(operandValue: Any?, tagValue: Any?): Map<String, Any?> {
-        // Convert operand and tag values to floats
-        val processedOperandValue: Double
-        val processedTagValue: Double
-        val result: MutableMap<String, Any?> = HashMap()
-        try {
-            processedOperandValue = operandValue.toString().toDouble()
-            processedTagValue = tagValue.toString().toDouble()
-        } catch (e: NumberFormatException) {
-            // Return original values if conversion fails
-            result["operandValue"] = operandValue
-            result["tagValue"] = tagValue
-            return result
-        }
-        // Convert numeric values back to strings
-        result["operandValue"] = processedOperandValue.toString()
-        result["tagValue"] = processedTagValue.toString()
+    private fun processValues(operandValue: Any, tagValue: Any): MutableMap<String, Any> {
+        val result: MutableMap<String, Any> = HashMap()
+        // Process operandValue
+        result["operandValue"] = convertValue(operandValue)
+
+        // Process tagValue
+        result["tagValue"] = convertValue(tagValue)
+
         return result
+    }
+
+    private fun convertValue(value: Any): String {
+        if (value is Boolean) {
+            return value.toString() // Convert boolean to "true" or "false"
+        }
+
+        try {
+            // Attempt to convert to a numeric value
+            val numericValue = value.toString().toDouble()
+            // Check if the numeric value is actually an integer
+            if (numericValue == numericValue.toInt().toDouble()) {
+                return numericValue.toInt().toString() // Remove '.0' by converting to int
+            } else {
+                // Format float to avoid scientific notation for large numbers
+                val df = DecimalFormat("#.##############") // Adjust the pattern as needed
+                return df.format(numericValue)
+            }
+        } catch (e: NumberFormatException) {
+            // Return the value as-is if it's not a number
+            return value.toString()
+        }
     }
 
     /**

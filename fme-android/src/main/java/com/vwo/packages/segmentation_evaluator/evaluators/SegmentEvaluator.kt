@@ -123,7 +123,7 @@ class SegmentEvaluator {
                         val featureIdKey = featureIdKeys.next()
                         val featureIdValue: String = featureIdObject.get(featureIdKey).asText()
 
-                        if (featureIdValue == "on") {
+                        if (featureIdValue == "on" || featureIdValue == "off") {
                             val features: List<Feature?>? = settings?.features
                             val feature = features?.firstOrNull { it?.id == featureIdKey.toInt() }
 
@@ -134,6 +134,9 @@ class SegmentEvaluator {
                                         checkInUserStorage(featureKey, it)
                                     } else false
                                 }?:false
+                                if (featureIdValue == "off") {
+                                    return !result
+                                }
                                 return result
                             } else {
                                 LoggerService.log(

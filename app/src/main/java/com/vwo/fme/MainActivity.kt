@@ -69,7 +69,7 @@ class MainActivity : AppCompatActivity() {
     private fun getFlag(vwo: VWO) {
         userContext = VWOContext()
         userContext.id = "unique_user_id"
-        userContext.customVariables = mutableMapOf("name" to "Swapnil")
+        userContext.customVariables = mutableMapOf("name1" to 21,"name2" to 0,"name3" to 5,"name4" to 11)
 
         // Get feature flag object
         featureFlag = vwo.getFlag("swapnilFlag2", userContext)

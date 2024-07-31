@@ -52,6 +52,10 @@ object SegmentationManager {
         evaluator?.settings = settings
         evaluator?.feature = feature
 
+        // if user agent and ipAddress both are null or empty, return
+        if (context.userAgent.isEmpty() && context.ipAddress.isEmpty()) {
+            return
+        }
         // If gateway service is required and the base URL is not the default one, fetch the data from the gateway service
         if (feature.isGatewayServiceRequired && !UrlService.baseUrl.contains(Constants.HOST_NAME)
             && (context.vwo == null)) {

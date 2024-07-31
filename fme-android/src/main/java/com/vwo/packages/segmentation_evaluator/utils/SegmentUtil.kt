@@ -32,21 +32,18 @@ object SegmentUtil {
     ): Boolean {
         for (key in actualMap.keys) {
             if (expectedMap.containsKey(key)) {
-                val expectedValues = expectedMap[key]!!
+                var expectedValues = expectedMap[key]!!
+                // convert expectedValues to lowercase
+                expectedValues = expectedValues.map { it.lowercase() }
                 val actualValue = actualMap[key]
 
                 // Handle wildcard patterns for all keys
                 for (`val` in expectedValues) {
                     if (`val`.startsWith("wildcard(") && `val`.endsWith(")")) {
-                        val wildcardPattern = `val`.substring(
-                            9,
-                            `val`.length - 1
-                        ) // Extract pattern from wildcard string
+                        val wildcardPattern = `val`.substring(9, `val`.length - 1) // Extract pattern from wildcard string
                         val regex = Pattern.compile(
-                            wildcardPattern.replace(
-                                "*",
-                                ".*"
-                            )
+                            wildcardPattern.replace("*", ".*"),
+                            Pattern.CASE_INSENSITIVE
                         ) // Convert wildcard pattern to regex
                         val matcher = regex.matcher(actualValue)
                         if (matcher.matches()) {
