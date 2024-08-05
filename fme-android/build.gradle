@@ -1,0 +1,130 @@
+plugins {
+    id 'com.android.library'
+    id 'org.jetbrains.kotlin.android'
+    id 'maven-publish'
+    id 'signing'
+}
+
+android {
+    namespace 'com.vwo.sdk.fme'
+    compileSdk 34
+
+    defaultConfig {
+        minSdk 21
+        versionName VERSION_NAME
+        buildConfigField 'String', 'SDK_VERSION', "\"$VERSION_NAME\""
+        it.buildConfigField 'int', 'VERSION_CODE', "${project.VERSION_CODE}"
+        it.buildConfigField 'String', 'VERSION_NAME', "\"${project.VERSION_NAME}\""
+
+        testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
+        consumerProguardFiles "consumer-rules.pro"
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled true
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+        }
+        debug {
+            minifyEnabled false
+        }
+    }
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_1_8
+        targetCompatibility JavaVersion.VERSION_1_8
+    }
+    kotlinOptions {
+        jvmTarget = '1.8'
+    }
+    testOptions {
+        unitTests.returnDefaultValues = true
+        unitTests {
+            includeAndroidResources = true
+        }
+    }
+    publishing {
+        singleVariant('release') {
+            withJavadocJar()
+        }
+    }
+}
+
+signing {
+    publishing.publications.all { publication ->
+        sign publication
+    }
+}
+
+afterEvaluate {
+    publishing {
+        publications {
+            release(MavenPublication) {
+                groupId = GROUP
+                artifactId = POM_ARTIFACT_ID
+                version = VERSION_NAME
+
+                afterEvaluate {
+                    from components.release
+                }
+                pom {
+                    name = POM_ARTIFACT_ID
+                    description = POM_DESCRIPTION
+                    url = POM_URL
+                    properties = [
+                            versionCode: VERSION_CODE
+                    ]
+                    licenses {
+                        license {
+                            name = POM_LICENCE_NAME
+                            url = POM_LICENCE_URL
+                        }
+                    }
+                    developers {
+                        developer {
+                            id = POM_DEVELOPER_ID
+                            name = POM_DEVELOPER_NAME
+                            email = POM_DEVELOPER_EMAIL
+                        }
+                    }
+                    scm {
+                        connection = POM_SCM_CONNECTION
+                        developerConnection = POM_SCM_DEV_CONNECTION
+                        url = POM_URL
+                    }
+                }
+            }
+        }
+        repositories {
+            maven {
+                //New url https://s01.soss.sonatype.org/service/local/staging/deploy/maven2/
+                def releasesRepoUrl = "https://oss.sonatype.org/service/local/staging/deploy/maven2/"
+                def snapshotsRepoUrl = "https://oss.sonatype.org/content/repositories/snapshots/"
+                url = version.endsWith('SNAPSHOT') ? snapshotsRepoUrl : releasesRepoUrl
+                credentials {
+                    username NEXUS_USERNAME
+                    password NEXUS_PASSWORD
+                }
+                authentication {
+                    basic(BasicAuthentication)
+                }
+            }
+        }
+    }
+}
+
+dependencies {
+
+    implementation 'androidx.core:core-ktx:1.7.0'
+    implementation("com.github.eprst:murmur3:0.4.3")
+    implementation 'com.google.code.gson:gson:2.8.5'
+    implementation 'com.fasterxml.jackson.core:jackson-core:2.10.3'
+    implementation 'com.fasterxml.jackson.core:jackson-annotations:2.10.3'
+    implementation 'com.fasterxml.jackson.core:jackson-databind:2.10.3'
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.5.2")
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.5.2")
+
+    testImplementation 'junit:junit:4.13.2'
+    testImplementation("com.github.eprst:murmur3:0.4.3")
+    androidTestImplementation 'androidx.test.ext:junit:1.2.1'
+    androidTestImplementation 'androidx.test.espresso:espresso-core:3.6.1'
+}
