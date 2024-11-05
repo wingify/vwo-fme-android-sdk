@@ -63,7 +63,7 @@ class StorageDecorator : IStorageDecorator {
         storageService: StorageService
     ): Variation? {
         val featureKey = data["featureKey"] as String?
-        val userId = data["user"]?.toString()
+        val userId = data["userId"]?.toString()
 
         if (featureKey.isNullOrEmpty()) {
             log(LogLevelEnum.ERROR, "STORING_DATA_ERROR", object : HashMap<String?, String?>() {

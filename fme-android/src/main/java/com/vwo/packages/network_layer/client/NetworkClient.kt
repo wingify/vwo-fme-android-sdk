@@ -32,51 +32,56 @@ import java.util.Locale
  * This class provides functionality for sending HTTP requests and receiving responses.
  */
 class NetworkClient : NetworkClientInterface {
+
+    private val maxRetryAttempts = 3
+
     /**
      * Performs a GET request using the provided RequestModel.
      * @param request The model containing request options.
      * @return A ResponseModel with the response data.
      */
     override fun GET(request: RequestModel): ResponseModel {
-        val responseModel = ResponseModel()
-        try {
-            val networkOptions = request.options
-            val url = URL(constructUrl(networkOptions))
+        return retryWrapper {
+            val responseModel = ResponseModel()
+            try {
+                val networkOptions = request.options
+                val url = URL(constructUrl(networkOptions))
 
-            val connection = url.openConnection() as HttpURLConnection
-            connection.requestMethod = "GET"
+                val connection = url.openConnection() as HttpURLConnection
+                connection.requestMethod = "GET"
 
-            //connection.setConnectTimeout(5000);
-            connection.connect()
+                //connection.setConnectTimeout(5000);
+                connection.connect()
 
-            val statusCode = connection.responseCode
-            responseModel.statusCode = statusCode
+                val statusCode = connection.responseCode
+                responseModel.statusCode = statusCode
 
-            val contentType = connection.getHeaderField("Content-Type")
+                val contentType = connection.getHeaderField("Content-Type")
 
-            if (statusCode != 200 || !contentType.contains("application/json")) {
-                val error =
-                    "Invalid response. Status Code: " + statusCode + ", Response : " + connection.responseMessage
-                responseModel.error = Exception(error)
-                return responseModel
+                if (statusCode != 200 || !contentType.contains("application/json")) {
+                    val error =
+                        "Invalid response. Status Code: " + statusCode + ", Response : " + connection.responseMessage
+                    responseModel.error = Exception(error)
+                    return@retryWrapper responseModel
+                }
+
+                val `in` = BufferedReader(InputStreamReader(connection.inputStream))
+                var inputLine: String?
+                val response = StringBuilder()
+
+                while ((`in`.readLine().also { inputLine = it }) != null) {
+                    response.append(inputLine)
+                }
+                `in`.close()
+
+                val responseData = response.toString()
+                responseModel.data = responseData
+
+                return@retryWrapper responseModel
+            } catch (exception: Exception) {
+                responseModel.error = exception
+                return@retryWrapper responseModel
             }
-
-            val `in` = BufferedReader(InputStreamReader(connection.inputStream))
-            var inputLine: String?
-            val response = StringBuilder()
-
-            while ((`in`.readLine().also { inputLine = it }) != null) {
-                response.append(inputLine)
-            }
-            `in`.close()
-
-            val responseData = response.toString()
-            responseModel.data = responseData
-
-            return responseModel
-        } catch (exception: Exception) {
-            responseModel.error = exception
-            return responseModel
         }
     }
 
@@ -86,63 +91,83 @@ class NetworkClient : NetworkClientInterface {
      * @return A ResponseModel with the response data.
      */
     override fun POST(request: RequestModel): ResponseModel {
-        val responseModel = ResponseModel()
-        try {
-            val networkOptions = request.options
-            val url = URL(constructUrl(networkOptions))
+        return retryWrapper {
+            val responseModel = ResponseModel()
+            try {
+                val networkOptions = request.options
+                val url = URL(constructUrl(networkOptions))
 
-            val connection = url.openConnection() as HttpURLConnection
-            connection.requestMethod = "POST"
-            connection.doOutput = true
-            // set headers
-            for ((key, value) in networkOptions) {
-                if (key == "headers") {
-                    val headers = value as Map<String, String>
-                    for ((key1, value1) in headers) {
-                        connection.setRequestProperty(key1, value1)
-                    }
-                }
-            }
+                val connection = url.openConnection() as HttpURLConnection
+                connection.requestMethod = "POST"
+                connection.doOutput = true
 
-            connection.outputStream.use { os ->
                 val body = networkOptions["body"]
-                if (body is LinkedHashMap<*, *>) {
-                    // Convert LinkedHashMap to JSON string
+                val bodyArray = if (body is LinkedHashMap<*, *>) {
                     val jsonBody: String = VWOClient.objectMapper.writeValueAsString(body)
-                    val input = jsonBody.toByteArray(StandardCharsets.UTF_8)
-                    os.write(input, 0, input.size)
+                    jsonBody.toByteArray(StandardCharsets.UTF_8)
                 } else if (body is String) {
-                    val input = body.toByteArray(StandardCharsets.UTF_8)
-                    os.write(input, 0, input.size)
+                    body.toByteArray(StandardCharsets.UTF_8)
                 } else {
                     throw IllegalArgumentException("Unsupported body type: " + body?.javaClass?.name)
                 }
+
+                // set headers
+                for ((key, value) in networkOptions) {
+                    if (key == "headers") {
+                        val headers = value as Map<String, String>
+                        for ((key1, value1) in headers) {
+                            connection.setRequestProperty(key1, value1)
+                        }
+                        if (bodyArray.isNotEmpty())
+                            connection.setRequestProperty(
+                                "Content-Length",
+                                bodyArray.size.toString()
+                            )
+                    }
+                }
+
+                connection.outputStream.use { os ->
+                    os.write(bodyArray)
+                    os.flush()
+                }
+                val statusCode = connection.responseCode
+                responseModel.statusCode = statusCode
+
+                val `in` = BufferedReader(InputStreamReader(connection.inputStream, "utf-8"))
+                val response = StringBuilder()
+                var inputLine: String?
+
+                while ((`in`.readLine().also { inputLine = it }) != null) {
+                    response.append(inputLine)
+                }
+                `in`.close()
+
+                val responseData = response.toString()
+                responseModel.data = responseData
+
+                if (statusCode != 200) {
+                    val error = "Request failed. Status Code: $statusCode, Response: $responseData"
+                    responseModel.error = Exception(error)
+                }
+
+                return@retryWrapper responseModel
+            } catch (exception: Exception) {
+                responseModel.error = exception
+                responseModel.statusCode = 404
+                return@retryWrapper responseModel
             }
-            val statusCode = connection.responseCode
-            responseModel.statusCode = statusCode
-
-            val `in` = BufferedReader(InputStreamReader(connection.inputStream, "utf-8"))
-            val response = StringBuilder()
-            var inputLine: String?
-
-            while ((`in`.readLine().also { inputLine = it }) != null) {
-                response.append(inputLine)
-            }
-            `in`.close()
-
-            val responseData = response.toString()
-            responseModel.data = responseData
-
-            if (statusCode != 200) {
-                val error = "Request failed. Status Code: $statusCode, Response: $responseData"
-                responseModel.error = Exception(error)
-            }
-
-            return responseModel
-        } catch (exception: Exception) {
-            responseModel.error = exception
-            return responseModel
         }
+    }
+
+    private fun retryWrapper(requestProcessor: () -> ResponseModel): ResponseModel {
+        var countOfRetries = 0
+        var response: ResponseModel
+        do {
+            response = requestProcessor()
+            countOfRetries++
+        } while (countOfRetries < maxRetryAttempts && response.error != null)
+
+        return response
     }
 
     companion object {
@@ -154,7 +179,8 @@ class NetworkClient : NetworkClientInterface {
          * @param networkOptions A map containing network options.
          * @return The constructed URL string.
          */
-        fun constructUrl(networkOptions: Map<String, Any?>): String {var hostname = networkOptions["hostname"] as String?
+        fun constructUrl(networkOptions: Map<String, Any?>): String {
+            var hostname = networkOptions["hostname"] as String?
             val path = networkOptions["path"] as String?
             if (networkOptions["port"] != null && networkOptions["port"].toString().toInt() != 0) {
                 hostname += ":" + networkOptions["port"]

@@ -15,6 +15,9 @@
  */
 package com.vwo.utils
 
+import com.vwo.VWOClient
+import com.vwo.constants.Constants
+import com.vwo.decorators.StorageDecorator
 import com.vwo.enums.CampaignTypeEnum
 import com.vwo.enums.StatusEnum
 import com.vwo.models.Campaign
@@ -28,6 +31,11 @@ import com.vwo.packages.segmentation_evaluator.core.SegmentationManager
 import com.vwo.services.CampaignDecisionService
 import com.vwo.services.LoggerService.Companion.log
 import com.vwo.services.StorageService
+import com.vwo.utils.CampaignUtil.getGroupDetailsIfCampaignPartOfIt
+import com.vwo.utils.MegUtil.evaluateGroups
+import com.vwo.utils.UUIDUtils.getUUID
+import com.vwo.models.Storage
+
 
 /**
  * Utility object for decision-making operations.
@@ -53,67 +61,182 @@ object DecisionUtil {
         campaign: Campaign,
         context: VWOContext,
         evaluatedFeatureMap: MutableMap<String, Any>,
-        megGroupWinnerCampaigns: MutableMap<Int, Int>?,
-        storageService: StorageService,
+        megGroupWinnerCampaigns: MutableMap<Int, String>?,
+        storageService: StorageService?,
         decision: MutableMap<String, Any>
-    ): Map<String, Any> {
-        val vwoUserId = UUIDUtils.getUUID(context.id, settings.accountId.toString())
-        val campaignId = campaign.id
+    ): MutableMap<String, Any?> {
+        val vwoUserId = getUUID(context.id, settings.accountId.toString())
+        val campaignId = campaign.id!!
 
         // If the campaign is of type AB, set the _vwoUserId for variation targeting variables
         if (campaign.type == CampaignTypeEnum.AB.value) {
             // set _vwoUserId for variation targeting variables
-            val id = if (campaign.isUserListEnabled == true) vwoUserId else context.id
-            id?.let { context.variationTargetingVariables.put("_vwoUserId", it) }
+            context.variationTargetingVariables = object : HashMap<String, Any>() {
+                init {
+                    putAll(context.variationTargetingVariables)
+                    val id = if (campaign.isUserListEnabled == true) vwoUserId else context.id
+                    id?.let { put("_vwoUserId", it) }
+                }
+            }
 
-            // for integration
-            decision["variationTargetingVariables"] = context.variationTargetingVariables
+            decision["variationTargetingVariables"] =
+                context.variationTargetingVariables // for integration
 
             // check if the campaign satisfies the whitelisting
-            if (campaign.isForcedVariationEnabled==true) {
+            if (campaign.isForcedVariationEnabled == true) {
                 val whitelistedVariation = checkCampaignWhitelisting(campaign, context)
                 if (whitelistedVariation != null) {
-                    val variation = whitelistedVariation["variation"]?:""
-                    return mapOf(
-                        "preSegmentationResult" to true,
-                        "whitelistedObject" to variation
-                    )
+                    return object : HashMap<String, Any?>() {
+                        init {
+                            put("preSegmentationResult", true)
+                            put("whitelistedObject", whitelistedVariation["variation"])
+                        }
+                    }
                 }
             } else {
-                log(LogLevelEnum.INFO, "WHITELISTING_SKIP", mapOf(
-                        "userId" to context.id,
-                        "campaignKey" to campaign.ruleKey,
-                ))
+                log(LogLevelEnum.INFO, "WHITELISTING_SKIP", object : HashMap<String?, String?>() {
+                    init {
+                        put("userId", context.id)
+                        put("campaignKey", campaign.ruleKey)
+                    }
+                })
             }
         }
 
         // set _vwoUserId for custom variables
-        val userId=if (campaign.isUserListEnabled == true) vwoUserId else context.id
-        context.customVariables["_vwoUserId"] = userId?:""
+        context.customVariables = object : HashMap<String, Any>() {
+            init {
+                putAll(context.customVariables)
+                val id = if (campaign.isUserListEnabled == true) vwoUserId else context.id
+                id?.let { put("_vwoUserId", it) }
+            }
+        }
 
 
         decision["customVariables"] = context.customVariables // for integration
 
         // Check if RUle being evaluated is part of Mutually Exclusive Group
-        val groupId = CampaignUtil.getGroupDetailsIfCampaignPartOfIt(settings, campaignId?:0)["groupId"]
-        if (!groupId.isNullOrEmpty()) {
-            val groupWinnerCampaignId = megGroupWinnerCampaigns!![groupId.toInt()]
-            if (groupWinnerCampaignId != null && groupWinnerCampaignId.toString().isNotEmpty()
-                && groupWinnerCampaignId == campaignId) {
-                // If the campaign is the winner of the MEG, return true
-                return object : HashMap<String, Any>() {
-                    init {
-                        put("preSegmentationResult", true)
-                        remove("whitelistedObject")
+        val id = if (campaign.type == CampaignTypeEnum.PERSONALIZE.value) campaign.variations?.get(0)?.id?:-1 else -1
+            val groupId = getGroupDetailsIfCampaignPartOfIt(
+                settings,
+                campaign.id!!,
+                id
+            )["groupId"]
+        if (groupId != null && !groupId.isEmpty()) {
+            // check if the group is already evaluated for the user
+            val groupWinnerCampaignId = megGroupWinnerCampaigns?.get(groupId.toInt())
+            if (groupWinnerCampaignId != null && !groupWinnerCampaignId.isEmpty()) {
+                if (campaign.type == CampaignTypeEnum.AB.value) {
+                    if (groupWinnerCampaignId == campaignId.toString()) {
+                        // If the campaign is the winner of the MEG, return true
+                        return object : HashMap<String, Any?>() {
+                            init {
+                                put("preSegmentationResult", true)
+                                put("whitelistedObject", null)
+                            }
+                        }
+                    }
+                } else if (campaign.type == CampaignTypeEnum.PERSONALIZE.value) {
+                    // if personalise then check if the reqeusted variation is the winner
+                    if (groupWinnerCampaignId == campaign.id.toString() + "_" + campaign.variations!![0].id) {
+                        // If the campaign is the winner of the MEG, return true
+                        return object : HashMap<String, Any?>() {
+                            init {
+                                put("preSegmentationResult", true)
+                                put("whitelistedObject", null)
+                            }
+                        }
                     }
                 }
-            } else if (groupWinnerCampaignId != null && groupWinnerCampaignId.toString().isNotEmpty()) {
                 // If the campaign is not the winner of the MEG, return false
-                return object : HashMap<String, Any>() {
+                return object : HashMap<String, Any?>() {
                     init {
                         put("preSegmentationResult", false)
-                        remove("whitelistedObject")
+                        put("whitelistedObject", null)
                     }
+                }
+            } else {
+                // check in storage if the group is already evaluated for the user
+                val storedDataMap = StorageDecorator().getFeatureFromStorage(
+                    Constants.VWO_META_MEG_KEY + groupId, context,
+                    storageService!!
+                )
+                try {
+                    val storageMapAsString =
+                        VWOClient.objectMapper.writeValueAsString(storedDataMap)
+                    val storedData: Storage? = VWOClient.objectMapper.readValue(
+                        storageMapAsString,
+                        Storage::class.java
+                    )
+                    if (storedData != null && storedData.experimentId != null && storedData.experimentKey != null) {
+                        log(
+                            LogLevelEnum.INFO,
+                            "MEG_CAMPAIGN_FOUND_IN_STORAGE",
+                            object : HashMap<String?, String?>() {
+                                init {
+                                    put("campaignKey", storedData.experimentKey)
+                                    put("userId", context.id)
+                                }
+                            })
+                        if (storedData.experimentId === campaignId) {
+                            if (campaign.type == CampaignTypeEnum.PERSONALIZE.value) {
+                                // if personalise then check if the reqeusted variation is the winner
+                                if (storedData.experimentVariationId==campaign.variations!![0].id) {
+                                    return object : HashMap<String, Any?>() {
+                                        init {
+                                            put("preSegmentationResult", true)
+                                            put("whitelistedObject", null)
+                                        }
+                                    }
+                                } else {
+                                    // store the campaign in local cache, so that it can be used later without looking into user storage again
+                                    megGroupWinnerCampaigns?.set(groupId.toInt(),
+                                        "${storedData.experimentId}_${storedData.experimentVariationId}"
+                                    )
+                                    return object : HashMap<String, Any?>() {
+                                        init {
+                                            put("preSegmentationResult", false)
+                                            put("whitelistedObject", null)
+                                        }
+                                    }
+                                }
+                            } else {
+                                // return the campaign if the called campaignId matches
+                                return object : HashMap<String, Any?>() {
+                                    init {
+                                        put("preSegmentationResult", true)
+                                        put("whitelistedObject", null)
+                                    }
+                                }
+                            }
+                        }
+                        // if experimentId is not -1 then campaign is personalise campaign, store the details and return
+                        if (storedData.experimentVariationId !== -1) {
+                            megGroupWinnerCampaigns?.set(groupId.toInt(),
+                                "${storedData.experimentId}_${storedData.experimentVariationId}"
+                            )
+                        } else {
+                            // else store the campaignId only and return
+                            megGroupWinnerCampaigns?.set(groupId.toInt(),
+                                java.lang.String.valueOf(storedData.experimentId)
+                            )
+                        }
+                        return object : HashMap<String, Any?>() {
+                            init {
+                                put("preSegmentationResult", false)
+                                put("whitelistedObject", null)
+                            }
+                        }
+                    }
+                } catch (e: Exception) {
+                    log(
+                        LogLevelEnum.ERROR,
+                        "STORED_DATA_ERROR",
+                        object : HashMap<String?, String?>() {
+                            init {
+                                put("err", e.toString())
+                            }
+                        })
                 }
             }
         }
@@ -122,35 +245,78 @@ object DecisionUtil {
         val isPreSegmentationPassed =
             CampaignDecisionService().getPreSegmentationDecision(campaign, context)
 
-        if (isPreSegmentationPassed && !groupId.isNullOrEmpty()) {
-            val variationModel = MegUtil.evaluateGroups(
+        if (isPreSegmentationPassed && groupId != null && groupId.isNotEmpty()) {
+            val variationModel = evaluateGroups(
                 settings,
                 feature,
                 groupId.toInt(),
                 evaluatedFeatureMap,
                 context,
-                storageService
+                storageService!!
             )
+            // this condition would be true only when the current campaignId match with group winner campaignId
+            // for personalise campaign, all personalise variations have same campaignId, so we check for campaignId_variationId
             if (variationModel?.id != null && variationModel.id == campaignId) {
-                return object : HashMap<String, Any>() {
+                // if campaign is AB then return true
+                if (variationModel.type== CampaignTypeEnum.AB.value) {
+                    return object : HashMap<String, Any?>() {
+                        init {
+                            put("preSegmentationResult", true)
+                            put("whitelistedObject", null)
+                        }
+                    }
+                } else {
+                    // if personalise then check if the requested variation is the winner
+                    if (variationModel.variations[0].id == campaign.variations!![0].id) {
+                        return object : HashMap<String, Any?>() {
+                            init {
+                                put("preSegmentationResult", true)
+                                put("whitelistedObject", null)
+                            }
+                        }
+                    } else {
+                        // store the campaign in local cache, so that it can be used later
+                        megGroupWinnerCampaigns?.set(groupId.toInt(),
+                            variationModel.id.toString() + "_" + variationModel.variations[0].id
+                        )
+                        return object : HashMap<String, Any?>() {
+                            init {
+                                put("preSegmentationResult", false)
+                                put("whitelistedObject", null)
+                            }
+                        }
+                    }
+                }
+            } else if (variationModel?.id != null) { // when there is a winner but not the current campaign
+                if (variationModel.type==CampaignTypeEnum.AB.value) {
+                    // if campaign is AB then store only the campaignId
+                    megGroupWinnerCampaigns?.set(groupId.toInt(), variationModel.id.toString())
+                } else {
+                    // if campaign is personalise then store the campaignId_variationId
+                    megGroupWinnerCampaigns?.set(groupId.toInt(),
+                        variationModel.id.toString() + "_" + variationModel.variations[0].id
+                    )
+                }
+                return object : HashMap<String, Any?>() {
                     init {
-                        put("preSegmentationResult", true)
-                        remove("whitelistedObject")
+                        put("preSegmentationResult", false)
+                        put("whitelistedObject", null)
                     }
                 }
             }
-            megGroupWinnerCampaigns!![groupId.toInt()] = variationModel?.id?:0
-            return object : HashMap<String, Any>() {
+            // store -1 if no winner found, so that we don't evaluate the group again as the result would be the same for the current getFlag call
+            megGroupWinnerCampaigns?.set(groupId.toInt(), "-1")
+            return object : HashMap<String, Any?>() {
                 init {
                     put("preSegmentationResult", false)
-                    remove("whitelistedObject")
+                    put("whitelistedObject", null)
                 }
             }
         }
-        return object : HashMap<String, Any>() {
+        return object : HashMap<String, Any?>() {
             init {
                 put("preSegmentationResult", isPreSegmentationPassed)
-                remove("whitelistedObject")
+                put("whitelistedObject", null)
             }
         }
     }
@@ -181,7 +347,13 @@ object DecisionUtil {
                 object : HashMap<String?, String?>() {
                     init {
                         put("userId", userId)
-                        put("campaignKey", campaign.ruleKey)
+                        put(
+                            "campaignKey",
+                            if (campaign.type.equals(CampaignTypeEnum.AB.value))
+                                campaign.key
+                            else
+                                campaign.name + "_" + campaign.ruleKey
+                        )
                         put("status", "did not get any variation")
                     }
                 })
@@ -215,7 +387,13 @@ object DecisionUtil {
         log(LogLevelEnum.INFO, "WHITELISTING_STATUS", object : HashMap<String?, String?>() {
             init {
                 put("userId", context.id)
-                put("campaignKey", campaign.ruleKey)
+                put(
+                    "campaignKey",
+                    if (campaign.type.equals(CampaignTypeEnum.AB.value))
+                        campaign.key
+                    else
+                        campaign.name + "_" + campaign.ruleKey
+                )
                 put("status", status.status)
                 put("variationString", variationString)
             }
@@ -237,10 +415,16 @@ object DecisionUtil {
                 log(LogLevelEnum.INFO, "WHITELISTING_SKIP", object : HashMap<String?, String?>() {
                     init {
                         put("userId", context.id)
-                        put("campaignKey", campaign.ruleKey)
+                        put(
+                            "campaignKey",
+                            if (campaign.type.equals(CampaignTypeEnum.AB.value))
+                                campaign.key
+                            else
+                                campaign.name + "_" + campaign.ruleKey
+                        )
                         put(
                             "variation",
-                            if (variation.name?.isNotEmpty()==true) "for variation: " + variation.name else ""
+                            if (variation.name?.isNotEmpty() == true) "for variation: " + variation.name else ""
                         )
                     }
                 })

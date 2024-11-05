@@ -93,6 +93,7 @@ class NetworkUtil {
          */
         fun getEventBasePayload(
             settings: Settings,
+            context: VWOContext,
             userId: String?,
             eventName: String,
             visitorUserAgent: String?,
@@ -100,12 +101,12 @@ class NetworkUtil {
         ): EventArchPayload {
             val uuid = UUIDUtils.getUUID(userId, settings.accountId.toString())
             val eventArchData = EventArchData()
-            eventArchData.msgId = generateMsgId(uuid)
+            eventArchData.msgId = generateMsgId(uuid, context)
             eventArchData.visId = uuid
-            eventArchData.sessionId = generateSessionId()
+            eventArchData.sessionId = generateSessionId(context)
             setOptionalVisitorData(eventArchData, visitorUserAgent, ipAddress)
 
-            val event = createEvent(eventName, settings)
+            val event = createEvent(eventName, settings, context)
             eventArchData.event = event
 
             val visitor = createVisitor(settings)
@@ -142,12 +143,19 @@ class NetworkUtil {
          * @param settings The settings model containing configuration.
          * @return The event model.
          */
-        private fun createEvent(eventName: String, settings: Settings): Event {
+        private fun createEvent(eventName: String, settings: Settings, context: VWOContext): Event {
             val event = Event()
             val props = createProps(settings)
+            var time = Calendar.getInstance().timeInMillis
+
+            // Commenting this code as it causing same time in all the events.
+//            if (context.sessionId != 0L) {
+//                time = context.sessionId
+//            }
+
             event.props = props
             event.name = eventName
-            event.time = Calendar.getInstance().timeInMillis
+            event.time = time
             return event
         }
 
@@ -161,6 +169,7 @@ class NetworkUtil {
             props.setSdkName(Constants.SDK_NAME)
             props.setSdkVersion(SDKMetaUtil.sdkVersion)
             props.setEnvKey(settings.sdkKey)
+            props.setEnvKey(settings.sdkKey)
             return props
         }
 
@@ -172,7 +181,7 @@ class NetworkUtil {
         private fun createVisitor(settings: Settings): Visitor {
             val visitor = Visitor()
             val visitorProps: MutableMap<String, Any> = HashMap()
-            visitorProps[Constants.VWO_FS_ENVIRONMENT] = settings.sdkKey?:defaultString
+            visitorProps[Constants.VWO_FS_ENVIRONMENT] = settings.sdkKey ?: defaultString
             visitor.setProps(visitorProps)
             return visitor
         }
@@ -190,6 +199,7 @@ class NetworkUtil {
          */
         fun getTrackUserPayloadData(
             settings: Settings,
+            context: VWOContext,
             userId: String?,
             eventName: String,
             campaignId: Int,
@@ -198,7 +208,14 @@ class NetworkUtil {
             ipAddress: String?
         ): Map<String, Any> {
             val properties =
-                getEventBasePayload(settings, userId, eventName, visitorUserAgent, ipAddress)
+                getEventBasePayload(
+                    settings,
+                    context,
+                    userId,
+                    eventName,
+                    visitorUserAgent,
+                    ipAddress
+                )
             properties.d!!.event!!.props!!.id = campaignId
             properties.d!!.event!!.props!!.variation = variationId.toString()
             properties.d!!.event!!.props!!.setIsFirst(1)
@@ -235,6 +252,7 @@ class NetworkUtil {
         ): Map<String, Any?> {
             val properties = getEventBasePayload(
                 settings,
+                context,
                 userId,
                 eventName,
                 context.userAgent,
@@ -282,12 +300,13 @@ class NetworkUtil {
          */
         fun getAttributePayloadData(
             settings: Settings,
+            context: VWOContext,
             userId: String?,
             eventName: String,
             attributeKey: String,
             attributeValue: Any
         ): Map<String, Any?> {
-            val properties = getEventBasePayload(settings, userId, eventName, null, null)
+            val properties = getEventBasePayload(settings, context, userId, eventName, null, null)
             properties.d?.event?.props?.setIsCustomEvent(true)
             properties.d?.visitor?.props?.set(attributeKey, attributeValue)
             log(
@@ -388,15 +407,25 @@ class NetworkUtil {
          * @param uuid The UUID of the user.
          * @return The message ID.
          */
-        private fun generateMsgId(uuid: String?): String {
-            return uuid + "-" + Calendar.getInstance().timeInMillis
+        private fun generateMsgId(uuid: String?, context: VWOContext): String {
+            var time = Calendar.getInstance().timeInMillis
+
+            if (context.sessionId != 0L) {
+                time = context.sessionId
+            }
+
+            return uuid + "-" + time
         }
 
         /**
          * Generates a session ID for the event.
          * @return The session ID.
          */
-        private fun generateSessionId(): Long {
+        private fun generateSessionId(context: VWOContext): Long {
+            if (context.sessionId != 0L) {
+                return context.sessionId / 1000
+            }
+
             return Calendar.getInstance().timeInMillis / 1000
         }
 
@@ -406,7 +435,10 @@ class NetworkUtil {
          * @param ipAddress The IP address of the user.
          * @return Map containing the headers.
          */
-        private fun createHeaders(userAgent: String?, ipAddress: String?): MutableMap<String, String> {
+        private fun createHeaders(
+            userAgent: String?,
+            ipAddress: String?
+        ): MutableMap<String, String> {
             val headers: MutableMap<String, String> = HashMap()
             if (!userAgent.isNullOrEmpty())
                 headers[HeadersEnum.USER_AGENT.header] = userAgent

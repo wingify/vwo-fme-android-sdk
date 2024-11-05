@@ -16,14 +16,14 @@
 package com.vwo
 
 import com.vwo.interfaces.IVwoInitCallback
-import com.vwo.models.user.GetFlag
+import com.vwo.packages.network_layer.client.ApiCallRepeater
+import com.vwo.interfaces.IVwoListener
 import com.vwo.models.user.VWOContext
 import com.vwo.models.user.VWOInitOptions
-import com.vwo.utils.LogMessageUtil.buildMessage
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.async
 import kotlinx.coroutines.launch
+import kotlin.concurrent.thread
 
 /**
  *  VWO (Visual Website Optimizer) is a powerful A/B testing and experimentation platform.
@@ -34,7 +34,7 @@ import kotlinx.coroutines.launch
  */
 object VWO {
     private var instance: VWO? = null
-    private var vwoClient: VWOClient? = null
+    internal var vwoClient: VWOClient? = null
 
     /**
      * Sets the singleton instance of VWO.
@@ -45,7 +45,10 @@ object VWO {
     private fun setInstance(options: VWOInitOptions): VWO {
 
         val vwoBuilder: VWOBuilder = options.vwoBuilder ?: VWOBuilder(options)
-        vwoBuilder.setLogger() // Sets up logging for debugging and monitoring.
+        vwoBuilder.setLogger()
+            .setContext()
+            //.setLifeCycleListener() // Sets app life cycle listener to trigger any pending API calls
+            .setSharePreferences()// Sets up local storage for saving settings
             .setSettingsManager() // Sets the settings manager for configuration management.
             .setStorage() // Configures storage for data persistence.
             .setNetworkManager() // Configures network management for API communication.
@@ -87,6 +90,7 @@ object VWO {
 
             instance = setInstance(options)
             instance?.let { initListener.vwoInitSuccess(it, "VWO initialized successfully") }
+            //ApiCallRepeater.start()
         }
     }
 
@@ -104,8 +108,18 @@ object VWO {
      * @param context User context
      * @return GetFlag object containing the flag values
      */
-    fun getFlag(featureKey: String, ctx: VWOContext): GetFlag? {
-        return vwoClient?.getFlag(featureKey, ctx)
+    fun getFlag(featureKey: String, ctx: VWOContext, listener: IVwoListener) {
+        thread(start = true) {
+            try {
+                val flag = vwoClient?.getFlag(featureKey, ctx)
+                if (flag != null)
+                    listener.onSuccess(flag)
+                else
+                    listener.onFailure("Error getting flag!")
+            } catch (e: Exception) {
+                listener.onFailure(e.message ?: e.toString())
+            }
+        }
     }
 
     /**

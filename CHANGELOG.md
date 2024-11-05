@@ -1,12 +1,24 @@
 # Changelog
+
 All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-[0.1.0] - 2024-07-31
+## [1.0.0] - 2024-11-11
 
 ### Added
+
+- Added support for Personalise rules within `Mutually Exclusive Groups`.
+- Settings cache: Cached settings will be used till it expires. Client can set the expiry time of cache.
+- Storage support: Built-in local storage will be used by default if client doesn't provide their own. Client’s storage will be used if it is provided.
+- Call backs added to avoid busy waiting for server call to complete.
+- Changed variable access to method access for Flag - setIsEnabled & isEnabled
+
+## [0.1.0] - 2024-07-31
+
+### Added
+
 - First release of VWO Feature Management and Experimentation capabilities.
 
     ```kotlin
@@ -53,9 +65,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
             Log.d("Vwo", "vwoInitFailed: $message")
         }
     })
-
-     ```
+    ```
 
 - **Error handling**
 
-    - Gracefully handle any kind of error - TypeError, NetworkError, etc. 
+  - Gracefully handle any kind of error - TypeError, NetworkError, etc.

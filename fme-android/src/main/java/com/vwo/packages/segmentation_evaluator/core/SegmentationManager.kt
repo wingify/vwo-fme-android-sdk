@@ -82,8 +82,11 @@ object SegmentationManager {
 
             try {
                 val params = GatewayServiceUtil.getQueryParams(queryParams)
-                val vwo = GatewayServiceUtil.getFromGatewayService(params, UrlEnum.GET_USER_DATA.url)
-                val gatewayServiceModel = VWOClient.objectMapper.readValue(vwo, GatewayService::class.java)
+                val vwo =
+                    GatewayServiceUtil.getFromGatewayService(params, UrlEnum.GET_USER_DATA.url)
+                val gatewayServiceModel =
+                    VWOClient.objectMapper.readValue(vwo, GatewayService::class.java)
+
                 context.vwo = gatewayServiceModel
             } catch (err: Exception) {
                 LoggerService.log(
@@ -102,10 +105,10 @@ object SegmentationManager {
      */
     fun validateSegmentation(dsl: Any, properties: Map<String, Any>): Boolean {
         try {
-            val dslNodes: JsonNode = if (dsl is String) VWOClient.objectMapper.readValue(
-                dsl.toString(),
-                JsonNode::class.java
-            ) else VWOClient.objectMapper.valueToTree(dsl)
+            val dslNodes: JsonNode = if (dsl is String)
+                VWOClient.objectMapper.readValue(dsl.toString(), JsonNode::class.java)
+            else
+                VWOClient.objectMapper.valueToTree(dsl)
             return evaluator?.isSegmentationValid(dslNodes, properties)?:false
         } catch (exception: Exception) {
             LoggerService.log(

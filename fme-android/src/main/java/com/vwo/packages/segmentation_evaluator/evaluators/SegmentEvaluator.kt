@@ -291,7 +291,7 @@ class SegmentEvaluator {
         try {
             val storageMapAsString: String =
                 VWOClient.objectMapper.writeValueAsString(storedDataMap)
-            val storedData: Storage =
+            val storedData: Storage? =
                 VWOClient.objectMapper.readValue(storageMapAsString, Storage::class.java)
 
             return storedData != null && (storedDataMap?.size ?: 0) > 1

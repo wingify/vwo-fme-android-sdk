@@ -23,5 +23,9 @@
 
   "GATEWAY_URL_ERROR": "Please provide a valid URL for VWO Gateway Service",
 
-  "NETWORK_CALL_FAILED": "Error occurred while sending {method} request. Error: {err}"
+  "NETWORK_CALL_FAILED": "Error occurred while sending {method} request. Error: {err}",
+
+  "RECOMMENDATION_ERROR": "Error occurred while fetching recommendations. Error: {err}",
+
+  "PARSING_ERROR": "Error while parsing request data, it is not in the expected format. Error: {err}"
 }

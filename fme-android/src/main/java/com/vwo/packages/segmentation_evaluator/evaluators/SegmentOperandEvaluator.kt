@@ -60,7 +60,7 @@ class SegmentOperandEvaluator {
 
         // Handle 'inlist' operand
         if (operandValue.contains("inlist")) {
-            val listIdPattern = Pattern.compile("inlist\\((\\w+:\\d+)\\)")
+            val listIdPattern = Pattern.compile("inlist\\(([^)]+)\\)")
             val matcher = listIdPattern.matcher(operandValue)
             if (!matcher.find()) {
                 LoggerService.log(LogLevelEnum.ERROR, "Invalid 'inList' operand format")

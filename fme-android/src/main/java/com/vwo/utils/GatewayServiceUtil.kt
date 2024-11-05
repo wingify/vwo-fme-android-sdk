@@ -45,6 +45,7 @@ object GatewayServiceUtil {
             log(LogLevelEnum.ERROR, "GATEWAY_URL_ERROR", null)
             return null
         }
+        var responseString: String? = null
         try {
             val request = RequestModel(
                 baseUrl,
@@ -58,10 +59,11 @@ object GatewayServiceUtil {
             )
             val response = NetworkManager.get(request)
 
-            return response?.data
+            responseString = response?.data
         } catch (e: Exception) {
-            return null
+            responseString = null
         }
+        return responseString
     }
 
     /**

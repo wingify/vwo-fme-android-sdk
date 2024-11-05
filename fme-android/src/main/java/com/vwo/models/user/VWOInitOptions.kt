@@ -15,11 +15,13 @@
  */
 package com.vwo.models.user
 
+import android.content.Context
 import com.vwo.VWOBuilder
 import com.vwo.interfaces.networking.NetworkClientInterface
 import com.vwo.packages.segmentation_evaluator.evaluators.SegmentEvaluator
 import com.vwo.packages.storage.Connector
 import com.vwo.interfaces.integration.IntegrationCallback
+import com.vwo.packages.storage.MobileDefaultStorage
 
 /**
  * Represents initialization options for the VWO SDK.
@@ -30,15 +32,18 @@ import com.vwo.interfaces.integration.IntegrationCallback
  */
 class VWOInitOptions {
     var sdkKey: String? = null
-    var accountId: Int?=null
+    var accountId: Int? = null
     var integrations: IntegrationCallback? = null
     var logger: Map<String, Any> = HashMap()
     var networkClientInterface: NetworkClientInterface? = null
     var segmentEvaluator: SegmentEvaluator? = null
-    var storage: Connector? = null
+    var storage: Connector = MobileDefaultStorage()
     var pollInterval: Int? = null
 
     var vwoBuilder: VWOBuilder? = null
 
     var gatewayService: Map<String, Any> = HashMap()
+    var context: Context? = null
+    /**If this value is provided, SDK will keep using cached settings till this interval is valid.*/
+    var cachedSettingsExpiryTime: Int = 0
 }

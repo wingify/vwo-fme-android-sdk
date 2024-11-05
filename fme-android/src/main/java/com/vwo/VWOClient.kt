@@ -15,11 +15,13 @@
  */
 package com.vwo
 
+import android.content.Context
 import com.fasterxml.jackson.databind.DeserializationFeature
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.vwo.api.GetFlagAPI
 import com.vwo.api.SetAttributeAPI
 import com.vwo.api.TrackEventAPI
+import com.vwo.interfaces.IVwoListener
 import com.vwo.models.Settings
 import com.vwo.models.schemas.SettingsSchema
 import com.vwo.models.user.GetFlag
@@ -49,6 +51,7 @@ class VWOClient(settings: String?, options: VWOInitOptions?) {
     private var processedSettings: Settings? = null
     var settings: String? = null
     private var options: VWOInitOptions? = null
+    private var context: Context? = null
 
     init {
         try {
@@ -97,7 +100,7 @@ class VWOClient(settings: String?, options: VWOInitOptions?) {
      */
     fun getFlag(featureKey: String?, context: VWOContext): GetFlag {
         val apiName = "getFlag"
-        val getFlag = GetFlag()
+        val getFlag = GetFlag(context)
         try {
             LoggerService.log(
                 LogLevelEnum.DEBUG,
@@ -109,18 +112,18 @@ class VWOClient(settings: String?, options: VWOInitOptions?) {
                 })
             val hooksManager: HooksManager = HooksManager(options?.integrations)
             if (context.id?.isEmpty() == true) {
-                getFlag.isEnabled=false
+                getFlag.setIsEnabled(false)
                 throw IllegalArgumentException("User ID is required")
             }
 
             if (featureKey.isNullOrEmpty()) {
-                getFlag.isEnabled = false
+                getFlag.setIsEnabled(false)
                 throw IllegalArgumentException("Feature Key is required")
             }
             val procSettings = this.processedSettings
             if (procSettings == null || !SettingsSchema().isSettingsValid(procSettings)) {
                 LoggerService.log(LogLevelEnum.ERROR, "SETTINGS_SCHEMA_INVALID", null)
-                getFlag.isEnabled=false
+                getFlag.setIsEnabled(false)
                 return getFlag
             }
             return GetFlagAPI.getFlag(featureKey, procSettings, context, hooksManager)
@@ -135,7 +138,7 @@ class VWOClient(settings: String?, options: VWOInitOptions?) {
                         put("err", exception.toString())
                     }
                 })
-            getFlag.isEnabled = false
+            getFlag.setIsEnabled(false)
             return getFlag
         }
     }
@@ -238,7 +241,7 @@ class VWOClient(settings: String?, options: VWOInitOptions?) {
      * @return Map containing the event name and its status
      */
     fun trackEvent(eventName: String, context: VWOContext?): Map<String, Boolean> {
-        return track(eventName, context, HashMap<String, Any>())
+        return track(eventName, context, HashMap())
     }
 
 

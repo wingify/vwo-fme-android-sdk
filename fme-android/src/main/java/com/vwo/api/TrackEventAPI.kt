@@ -75,7 +75,7 @@ object TrackEventAPI {
      * @param context    The user context model containing user-specific data.
      * @param eventProperties event properties for the event
      */
-    private fun createAndSendImpressionForTrack(
+    fun createAndSendImpressionForTrack(
         settings: Settings,
         eventName: String,
         context: VWOContext,

@@ -42,6 +42,11 @@ class Campaign {
     @JsonProperty("segments")
     var segments: Map<String, Any>? = null
 
+    @get:JsonProperty("segments_events")
+    @set:JsonProperty("segments_events")
+    @JsonProperty("segments_events")
+    var segments_events: List<Any>? = null
+
     @JsonProperty("ruleKey")
     var ruleKey: String? = null
 
@@ -93,6 +98,8 @@ class Campaign {
 
     @JsonProperty("weight")
     var weight: Double = 0.0
+
+    var isEventsDsl: Boolean = false
 
     /**
      * Sets the properties of this campaign from another campaign object.
@@ -152,6 +159,10 @@ class Campaign {
 
         if (model.endRangeVariation != 0) {
             this.endRangeVariation = model.endRangeVariation
+        }
+
+        if (model.segments_events != null) {
+            this.segments_events = model.segments_events
         }
     }
 }

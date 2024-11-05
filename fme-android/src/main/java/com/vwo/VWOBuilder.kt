@@ -15,7 +15,12 @@
  */
 package com.vwo
 
+import android.app.Application
 import com.fasterxml.jackson.databind.JsonNode
+import com.vwo.utils.AppLifecycleListener
+import com.vwo.packages.storage.MobileDefaultStorage
+import com.vwo.providers.StorageProvider
+import com.vwo.packages.storage.RequestStore
 import com.vwo.models.user.VWOInitOptions
 import com.vwo.packages.logger.enums.LogLevelEnum
 import com.vwo.packages.network_layer.manager.NetworkManager
@@ -25,6 +30,8 @@ import com.vwo.services.LoggerService
 import com.vwo.services.SettingsManager
 import com.vwo.utils.DataTypeUtil
 import com.vwo.utils.LogMessageUtil.buildMessage
+import com.vwo.packages.storage.SettingsStore
+import java.lang.ref.WeakReference
 
 /**
  * Builder class for constructing and configuring VWO instances.
@@ -34,7 +41,7 @@ import com.vwo.utils.LogMessageUtil.buildMessage
  *
  * @param options Optional initialization options for pre-configuring the builder.
  */
-class VWOBuilder(options: VWOInitOptions?) {
+open class VWOBuilder(options: VWOInitOptions?) {
     private var vwoClient: VWOClient? = null
     private val options: VWOInitOptions? = options
     private var settingFileManager: SettingsManager? = null
@@ -149,6 +156,9 @@ class VWOBuilder(options: VWOInitOptions?) {
      */
     fun setStorage(): VWOBuilder {
         if (options?.storage != null) {
+            if(options.storage is MobileDefaultStorage)
+                (options.storage as MobileDefaultStorage).init()
+
             Storage.instance?.attachConnector(options.storage)
         }
         return this
@@ -214,7 +224,7 @@ class VWOBuilder(options: VWOInitOptions?) {
             return this
         }
 
-        if ((options.pollInterval ?:0) < 1000) {
+        if ((options.pollInterval ?: 0) < 1000) {
             LoggerService.log(
                 LogLevelEnum.ERROR,
                 "INIT_OPTIONS_INVALID",
@@ -236,7 +246,7 @@ class VWOBuilder(options: VWOInitOptions?) {
      * Checks and polls for settings updates at the provided interval.
      */
     private fun checkAndPoll() {
-        val pollingInterval: Int = options?.pollInterval?:1000
+        val pollingInterval: Int = options?.pollInterval ?: 1000
 
         while (true) {
             try {
@@ -267,5 +277,46 @@ class VWOBuilder(options: VWOInitOptions?) {
                 LoggerService.log(LogLevelEnum.ERROR, "Error is $e")
             }
         }
+    }
+
+    /**
+     * Sets the shared preferences for the VWO SDK.
+     * This function initializes the settings store and request store using the provided context.
+     * It also saves the migration version to the settings store.
+     *
+     * @return This VWOBuilder instance.
+     */
+    fun setSharePreferences(): VWOBuilder {
+        val context = options?.context ?: return this
+
+        StorageProvider.settingsStore = SettingsStore(context)
+        return this
+    }
+
+    /**
+     * Sets the lifecycle listener for the VWO SDK.
+     *
+     * This function initializes and starts the app lifecycle listener using the provided context.
+     *
+     * @return This VWOBuilder instance.
+     */
+    fun setLifeCycleListener(): VWOBuilder {
+        val context = options?.context ?: return this
+        val appLifecycleListener = AppLifecycleListener()
+        appLifecycleListener.start(context.applicationContext as Application)
+        return this
+    }
+
+    /**
+     * Sets the context for the VWO SDK.
+     *
+     * This function sets the context reference using a WeakReference to avoid memory leaks.
+     *
+     * @return This VWOBuilder instance.
+     */
+    fun setContext(): VWOBuilder {
+        val context = options?.context ?: return this
+        StorageProvider.contextRef = WeakReference(context)
+        return this
     }
 }

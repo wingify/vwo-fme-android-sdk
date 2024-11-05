@@ -18,6 +18,7 @@ package com.vwo.models
 import com.fasterxml.jackson.annotation.JsonInclude
 import com.fasterxml.jackson.annotation.JsonProperty
 
+
 /**
  * Represents a group of campaigns in VWO.
  *
@@ -33,7 +34,7 @@ class Groups {
     @get:JsonProperty("campaigns")
     @set:JsonProperty("campaigns")
     @JsonProperty("campaigns")
-    var campaigns: List<Int>? = null
+    var campaigns: List<String>? = null
 
     // this is where algo, priority, weight go
     @JsonProperty("et")
@@ -42,12 +43,12 @@ class Groups {
     @get:JsonProperty("p")
     @set:JsonProperty("p")
     @JsonProperty("p")
-    var p: List<Int>? = null
+    var p: MutableList<String>? = ArrayList()
 
     @get:JsonProperty("wt")
     @set:JsonProperty("wt")
     @JsonProperty("wt")
-    var wt: Map<String, Int>? = null
+    var wt: Map<String, Double>? = mutableMapOf()
 
     /**
      * Sets the experiment type for the group.

@@ -23,10 +23,11 @@
 -renamesourcefileattribute SourceFile
 -keepattributes Exceptions,InnerClasses,Signature,Deprecated,SourceFile,LineNumberTable,*Annotation*,EnclosingMethod
 
--repackageclasses 'secret'
+-repackageclasses 'fme'
 -allowaccessmodification
 -keeppackagenames doNotKeepAThing
 
 -keep class com.vwo.VWO { *; }
 -keep class com.vwo.interfaces.IVwoInitCallback { *; }
+-keep class com.vwo.interfaces.IVwoListener { *; }
 -keep class com.vwo.models.** { *; }

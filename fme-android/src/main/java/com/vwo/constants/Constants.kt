@@ -28,7 +28,6 @@ object Constants {
     const val DEFAULT_REQUEST_TIME_INTERVAL: Long = 600 // 10 * 60(secs) = 600 secs i.e. 10 minutes
     const val DEFAULT_EVENTS_PER_REQUEST: Int = 100
     const val SDK_NAME: String = "vwo-fme-android-sdk"
-    const val SETTINGS_EXPIRY: Long = 10000000
     const val SETTINGS_TIMEOUT: Long = 50000
 
     const val HOST_NAME: String = "dev.visualwebsiteoptimizer.com"
@@ -36,6 +35,11 @@ object Constants {
 
     const val VWO_FS_ENVIRONMENT: String = "vwo_fs_environment"
     const val HTTPS_PROTOCOL: String = "https"
+    const val VWO_META_MEG_KEY: String = "_vwo_meta_meg_"
+
+    const val VWO_APP_URL: String = "app.vwo.com"
 
     const val RANDOM_ALGO: Int = 1
+
+    const val AUTH_TOKEN = ""
 }

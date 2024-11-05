@@ -19,6 +19,7 @@ import com.vwo.VWOClient
 import com.vwo.decorators.StorageDecorator
 import com.vwo.enums.ApiEnum
 import com.vwo.enums.CampaignTypeEnum
+import com.vwo.interfaces.IVwoListener
 import com.vwo.models.Campaign
 import com.vwo.models.Feature
 import com.vwo.models.Settings
@@ -52,9 +53,9 @@ object GetFlagAPI {
         featureKey: String,
         settings: Settings,
         context: VWOContext,
-        hookManager: HooksManager
+        hookManager: HooksManager,
     ): GetFlag {
-        val getFlag = GetFlag()
+        val getFlag = GetFlag(context)
         var shouldCheckForExperimentsRules = false
 
         val passedRulesInformation: MutableMap<String, Any> = HashMap()
@@ -84,9 +85,9 @@ object GetFlagAPI {
         try {
             val storageMapAsString: String =
                 VWOClient.objectMapper.writeValueAsString(storedDataMap)
-            val storedData: Storage =
+            val storedData: Storage? =
                 VWOClient.objectMapper.readValue(storageMapAsString, Storage::class.java)
-            if (storedData.experimentVariationId != null && storedData.experimentVariationId.toString().isNotEmpty()) {
+            if (storedData?.experimentVariationId?.toString()?.isNotEmpty() == true) {
 
                 if (storedData.experimentKey != null && storedData.experimentKey!!.isNotEmpty()) {
                     val variation: Variation? = getVariationFromCampaignKey(
@@ -107,12 +108,13 @@ object GetFlagAPI {
                                     put("experimentKey", storedData.experimentKey)
                                 }
                             })
-                        getFlag.isEnabled=true
+                        getFlag.setIsEnabled(true)
                         getFlag.setVariables(variation.variables)
                         return getFlag
+
                     }
                 }
-            } else if (storedData.rolloutKey != null && storedData.rolloutKey!!.isNotEmpty()
+            } else if (storedData?.rolloutKey != null && storedData.rolloutKey!!.isNotEmpty()
                 && storedData.rolloutId != null && storedData.rolloutId.toString().isNotEmpty()) {
 
                 val variation: Variation? = getVariationFromCampaignKey(
@@ -143,12 +145,14 @@ object GetFlagAPI {
                             }
                         })
 
-                    getFlag.isEnabled = true
+                    getFlag.setIsEnabled(true)
                     shouldCheckForExperimentsRules = true
                     val featureInfo = mutableMapOf<String, Any>()
                     storedData.rolloutId?.let { featureInfo["rolloutId"] = it }
                     storedData.rolloutKey?.let { featureInfo["rolloutKey"] = it }
-                    storedData.rolloutVariationId?.let { featureInfo["rolloutVariationId"] = it }
+                    storedData.rolloutVariationId?.let {
+                        featureInfo["rolloutVariationId"] = it
+                    }
                     evaluatedFeatureMap[featureKey] = featureInfo
 
                     passedRulesInformation.putAll(featureInfo)
@@ -170,7 +174,7 @@ object GetFlagAPI {
                         put("featureKey", featureKey)
                     }
                 })
-            getFlag.isEnabled = false
+            getFlag.setIsEnabled(false)
             return getFlag
         }
 
@@ -180,8 +184,9 @@ object GetFlagAPI {
          * get all the rollout rules for the feature and evaluate them
          * if any of the rollout rule passes, break the loop and evaluate the traffic
          */
-        val rollOutRules: List<Campaign> = getSpecificRulesBasedOnType(feature, CampaignTypeEnum.ROLLOUT)
-        if (rollOutRules.isNotEmpty() && !getFlag.isEnabled) {
+        val rollOutRules: List<Campaign> =
+            getSpecificRulesBasedOnType(feature, CampaignTypeEnum.ROLLOUT)
+        if (rollOutRules.isNotEmpty() && !getFlag.isEnabled()) {
             val rolloutRulesToEvaluate: MutableList<Campaign> = ArrayList<Campaign>()
             for (rule in rollOutRules) {
                 val evaluateRuleResult: Map<String, Any> = RuleEvaluationUtil.evaluateRule(
@@ -194,7 +199,8 @@ object GetFlagAPI {
                     storageService,
                     decision
                 )
-                val preSegmentationResult = evaluateRuleResult["preSegmentationResult"] as Boolean
+                val preSegmentationResult =
+                    evaluateRuleResult["preSegmentationResult"] as Boolean
                 // If pre-segmentation passes, add the rule to the list of rules to evaluate
                 if (preSegmentationResult) {
                     rolloutRulesToEvaluate.add(rule)
@@ -202,7 +208,9 @@ object GetFlagAPI {
 
                     rule.id?.let { featureMap["rolloutId"] = it }
                     rule.key?.let { featureMap["rolloutKey"] = it }
-                    rule.variations?.getOrNull(0)?.id?.let { featureMap["rolloutVariationId"] = it }
+                    rule.variations?.getOrNull(0)?.id?.let {
+                        featureMap["rolloutVariationId"] = it
+                    }
 
                     evaluatedFeatureMap[featureKey] = featureMap
                     break
@@ -213,9 +221,13 @@ object GetFlagAPI {
             if (rolloutRulesToEvaluate.isNotEmpty()) {
                 val passedRolloutCampaign: Campaign = rolloutRulesToEvaluate[0]
                 val variation: Variation? =
-                    evaluateTrafficAndGetVariation(settings, passedRolloutCampaign, context.id)
+                    evaluateTrafficAndGetVariation(
+                        settings,
+                        passedRolloutCampaign,
+                        context.id
+                    )
                 if (variation != null) {
-                    getFlag.isEnabled = true
+                    getFlag.setIsEnabled(true)
                     getFlag.setVariables(variation.variables)
                     shouldCheckForExperimentsRules = true
                     updateIntegrationsDecisionObject(
@@ -226,8 +238,8 @@ object GetFlagAPI {
                     )
                     createAndSendImpressionForVariationShown(
                         settings,
-                        passedRolloutCampaign.id?:0,
-                        variation.id?:0,
+                        passedRolloutCampaign.id ?: 0,
+                        variation.id ?: 0,
                         context
                     )
                 }
@@ -248,7 +260,7 @@ object GetFlagAPI {
         if (shouldCheckForExperimentsRules) {
             val experimentRulesToEvaluate: MutableList<Campaign> = ArrayList<Campaign>()
             val experimentRules: List<Campaign> = getAllExperimentRules(feature)
-            val megGroupWinnerCampaigns= mutableMapOf<Int,Int>()
+            val megGroupWinnerCampaigns = mutableMapOf<Int, String>()
 
             for (rule in experimentRules) {
                 // Evaluate the rule here
@@ -262,7 +274,8 @@ object GetFlagAPI {
                     storageService,
                     decision
                 )
-                val preSegmentationResult = evaluateRuleResult["preSegmentationResult"] as Boolean
+                val preSegmentationResult =
+                    evaluateRuleResult["preSegmentationResult"] as Boolean
                 // If pre-segmentation passes, check if the rule has whitelisted variation or not
                 if (preSegmentationResult) {
                     val whitelistedObject: Variation? =
@@ -272,11 +285,13 @@ object GetFlagAPI {
                         experimentRulesToEvaluate.add(rule)
                     } else {
                         // If whitelisted object is not null, update the decision object and send an impression
-                        getFlag.isEnabled = true
+                        getFlag.setIsEnabled(true)
                         getFlag.setVariables(whitelistedObject.variables)
                         rule.id?.let { passedRulesInformation["experimentId"] = it }
                         rule.key?.let { passedRulesInformation["experimentKey"] = it }
-                        whitelistedObject.id?.let { passedRulesInformation["experimentVariationId"] = it }
+                        whitelistedObject.id?.let {
+                            passedRulesInformation["experimentVariationId"] = it
+                        }
                     }
                     break
                 }
@@ -285,9 +300,10 @@ object GetFlagAPI {
             // Evaluate the passed experiment rule traffic and get the variation
             if (experimentRulesToEvaluate.isNotEmpty()) {
                 val campaign: Campaign = experimentRulesToEvaluate[0]
-                val variation: Variation? = evaluateTrafficAndGetVariation(settings, campaign, context.id)
+                val variation: Variation? =
+                    evaluateTrafficAndGetVariation(settings, campaign, context.id)
                 if (variation != null) {
-                    getFlag.isEnabled = true
+                    getFlag.setIsEnabled(true)
                     getFlag.setVariables(variation.variables)
                     updateIntegrationsDecisionObject(
                         campaign,
@@ -297,19 +313,19 @@ object GetFlagAPI {
                     )
                     createAndSendImpressionForVariationShown(
                         settings,
-                        campaign.id?:0,
-                        variation.id?:0,
+                        campaign.id ?: 0,
+                        variation.id ?: 0,
                         context
                     )
                 }
             }
         }
 
-        if (getFlag.isEnabled) {
+        if (getFlag.isEnabled()) {
             val storageMap = mutableMapOf<String, Any>()
 
             feature.key?.let { storageMap["featureKey"] = it }
-            context.id?.let { storageMap["user"] = it }
+            context.id?.let { storageMap["userId"] = it }
             storageMap.putAll(passedRulesInformation)
 
             StorageDecorator().setDataInStorage(storageMap, storageService)
@@ -333,14 +349,14 @@ object GetFlagAPI {
                     init {
                         put("userId", context.id)
                         put("featureKey", featureKey)
-                        put("status", if (getFlag.isEnabled) "enabled" else "disabled")
+                        put("status", if (getFlag.isEnabled()) "enabled" else "disabled")
                     }
                 })
             feature.impactCampaign.campaignId?.let {
                 createAndSendImpressionForVariationShown(
                     settings,
                     it,
-                    if (getFlag.isEnabled) 2 else 1,
+                    if (getFlag.isEnabled()) 2 else 1,
                     context
                 )
             }
@@ -362,13 +378,13 @@ object GetFlagAPI {
         decision: MutableMap<String, Any>
     ) {
         if (campaign.type == CampaignTypeEnum.ROLLOUT.value) {
-            passedRulesInformation["rolloutId"] = campaign.id?:0
-            passedRulesInformation["rolloutKey"] = campaign.name?:""
-            passedRulesInformation["rolloutVariationId"] = variation.id?:0
+            passedRulesInformation["rolloutId"] = campaign.id ?: 0
+            passedRulesInformation["rolloutKey"] = campaign.name ?: ""
+            passedRulesInformation["rolloutVariationId"] = variation.id ?: 0
         } else {
-            passedRulesInformation["experimentId"] = campaign.id?:0
-            passedRulesInformation["experimentKey"] = campaign.key?:""
-            passedRulesInformation["experimentVariationId"] = variation.id?:0
+            passedRulesInformation["experimentId"] = campaign.id ?: 0
+            passedRulesInformation["experimentKey"] = campaign.key ?: ""
+            passedRulesInformation["experimentVariationId"] = variation.id ?: 0
         }
         decision.putAll(passedRulesInformation)
     }

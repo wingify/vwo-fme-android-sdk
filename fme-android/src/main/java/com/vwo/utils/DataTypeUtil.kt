@@ -16,6 +16,7 @@
 package com.vwo.utils
 
 import com.vwo.utils.NetworkUtil.Companion
+import org.json.JSONObject
 import java.util.Date
 import java.util.function.Function
 
@@ -218,4 +219,15 @@ object DataTypeUtil {
 
         return cleanedMap
     }
+}
+
+fun JSONObject.toMap(): MutableMap<String, Any> {
+    val map = mutableMapOf<String, Any>()
+    val keys = this.keys()
+    while (keys.hasNext()) {
+        val key = keys.next()
+        val value = this.get(key)
+        map[key] = value
+    }
+    return map
 }

@@ -15,8 +15,11 @@
  */
 package com.vwo.models.user
 
+import com.vwo.constants.Constants
 import com.vwo.constants.Constants.defaultString
+import com.vwo.enums.VariableTypeEnum
 import com.vwo.models.Variable
+import org.json.JSONObject
 
 /**
  * Represents a feature flag and its associated variables.
@@ -24,9 +27,16 @@ import com.vwo.models.Variable
  * This class encapsulates information about a feature flag, including its enabled status and a
  * list of variables with their values.
  */
-class GetFlag {
-    var isEnabled: Boolean = false
+class GetFlag(val context: VWOContext) {
+    private var isEnabled: Boolean = false
+
     private var variables: List<Variable> = ArrayList<Variable>()
+
+    fun isEnabled() = isEnabled
+
+    fun setIsEnabled(value: Boolean) {
+        isEnabled = value
+    }
 
     /**
      * Sets the variables for the feature flag.
@@ -50,11 +60,30 @@ class GetFlag {
     fun getVariable(key: String?, defaultValue: Any): Any {
         for (variable in variablesValue) {
             if (variable.key.equals(key)) {
+                if (variable.type.equals(VariableTypeEnum.RECOMMENDATION.value,true)) {
+                    // Return a Recommendation Object if type is RECOMMENDATION
+                    val value = variable.value.toString().toIntOrNull()?:0
+                    return Recommendation(value, context)
+                }
+
                 return variable.value?:defaultValue
             }
         }
         return defaultValue
     }
+
+    fun getRecommendationDisplayConfig(key: String?): Map<String, Any>? {
+        for (variable in variablesValue) {
+            if (variable.key.equals(key)) {
+                if (variable.type.equals(VariableTypeEnum.RECOMMENDATION.value, true)) {
+                    // Return a Recommendation Object if type is RECOMMENDATION
+                    return variable.displayConfiguration as? Map<String, Any>
+                }
+            }
+        }
+        return null
+    }
+
     /**
      * Retrieves the list of variables as a list of maps.
      *
@@ -63,7 +92,10 @@ class GetFlag {
     fun getVariables(): List<Map<String, Any>> {
         val result: MutableList<Map<String, Any>> = ArrayList()
         for (variable in variablesValue) {
-            result.add(convertVariableModelToMap(variable))
+            // Check if the variable's type is not "recommendation"
+            if (!variable.type.equals(VariableTypeEnum.RECOMMENDATION.value,true)) {
+                result.add(convertVariableModelToMap(variable))
+            }
         }
         return result
     }

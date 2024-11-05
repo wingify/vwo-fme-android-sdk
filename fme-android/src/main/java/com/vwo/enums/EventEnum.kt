@@ -30,5 +30,7 @@ enum class EventEnum(val value: String) {
     /**
      * Event triggered when a user attribute is set.
      */
-    VWO_SYNC_VISITOR_PROP("vwo_syncVisitorProp")
+    VWO_SYNC_VISITOR_PROP("vwo_syncVisitorProp"),
+
+    VWO_RECOMMENDATION_SHOWN("vwo_recommendation_block_shown");
 }

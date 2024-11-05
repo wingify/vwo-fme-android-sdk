@@ -33,5 +33,9 @@ enum class UrlEnum(val url: String) {
     /**
      * URL for retrieving user data.
      */
-    GET_USER_DATA("/get-user-details")
+    GET_USER_DATA("/get-user-details"),
+
+    GENERATE_RECOMMENDATION("/internalcall/generate-recommendation"), // TODO -- Change this to actual URL
+
+    EVALUATE_DSL("/evaluate-event-dsl")
 }

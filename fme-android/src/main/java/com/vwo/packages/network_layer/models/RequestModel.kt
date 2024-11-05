@@ -69,9 +69,7 @@ class RequestModel(
             }
 
             if (body != null) {
-                val postBody: String = Gson().toJson(body)
                 headers?.set("Content-Type", "application/json")
-                headers?.set("Content-Length", postBody.toByteArray().size.toString())
                 options["headers"] = headers
                 options["body"] = body
             }

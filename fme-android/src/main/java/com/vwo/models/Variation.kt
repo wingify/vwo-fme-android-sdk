@@ -35,6 +35,12 @@ class Variation {
     @JsonProperty("name")
     var name: String? = null
 
+    @JsonProperty("ruleKey")
+    var ruleKey: String? = null
+
+    @JsonProperty("type")
+    var type: String? = null
+
     @JsonProperty("weight")
     var weight: Double = 0.0
 
@@ -52,4 +58,9 @@ class Variation {
 
     @JsonProperty("segments")
     var segments: Map<String, Any> = HashMap()
+
+    @get:JsonProperty("segments_events")
+    @set:JsonProperty("segments_events")
+    @JsonProperty("segments_events")
+    var segments_events: List<Any>? = null
 }

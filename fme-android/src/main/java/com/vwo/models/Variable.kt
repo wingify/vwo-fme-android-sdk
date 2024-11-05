@@ -36,4 +36,7 @@ class Variable {
 
     @JsonProperty("id")
     var id: Int? = null
+
+    @JsonProperty("displayConfiguration")
+    var displayConfiguration: Any? = null
 }

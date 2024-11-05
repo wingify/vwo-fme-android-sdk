@@ -29,12 +29,13 @@ import com.vwo.models.user.VWOContext
 import com.vwo.packages.decision_maker.DecisionMaker
 import com.vwo.packages.logger.enums.LogLevelEnum
 import com.vwo.services.CampaignDecisionService
-import com.vwo.services.LoggerService
+import com.vwo.services.LoggerService.Companion.log
 import com.vwo.services.StorageService
-import java.util.function.Consumer
-import java.util.function.Function
-import java.util.function.Predicate
+import com.vwo.utils.CampaignUtil.getBucketingSeed
+import com.vwo.utils.CampaignUtil.setCampaignAllocation
+import com.vwo.utils.FunctionUtil.cloneObject
 import java.util.stream.Collectors
+
 
 /**
  * Utility object for MEG-related operations.
@@ -61,17 +62,15 @@ object MegUtil {
         storageService: StorageService
     ): Variation? {
         val featureToSkip: MutableList<String?> = ArrayList()
-        val campaignMap: MutableMap<String, MutableList<Campaign>> =
-            HashMap<String, MutableList<Campaign>>()
+        val campaignMap: MutableMap<String, MutableList<Campaign>> = HashMap()
 
         // get all feature keys and all campaignIds from the groupId
         val featureKeysAndGroupCampaignIds = getFeatureKeysFromGroup(settings, groupId)
         val featureKeys = featureKeysAndGroupCampaignIds["featureKeys"] as List<String>?
-        val groupCampaignIds = featureKeysAndGroupCampaignIds["groupCampaignIds"] as List<Int>?
+        val groupCampaignIds:List<String>? = featureKeysAndGroupCampaignIds["groupCampaignIds"] as List<String>?
 
         for (featureKey in featureKeys!!) {
             val currentFeature = FunctionUtil.getFeatureFromKey(settings, featureKey)
-            val featureCampaignIds = CampaignUtil.getCampaignIdsFromFeatureKey(settings, featureKey)
 
             // check if the feature is already evaluated
             if (currentFeature == null || featureToSkip.contains(featureKey)) {
@@ -88,18 +87,19 @@ object MegUtil {
                 storageService
             )
             if (isRolloutRulePassed) {
-                for (campaign in settings.campaigns!!) {
-                    if (groupCampaignIds!!.contains(campaign.id)
-                        && featureCampaignIds.contains(campaign.id)
-                    ) {
-                        // Ensuring the list for a featureKey exists in the map
-                        val campaigns: MutableList<Campaign> =
-                            campaignMap.getOrPut(featureKey) { mutableListOf() }
+                for (feature1 in settings.features) {
+                    if (feature1.key == featureKey) {
+                        for (campaign in feature1.rulesLinkedCampaign) {
+                            if (groupCampaignIds!!.contains(campaign.id.toString())
+                                || groupCampaignIds.contains(campaign.id.toString()
+                                        + "_" + campaign.variations!![0].id)) {
 
-                        // Checking if the campaign with a specific key does not already exist in
-                        // the list and adding it if not
-                        if (campaigns.none { it.key == campaign.key }) {
-                            campaigns.add(campaign)
+                                campaignMap.getOrPut(featureKey) { mutableListOf() }
+                                val campaigns = campaignMap[featureKey]
+                                if (campaigns!!.none { it.ruleKey == campaign.ruleKey }) {
+                                    campaigns.add(campaign)
+                                }
+                            }
                         }
                     }
                 }
@@ -119,7 +119,8 @@ object MegUtil {
             eligibleCampaigns,
             eligibleCampaignsWithStorage,
             groupId,
-            context
+            context,
+            storageService
         )
     }
 
@@ -208,7 +209,7 @@ object MegUtil {
         }
 
         // no rollout rule, evaluate experiments
-        LoggerService.log(LogLevelEnum.INFO, "MEG_SKIP_ROLLOUT_EVALUATE_EXPERIMENTS",
+        log(LogLevelEnum.INFO, "MEG_SKIP_ROLLOUT_EVALUATE_EXPERIMENTS",
             object : HashMap<String?, String?>() {
                 init {
                     put("featureKey", featureKey)
@@ -240,11 +241,10 @@ object MegUtil {
                 try {
                     val storageMapAsString: String =
                         VWOClient.objectMapper.writeValueAsString(storedDataMap)
-                    val storedData: Storage =
-                        VWOClient.objectMapper.readValue(storageMapAsString, Storage::class.java)
-                    if (storedData.experimentVariationId != null && storedData.experimentVariationId.toString()
-                            .isNotEmpty()
-                    ) {
+                    val storedData: Storage? = VWOClient.objectMapper.readValue(storageMapAsString, Storage::class.java)
+                    if (storedData?.experimentVariationId != null
+                        && storedData.experimentVariationId.toString().isNotEmpty()) {
+
                         if (!storedData.experimentKey.isNullOrEmpty() && storedData.experimentKey == campaign.key) {
                             val variation: Variation? = CampaignUtil.getVariationFromCampaignKey(
                                 settings,
@@ -252,7 +252,7 @@ object MegUtil {
                                 storedData.experimentVariationId!!
                             )
                             if (variation != null) {
-                                LoggerService.log(
+                                log(
                                     LogLevelEnum.INFO,
                                     "MEG_CAMPAIGN_FOUND_IN_STORAGE",
                                     object : HashMap<String?, String?>() {
@@ -275,12 +275,15 @@ object MegUtil {
                 if (CampaignDecisionService().getPreSegmentationDecision(campaign, context) &&
                     CampaignDecisionService().isUserPartOfCampaign(context.id, campaign)
                 ) {
-                    LoggerService.log(
+                    log(
                         LogLevelEnum.INFO,
                         "MEG_CAMPAIGN_ELIGIBLE",
                         object : HashMap<String?, String?>() {
                             init {
-                                put("campaignKey", campaign.key)
+                                put(
+                                    "campaignKey",
+                                    if (campaign.type == CampaignTypeEnum.AB.value) campaign.key else campaign.name + "_" + campaign.ruleKey
+                                )
                                 put("userId", context.id)
                             }
                         })
@@ -309,13 +312,14 @@ object MegUtil {
      * @param eligibleCampaignsWithStorage - A list of eligible campaigns with storage.
      * @param groupId - The ID of the group.
      * @param context - The context model.
+     * @param storageService - The storage service.
      * @return The winner campaign.
      */
     private fun findWinnerCampaignAmongEligibleCampaigns(
         settings: Settings, featureKey: String?,
         eligibleCampaigns: List<Campaign>?,
         eligibleCampaignsWithStorage: List<Campaign>?,
-        groupId: Int, context: VWOContext
+        groupId: Int, context: VWOContext, storageService: StorageService
     ): Variation? {
         val campaignIds = CampaignUtil.getCampaignIdsFromFeatureKey(settings, featureKey)
         var winnerCampaign: Variation? = null
@@ -335,11 +339,14 @@ object MegUtil {
                 }
                 val finalWinnerCampaign: Variation? = winnerCampaign
                 val map = mutableMapOf<String, String>().apply {
-                    finalWinnerCampaign?.key?.let { put("campaignKey", it) }
+                    put(
+                        "campaignKey",
+                        (if (finalWinnerCampaign?.type.equals(CampaignTypeEnum.AB.value)) finalWinnerCampaign!!.key else finalWinnerCampaign!!.name + "_" + finalWinnerCampaign.ruleKey)!!
+                    )
                     put("groupId", groupId.toString())
                     context.id?.let { put("userId", it) }
                 }
-                LoggerService.log(
+                log(
                     LogLevelEnum.INFO,
                     "MEG_WINNER_CAMPAIGN",
                     map as Map<String?, String?>
@@ -349,7 +356,8 @@ object MegUtil {
                     eligibleCampaignsWithStorage,
                     context,
                     campaignIds,
-                    groupId
+                    groupId,
+                    storageService
                 )
             } else if (eligibleCampaignsWithStorage.size > 1) {
                 winnerCampaign = getCampaignUsingAdvancedAlgo(
@@ -357,7 +365,8 @@ object MegUtil {
                     eligibleCampaignsWithStorage,
                     context,
                     campaignIds,
-                    groupId
+                    groupId,
+                    storageService
                 )
             }
 
@@ -372,13 +381,18 @@ object MegUtil {
                     } catch (e: JsonProcessingException) {
                         throw RuntimeException(e)
                     }
-                    val finalWinnerCampaign1: Variation? = winnerCampaign
-                    LoggerService.log(
+                    val finalWinnerCampaign1: Variation = winnerCampaign
+                    log(
                         LogLevelEnum.INFO,
                         "MEG_WINNER_CAMPAIGN",
                         object : HashMap<String?, String?>() {
                             init {
-                                put("campaignKey", finalWinnerCampaign1?.key)
+                                put("campaignKey",
+                                    if (finalWinnerCampaign1.type.equals(CampaignTypeEnum.AB.value))
+                                        finalWinnerCampaign1.key
+                                    else
+                                        finalWinnerCampaign1.name + "_" + finalWinnerCampaign1.ruleKey
+                                )
                                 put("groupId", groupId.toString())
                                 put("userId", context.id)
                                 put("algo", "")
@@ -389,7 +403,8 @@ object MegUtil {
                         eligibleCampaigns,
                         context,
                         campaignIds,
-                        groupId
+                        groupId,
+                        storageService
                     )
                 } else if (eligibleCampaigns.size > 1) {
                     winnerCampaign = getCampaignUsingAdvancedAlgo(
@@ -397,15 +412,14 @@ object MegUtil {
                         eligibleCampaigns,
                         context,
                         campaignIds,
-                        groupId
+                        groupId,
+                        storageService
                     )
                 }
             }
         } catch (exception: Exception) {
-            LoggerService.log(
-                LogLevelEnum.ERROR,
-                "MEG: error inside findWinnerCampaignAmongEligibleCampaigns$exception"
-            )
+            log(LogLevelEnum.ERROR,
+                "MEG: error inside findWinnerCampaignAmongEligibleCampaigns$exception")
         }
         return winnerCampaign
     }
@@ -421,11 +435,11 @@ object MegUtil {
      */
     private fun normalizeWeightsAndFindWinningCampaign(
         shortlistedCampaigns: List<Campaign>?,
-        context: VWOContext, calledCampaignIds: List<Int?>?, groupId: Int
+        context: VWOContext, calledCampaignIds: List<Int?>?, groupId: Int, storageService:StorageService
     ): Variation? {
         try {
-            shortlistedCampaigns?.forEach { campaign: Campaign ->
-                campaign.weight = 100.0 / shortlistedCampaigns.size
+            shortlistedCampaigns?.forEach{ campaign: Campaign ->
+                campaign.weight = Math.round(100.0 / shortlistedCampaigns.size) * 10000 / 10000.0
             }
 
             val variations: List<Variation> = shortlistedCampaigns?.mapNotNull { campaign ->
@@ -446,23 +460,35 @@ object MegUtil {
                 )
             )
 
-            LoggerService.log(
+            if (winnerVariation != null) {
+            log(
                 LogLevelEnum.INFO,
                 "MEG_WINNER_CAMPAIGN",
                 object : HashMap<String?, String?>() {
                     init {
-                        put("campaignKey", winnerVariation?.key)
+                        put("campaignKey", if(winnerVariation.type==CampaignTypeEnum.AB.value) winnerVariation.key else winnerVariation.name + "_" + winnerVariation.ruleKey)
                         put("groupId", groupId.toString())
                         put("userId", context.id)
                         put("algo", "using random algorithm")
                     }
                 })
 
-            if (winnerVariation != null && calledCampaignIds?.contains(winnerVariation.id) == true) {
-                return winnerVariation
+                val storageMap: MutableMap<String, Any> = java.util.HashMap()
+                storageMap["featureKey"] = Constants.VWO_META_MEG_KEY + groupId
+                storageMap["userId"] = context.id?:0
+                storageMap["experimentId"] = winnerVariation.id?:0
+                storageMap["experimentKey"] = winnerVariation.key?:""
+                storageMap["experimentVariationId"] = if (winnerVariation.type.equals(CampaignTypeEnum.PERSONALIZE.value)) winnerVariation.variations[0].id?:-1 else -1
+                StorageDecorator().setDataInStorage(storageMap, storageService)
+
+                if (calledCampaignIds!!.contains(winnerVariation.id)) {
+                    return winnerVariation
+                }
+            } else {
+                log(LogLevelEnum.INFO, "No winner campaign found for MEG group: $groupId")
             }
         } catch (exception: Exception) {
-            LoggerService.log(
+            log(
                 LogLevelEnum.ERROR,
                 "MEG: error inside normalizeWeightsAndFindWinningCampaign"
             )
@@ -478,27 +504,45 @@ object MegUtil {
      * @param context - The context model.
      * @param calledCampaignIds - A list of campaign IDs that have been called.
      * @param groupId - The ID of the group.
+     * @param storageService - The storage service.
      * @return The winning campaign or null if none is found.
      */
     private fun getCampaignUsingAdvancedAlgo(
-        settings: Settings, shortlistedCampaigns: List<Campaign>,
-        context: VWOContext, calledCampaignIds: List<Int?>?, groupId: Int
+        settings: Settings,
+        shortlistedCampaigns: List<Campaign>,
+        context: VWOContext,
+        calledCampaignIds: List<Int?>,
+        groupId: Int,
+        storageService: StorageService
     ): Variation? {
         var winnerCampaign: Variation? = null
         var found = false
         try {
             val group = settings.groups!![groupId.toString()]
-            val priorityOrder = group?.p ?: mutableListOf()
-            val groupWt = group?.wt
-            val wt = if (!groupWt.isNullOrEmpty()) convertWtToMap(groupWt) else mutableMapOf()
-            for (integer in priorityOrder) {
+            val priorityOrder: List<String>? = if (group != null && !group.p!!.isEmpty()
+            ) group.p else java.util.ArrayList()
+            val wt = if (group != null && !group.wt!!.isEmpty()
+            ) group.wt else java.util.HashMap()
+            for (integer in priorityOrder!!) {
                 for (shortlistedCampaign in shortlistedCampaigns) {
-                    if (shortlistedCampaign.id == integer) {
-                        val campaignModel: String = VWOClient.objectMapper.writeValueAsString(
-                            FunctionUtil.cloneObject(shortlistedCampaign)
+                    if (shortlistedCampaign.id.toString() == integer) {
+                        val campaignModel = VWOClient.objectMapper.writeValueAsString(
+                            cloneObject(shortlistedCampaign)
                         )
-                        winnerCampaign =
-                            VWOClient.objectMapper.readValue(campaignModel, Variation::class.java)
+                        winnerCampaign = VWOClient.objectMapper.readValue(
+                            campaignModel,
+                            Variation::class.java
+                        )
+                        found = true
+                        break
+                    } else if ((shortlistedCampaign.id.toString() + "_" + shortlistedCampaign.variations!![0].id) == integer) {
+                        val campaignModel = VWOClient.objectMapper.writeValueAsString(
+                            cloneObject(shortlistedCampaign)
+                        )
+                        winnerCampaign = VWOClient.objectMapper.readValue(
+                            campaignModel,
+                            Variation::class.java
+                        )
                         found = true
                         break
                     }
@@ -507,33 +551,38 @@ object MegUtil {
             }
 
             if (winnerCampaign == null) {
-                val participatingCampaignList: MutableList<Campaign?> = ArrayList<Campaign?>()
+                val participatingCampaignList: MutableList<Campaign?> = java.util.ArrayList()
                 for (campaign in shortlistedCampaigns) {
-                    val campaignId = campaign.id
-                    if (campaignId!=null && wt.containsKey(campaignId)) {
-                        val clonedCampaign: Campaign =
-                            FunctionUtil.cloneObject(campaign) as Campaign
-                        clonedCampaign.weight = (wt[campaignId]?:0).toDouble()
+                    val campaignId = campaign.id!!
+                    if (wt!!.containsKey(campaignId.toString())) {
+                        val clonedCampaign = cloneObject(campaign) as Campaign?
+                        clonedCampaign!!.weight = wt!![campaignId.toString()]!!
+                        participatingCampaignList.add(clonedCampaign)
+                    } else if (wt!!.containsKey(campaignId.toString() + "_" + campaign.variations!![0].id)) {
+                        val clonedCampaign = cloneObject(campaign) as Campaign?
+                        clonedCampaign!!.weight =
+                            wt!![campaignId.toString() + "_" + campaign.variations!![0].id]!!
                         participatingCampaignList.add(clonedCampaign)
                     }
                 }
 
-                val variations: List<Variation> = participatingCampaignList.mapNotNull { campaign ->
-                    try {
-                        val campaignModel = VWOClient.objectMapper.writeValueAsString(campaign)
-                        VWOClient.objectMapper.readValue(campaignModel, Variation::class.java)
-                    } catch (e: JsonProcessingException) {
-                        LoggerService.log(LogLevelEnum.ERROR,e.toString())
-                        null // Optionally log the error or handle it as needed
+                val variations = participatingCampaignList.map { campaign: Campaign? ->
+                        try {
+                            val campaignModel = VWOClient.objectMapper.writeValueAsString(campaign)
+                            return@map VWOClient.objectMapper.readValue<Variation>(
+                                campaignModel,
+                                Variation::class.java
+                            )
+                        } catch (e: JsonProcessingException) {
+                            throw java.lang.RuntimeException(e)
+                        }
                     }
-                }
 
-
-                CampaignUtil.setCampaignAllocation(variations)
+                setCampaignAllocation(variations)
                 winnerCampaign = CampaignDecisionService().getVariation(
                     variations,
                     DecisionMaker().calculateBucketValue(
-                        CampaignUtil.getBucketingSeed(
+                        getBucketingSeed(
                             context.id,
                             null,
                             groupId
@@ -542,24 +591,45 @@ object MegUtil {
                 )
             }
 
-            val finalWinnerCampaign: Variation? = winnerCampaign
-            LoggerService.log(
-                LogLevelEnum.INFO,
-                "MEG_WINNER_CAMPAIGN",
-                object : HashMap<String?, String?>() {
-                    init {
-                        put("campaignKey", finalWinnerCampaign?.name)
-                        put("groupId", groupId.toString())
-                        put("userId", context.id)
-                        put("algo", "using advanced algorithm")
-                    }
-                })
+            val finalWinnerCampaign = winnerCampaign
 
-            if (calledCampaignIds!!.contains(winnerCampaign?.id)) {
-                return winnerCampaign
+
+            if (winnerCampaign != null) {
+                log(
+                    LogLevelEnum.INFO,
+                    "MEG_WINNER_CAMPAIGN",
+                    object : java.util.HashMap<String?, String?>() {
+                        init {
+                            put(
+                                "campaignKey",
+                                if (finalWinnerCampaign!!.type == CampaignTypeEnum.AB.value) finalWinnerCampaign!!.key else finalWinnerCampaign!!.name + "_" + finalWinnerCampaign!!.ruleKey
+                            )
+                            put("groupId", groupId.toString())
+                            put("userId", context.id)
+                            put("algo", "using advanced algorithm")
+                        }
+                    })
+
+                val storageMap: MutableMap<String, Any> = java.util.HashMap()
+                storageMap["featureKey"] = Constants.VWO_META_MEG_KEY + groupId
+                storageMap["userId"] = context.id?:0
+                storageMap["experimentId"] = winnerCampaign.id?:0
+                storageMap["experimentKey"] = winnerCampaign.key?:""
+                storageMap["experimentVariationId"] =
+                    if (winnerCampaign.type == CampaignTypeEnum.PERSONALIZE.value) winnerCampaign.variations[0].id?:-1 else -1
+                StorageDecorator().setDataInStorage(storageMap, storageService)
+
+                if (calledCampaignIds.contains(winnerCampaign.id)) {
+                    return winnerCampaign
+                }
+            } else {
+                log(
+                    LogLevelEnum.INFO,
+                    "No winner campaign found for MEG group: $groupId"
+                )
             }
-        } catch (exception: Exception) {
-            LoggerService.log(
+        } catch (exception: java.lang.Exception) {
+            log(
                 LogLevelEnum.ERROR,
                 "MEG: error inside getCampaignUsingAdvancedAlgo " + exception.message
             )
@@ -573,8 +643,9 @@ object MegUtil {
      * @param wt - The weight map.
      * @return The converted map.
      */
-    private fun convertWtToMap(wt: Map<String, Int>): Map<Int, Int> {
+    private fun convertWtToMap(wt: Map<String, Int>?): Map<Int, Int> {
         val wtToReturn: MutableMap<Int, Int> = HashMap()
+        if (wt == null) return wtToReturn
         for ((key, value) in wt) {
             wtToReturn[key.toInt()] = value
         }

@@ -5,4 +5,5 @@
     <string name="getVariable">Get Variable</string>
     <string name="track">Track</string>
     <string name="attribute">Attribute</string>
+    <string name="javaScreen">Show Java screen</string>
 </resources>

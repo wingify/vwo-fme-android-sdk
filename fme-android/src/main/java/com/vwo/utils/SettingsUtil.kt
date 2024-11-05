@@ -23,12 +23,7 @@ import com.vwo.models.Settings
 import com.vwo.models.Variation
 import com.vwo.packages.logger.enums.LogLevelEnum
 import com.vwo.services.LoggerService
-import java.util.Objects
-import java.util.function.Consumer
-import java.util.function.Function
-import java.util.function.Predicate
 import java.util.regex.Pattern
-import java.util.stream.Collectors
 
 /**
  * Utility object for settings-related operations.
@@ -37,6 +32,9 @@ import java.util.stream.Collectors
  * values, validating settings data, or performing other settings-related tasks.
  */
 object SettingsUtil {
+
+    var settingsFile: Settings? = Settings()
+
     /**
      * Processes the settings file and modifies it as required.
      * This method is called before the settings are used by the SDK.
@@ -57,6 +55,8 @@ object SettingsUtil {
             }
             addLinkedCampaignsToSettings(settings)
             addIsGatewayServiceRequiredFlag(settings)
+            addIsHistoricalEventDSL(settings)
+            settingsFile = settings
         } catch (exception: Exception) {
             LoggerService.log(
                 LogLevelEnum.ERROR,
@@ -138,6 +138,28 @@ object SettingsUtil {
                         feature.isGatewayServiceRequired=true
                         break
                     }
+                }
+            }
+        }
+    }
+
+    private fun addIsHistoricalEventDSL(settings: Settings) {
+
+        val patternString = """\s*"cnds"\s*[:.]?\s*"""
+        val pattern = Pattern.compile(patternString)
+
+        for (feature in settings.features) {
+            val rules: List<Campaign> = feature.rulesLinkedCampaign
+            for (rule in rules) {
+                val segmentsEvents =
+                    if (rule.type == CampaignTypeEnum.ROLLOUT.value || rule.type == CampaignTypeEnum.PERSONALIZE.value) {
+                        rule.variations?.get(0)?.segments_events
+                    } else {
+                        rule.segments_events
+                    }
+
+                if (segmentsEvents != null) {
+                    rule.isEventsDsl = true
                 }
             }
         }

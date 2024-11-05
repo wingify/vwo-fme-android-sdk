@@ -37,7 +37,7 @@ class StorageService {
     fun getDataInStorage(featureKey: String?, context: VWOContext): Map<String, Any>? {
         val storageInstance = Storage.instance?.getConnector() ?: return null
         try {
-            return (storageInstance as Connector).get(featureKey, context.id) as Map<String, Any>
+            return (storageInstance as Connector).get(featureKey, context.id) as? Map<String, Any>
         } catch (e: Exception) {
             LoggerService.log(
                 LogLevelEnum.ERROR,

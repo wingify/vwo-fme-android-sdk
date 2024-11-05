@@ -25,6 +25,7 @@ class VWOContext {
     var userAgent: String = ""
     var ipAddress: String = ""
     var customVariables: MutableMap<String, Any> = HashMap()
+    var sessionId: Long = 0L
 
     var variationTargetingVariables: MutableMap<String, Any> = HashMap()
 

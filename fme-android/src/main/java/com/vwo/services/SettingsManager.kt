@@ -17,6 +17,7 @@ package com.vwo.services
 
 import com.vwo.VWOClient
 import com.vwo.constants.Constants
+import com.vwo.providers.StorageProvider
 import com.vwo.models.Settings
 import com.vwo.models.schemas.SettingsSchema
 import com.vwo.models.user.VWOInitOptions
@@ -35,10 +36,9 @@ import java.net.URL
  */
 class SettingsManager(options: VWOInitOptions) {
     private val sdkKey = options.sdkKey
-    private val accountId = options.accountId
+    val accountId = options.accountId
 
-    // TODO -- check expiry logic
-    private val expiry = Constants.SETTINGS_EXPIRY.toInt()
+    private val cachedSettingsExpiryInterval = options.cachedSettingsExpiryTime
     private val networkTimeout = Constants.SETTINGS_TIMEOUT.toInt()
     var hostname: String
 
@@ -46,11 +46,11 @@ class SettingsManager(options: VWOInitOptions) {
     var port: Int = 0
 
     @JvmField
-    var protocol: String = "https"
+    var protocol: String = Constants.HTTPS_PROTOCOL
     var isGatewayServiceProvided: Boolean = false
 
     init {
-        if (options.gatewayService != null && !options.gatewayService.isEmpty()) {
+        if (options.gatewayService.isNotEmpty()) {
             isGatewayServiceProvided = true
             try {
                 val parsedUrl: URL
@@ -60,8 +60,8 @@ class SettingsManager(options: VWOInitOptions) {
                 parsedUrl =
                     if (gatewayServiceUrl.startsWith("http://") || gatewayServiceUrl.startsWith("https://")) {
                         URL(gatewayServiceUrl)
-                    } else if (gatewayServiceProtocol != null && !gatewayServiceProtocol.toString()
-                            .isEmpty()
+                    } else if (gatewayServiceProtocol != null
+                        && gatewayServiceProtocol.toString().isNotEmpty()
                     ) {
                         URL("$gatewayServiceProtocol://$gatewayServiceUrl")
                     } else {
@@ -90,20 +90,60 @@ class SettingsManager(options: VWOInitOptions) {
     /**
      * Fetches settings from the server
      */
-    private fun fetchSettingsAndCacheInStorage(): String? {
+    private fun fetchFromCacheOrServer(): String? {
         try {
-            return fetchSettings()
+            var responseString: String?
+
+            if (canUseCachedSettings()) {
+                responseString = getCachedSetting()
+                if (responseString.isNullOrEmpty()) {
+                    responseString = fetchAndCacheServerSettings()
+                }
+            } else {
+                responseString = fetchSettings()
+                if (!responseString.isNullOrEmpty()) {
+                    updateSettingsCache(responseString)
+                } else if (cachedSettingsAllowed()) {
+                    //Return settings even if it is expired - SDK should work as long as there is setting in cache.
+                    responseString = getCachedSetting()
+                }
+            }
+            return responseString
         } catch (e: Exception) {
-            LoggerService.log(
-                LogLevelEnum.ERROR,
-                "SETTINGS_FETCH_ERROR",
-                object : HashMap<String?, String?>() {
-                    init {
-                        put("err", e.toString())
-                    }
-                })
+            val map = mapOf<String?, String?>("err" to e.toString())
+            LoggerService.log(LogLevelEnum.ERROR, "SETTINGS_FETCH_ERROR", map)
         }
         return null
+    }
+
+    private fun cachedSettingsAllowed() = cachedSettingsExpiryInterval != 0
+
+    private fun fetchAndCacheServerSettings(): String? {
+        val response: String? = fetchSettings()
+        if (response != null) {
+            updateSettingsCache(response)
+        }
+        return response
+    }
+
+    private fun updateSettingsCache(responseString: String) {
+        StorageProvider.settingsStore?.saveSettings(responseString)
+        val expiryTime = System.currentTimeMillis() + cachedSettingsExpiryInterval
+        StorageProvider.settingsStore?.saveSettingsExpiry(expiryTime)
+    }
+
+    private fun getCachedSetting(): String? {
+        return StorageProvider.settingsStore?.getSettings()
+    }
+
+    private fun canUseCachedSettings(): Boolean {
+        if (cachedSettingsExpiryInterval == 0) return false
+        return isCachedSettingValid()
+    }
+
+    private fun isCachedSettingValid(): Boolean {
+        val expiryTime = StorageProvider.settingsStore?.getSettingsExpiry() ?: -1
+        return expiryTime != -1L && System.currentTimeMillis() <= expiryTime
     }
 
     /**
@@ -135,7 +175,7 @@ class SettingsManager(options: VWOInitOptions) {
 
             val response = NetworkManager.get(request)
             if (response?.statusCode != 200) {
-                LoggerService.Companion.log(
+                LoggerService.log(
                     LogLevelEnum.ERROR,
                     "SETTINGS_FETCH_ERROR",
                     object : HashMap<String?, String?>() {
@@ -164,19 +204,17 @@ class SettingsManager(options: VWOInitOptions) {
      */
     fun getSettings(forceFetch: Boolean): String? {
         if (forceFetch) {
-            return fetchSettingsAndCacheInStorage()
+            LoggerService.log(LogLevelEnum.INFO, "Settings: Fetched from: ServerPoll")
+            return fetchAndCacheServerSettings()
         } else {
             try {
-                val settings = fetchSettingsAndCacheInStorage()
+                val settings = fetchFromCacheOrServer()
                 if (settings == null) {
                     LoggerService.log(LogLevelEnum.ERROR, "SETTINGS_SCHEMA_INVALID", null)
                     return null
                 }
                 val settingsValid = SettingsSchema().isSettingsValid(
-                    VWOClient.objectMapper.readValue(
-                        settings,
-                        Settings::class.java
-                    )
+                    VWOClient.objectMapper.readValue(settings, Settings::class.java)
                 )
                 if (settingsValid) {
                     return settings

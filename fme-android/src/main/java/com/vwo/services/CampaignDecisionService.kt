@@ -23,6 +23,8 @@ import com.vwo.models.user.VWOContext
 import com.vwo.packages.decision_maker.DecisionMaker
 import com.vwo.packages.logger.enums.LogLevelEnum
 import com.vwo.packages.segmentation_evaluator.core.SegmentationManager
+import com.vwo.utils.EventsUtils
+
 
 /**
  * Provides decision-making logic for campaigns.
@@ -62,8 +64,13 @@ class CampaignDecisionService {
             object : HashMap<String?, String?>() {
                 init {
                     put("userId", userId)
-                    put("campaignKey", campaign.ruleKey)
                     put("notPart", if (isUserPart) "" else "not")
+                    put("campaignKey",
+                        if (campaign.type.equals(CampaignTypeEnum.AB.value))
+                            campaign.key
+                        else
+                            campaign.name + "_" + campaign.ruleKey
+                    )
                 }
             })
         return isUserPart
@@ -141,42 +148,77 @@ class CampaignDecisionService {
     fun getPreSegmentationDecision(campaign: Campaign, context: VWOContext): Boolean {
         val campaignType = campaign.type
 
-        val segments =
+        val segmentsEvents =
             if (campaignType == CampaignTypeEnum.ROLLOUT.value || campaignType == CampaignTypeEnum.PERSONALIZE.value) {
+                campaign.variations!![0].segments_events
+            } else if (campaignType == CampaignTypeEnum.AB.value) {
+                campaign.segments_events
+            } else {
+                emptyList()
+            }
+        var segments: Map<String, Any>? = emptyMap()
+        if (!segmentsEvents.isNullOrEmpty()) {
+            segments = mapOf("cnds" to segmentsEvents)
+        } else {
+            segments = if (campaignType == CampaignTypeEnum.ROLLOUT.value || campaignType == CampaignTypeEnum.PERSONALIZE.value) {
                 campaign.variations!![0].segments
             } else if (campaignType == CampaignTypeEnum.AB.value) {
-                campaign.segments
+                campaign.segments ?: emptyMap()
             } else {
                 emptyMap()
             }
-
-        if (segments!!.isEmpty()) {
+        }
+        if (segments.isEmpty()) {
             LoggerService.log(
                 LogLevelEnum.INFO,
                 "SEGMENTATION_SKIP",
                 object : HashMap<String?, String?>() {
                     init {
                         put("userId", context.id)
-                        put("campaignKey", campaign.ruleKey)
+                        put("campaignKey",
+                            if (campaign.type.equals(CampaignTypeEnum.AB.value))
+                                campaign.key
+                            else
+                                campaign.name + "_" + campaign.ruleKey
+                        )
                     }
                 })
             return true
         } else {
-            val preSegmentationResult = SegmentationManager.validateSegmentation(
-                segments, context.customVariables
-            )
+
+            val preSegmentationResult = getPreSegmentationResult(campaign, context, segments)
             LoggerService.log(
                 LogLevelEnum.INFO,
                 "SEGMENTATION_STATUS",
                 object : HashMap<String?, String?>() {
                     init {
                         put("userId", context.id)
-                        put("campaignKey", campaign.ruleKey)
+                        put("campaignKey",
+                            if (campaign.type.equals(CampaignTypeEnum.AB.value))
+                                campaign.key
+                            else
+                                campaign.name + "_" + campaign.ruleKey
+                        )
                         put("status", if (preSegmentationResult) "passed" else "failed")
                     }
                 })
             return preSegmentationResult
         }
+    }
+
+    private fun getPreSegmentationResult(
+        campaign: Campaign,
+        context: VWOContext,
+        segments: Map<String, Any>
+    ): Boolean {
+        val preSegmentationResult = if (campaign.isEventsDsl) {
+            EventsUtils().getEventsPreSegmentation(segments, context)
+        } else {
+            SegmentationManager.validateSegmentation(
+                segments, context.customVariables
+            )
+        }
+        return preSegmentationResult
     }
 
     /**

@@ -49,7 +49,7 @@ object RuleEvaluationUtil {
         campaign: Campaign,
         context: VWOContext,
         evaluatedFeatureMap: MutableMap<String, Any>,
-        megGroupWinnerCampaigns: MutableMap<Int, Int>?,
+        megGroupWinnerCampaigns: MutableMap<Int, String>?,
         storageService: StorageService,
         decision: MutableMap<String, Any>
     ): Map<String, Any> {

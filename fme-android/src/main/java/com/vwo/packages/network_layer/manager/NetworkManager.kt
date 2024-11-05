@@ -15,7 +15,9 @@
  */
 package com.vwo.packages.network_layer.manager
 
+import com.google.gson.Gson
 import com.vwo.interfaces.networking.NetworkClientInterface
+import com.vwo.providers.StorageProvider
 import com.vwo.packages.logger.enums.LogLevelEnum
 import com.vwo.packages.network_layer.client.NetworkClient
 import com.vwo.packages.network_layer.handlers.RequestHandler
@@ -118,7 +120,13 @@ object NetworkManager {
      */
     fun postAsync(request: RequestModel) {
         executorService.submit {
-            post(request)
+            val response = post(request)
+            if (StorageProvider.requestStore == null) return@submit
+
+            if (response == null || response.statusCode != 200) {
+                val requestString = Gson().toJson(request)
+                StorageProvider.requestStore?.addRequest(requestString)
+            }
         }
     }
 }

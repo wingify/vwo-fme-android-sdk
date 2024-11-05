@@ -28,6 +28,7 @@ import java.util.function.Consumer
 import kotlin.math.ceil
 import kotlin.math.min
 
+
 /**
  * Utility class for campaign operations.
  *
@@ -166,15 +167,23 @@ object CampaignUtil {
      */
     fun getGroupDetailsIfCampaignPartOfIt(
         settings: Settings,
-        campaignId: Int
-    ): Map<String?, String?> {
-        // Check if the campaign is associated with a group and return the group details
-        val groupDetails: MutableMap<String?, String?> = HashMap()
-        if (settings.campaignGroups != null && settings.campaignGroups!!.containsKey(campaignId.toString())) {
-            val groupId = settings.campaignGroups!![campaignId.toString()]!!
-            val groupName = settings.groups!![groupId.toString()]!!.name
+        campaignId: Int,
+        variationId: Int
+    ): MutableMap<String, String> {
+        // If variationId is null, that means that campaign is testing campaign
+        // If variationId is not null, that means that campaign is personalization campaign and we need to append variationId to campaignId using _
+        // then check if the current campaign is part of any group
+        val groupDetails: MutableMap<String, String> = HashMap()
+        var campaignToCheck = campaignId.toString()
+        if (variationId != -1) {
+            campaignToCheck = campaignToCheck + "_" + variationId
+        }
+        val campaignGroups = settings.campaignGroups
+        if (campaignGroups!= null && campaignGroups.containsKey(campaignToCheck)) {
+            val groupId = campaignGroups[campaignToCheck]
+            val groupName = settings.groups?.get(groupId.toString())?.name
             groupDetails["groupId"] = groupId.toString()
-            groupDetails["groupName"] = groupName
+            groupDetails["groupName"] = groupName?:""
             return groupDetails
         }
         return groupDetails
@@ -188,27 +197,36 @@ object CampaignUtil {
      */
     fun findGroupsFeaturePartOf(
         settings: Settings,
-        featureKey: String
-    ): List<Map<String?, String?>> {
-        val campaignIds: MutableList<Int> = ArrayList()
-        // Loop over all rules inside the feature where the feature key matches and collect all campaign IDs
-        for (feature in settings.features!!) {
-            if (feature.key == featureKey) {
-                feature.rules!!.forEach(Consumer { rule: Rule ->
-                    if (!campaignIds.contains(rule.campaignId)) {
-                        campaignIds.add(rule.campaignId!!)
+        featureKey: String?
+    ): MutableList<MutableMap<String, String>> {
+        // Initialize an array to store all rules for the given feature to fetch campaignId and variationId later
+        val ruleArrayList: MutableList<Rule> = ArrayList()
+        for (feature in settings.features) {
+            if (feature.key.equals(featureKey)) {
+                feature.rules?.forEach { rule ->
+                    // Add rule to the array if it's not already present
+                    if (!ruleArrayList.contains(rule)) {
+                        ruleArrayList.add(rule)
                     }
-                })
+                }
             }
         }
 
-        // Loop over all campaigns and find the group for each campaign
-        val groups: MutableList<Map<String?, String?>> = ArrayList()
-        for (campaignId in campaignIds) {
-            val group = getGroupDetailsIfCampaignPartOfIt(settings, campaignId)
-            if (!group.isEmpty() && groups.stream()
-                    .noneMatch { g: Map<String?, String?> -> g["groupId"] == group["groupId"] }
-            ) {
+        // Initialize an array to store all groups associated with the feature
+        val groups: MutableList<MutableMap<String, String>> = ArrayList()
+        // Iterate over each rule to find the group details
+        for (rule in ruleArrayList) {
+            val variationId = if (rule.type == CampaignTypeEnum.PERSONALIZE.value)
+                rule.variationId?:-1
+            else
+                -1
+            val group: MutableMap<String, String> = getGroupDetailsIfCampaignPartOfIt(
+                settings,
+                rule.campaignId!!,
+                variationId
+            )
+            // Add group to the array if it's not already present
+            if (group.isNotEmpty() && groups.none { it["groupId"] == group["groupId"] }) {
                 groups.add(group)
             }
         }
@@ -221,7 +239,7 @@ object CampaignUtil {
      * @param groupId The ID of the group.
      * @return An array of campaigns associated with the specified group ID.
      */
-    fun getCampaignsByGroupId(settings: Settings, groupId: Int): List<Int> {
+    fun getCampaignsByGroupId(settings: Settings, groupId: Int): List<String> {
         // find the group
         val group = settings.groups?.get(groupId.toString())
         return group?.campaigns?: emptyList()
@@ -230,16 +248,39 @@ object CampaignUtil {
     /**
      * Retrieves feature keys from a list of campaign IDs.
      * @param settings The settings model containing all features.
-     * @param campaignIds An array of campaign IDs.
+     * @param campaignIdWithVariation An array of campaign IDs.
      * @return An array of feature keys associated with the provided campaign IDs.
      */
-    fun getFeatureKeysFromCampaignIds(settings: Settings, campaignIds: List<Int>): List<String> {
+    fun getFeatureKeysFromCampaignIds(
+        settings: Settings,
+        campaignIdWithVariation: List<String>
+    ): MutableList<String> {
         val featureKeys: MutableList<String> = ArrayList()
-        for (campaignId in campaignIds) {
+        for (campaign in campaignIdWithVariation) {
+            // split key with _ to separate campaignId and variationId
+            val campaignIdVariationId = campaign.split("_".toRegex()).dropLastWhile { it.isEmpty() }
+                .toTypedArray()
+            val campaignId = campaignIdVariationId[0].toInt()
+            val variationId =
+                if ((campaignIdVariationId.size > 1)) campaignIdVariationId[1].toInt() else null
+            // Iterate over each feature to find the feature key
             for (feature in settings.features) {
-                feature.rules?.forEach { rule: Rule ->
+                // Break if feature key is already added
+                if (featureKeys.contains(feature.key)) {
+                    continue
+                }
+                feature.rules?.forEach { rule ->
                     if (rule.campaignId == campaignId) {
-                        feature.key?.let { featureKeys.add(it) }
+                        // Check if variationId is provided and matches the rule's variationId
+                        if (variationId != null) {
+                            // Add feature key if variationId matches
+                            if (rule.variationId== variationId) {
+                                feature.key?.let { featureKeys.add(it) }
+                            }
+                        } else {
+                            // Add feature key if no variationId is provided
+                            feature.key?.let { featureKeys.add(it) }
+                        }
                     }
                 }
             }
@@ -255,9 +296,9 @@ object CampaignUtil {
      */
     fun getCampaignIdsFromFeatureKey(settings: Settings, featureKey: String?): List<Int?> {
         val campaignIds: MutableList<Int?> = ArrayList()
-        for (feature in settings.features!!) {
+        for (feature in settings.features) {
             if (feature.key == featureKey) {
-                feature.rules!!.forEach(Consumer { rule: Rule -> campaignIds.add(rule.campaignId) })
+                feature.rules?.forEach { rule: Rule -> campaignIds.add(rule.campaignId) }
             }
         }
         return campaignIds

@@ -66,6 +66,7 @@ object SetAttributeAPI {
         // Construct payload data for tracking the user
         val payload = NetworkUtil.getAttributePayloadData(
             settings,
+            context,
             context.id,
             EventEnum.VWO_SYNC_VISITOR_PROP.value,
             attributeKey,

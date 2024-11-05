@@ -55,6 +55,7 @@ object ImpressionUtil {
         // Construct payload data for tracking the user
         val payload: Map<String, Any> = NetworkUtil.getTrackUserPayloadData(
             settings,
+            context,
             context.id,
             EventEnum.VWO_VARIATION_SHOWN.value,
             campaignId,
