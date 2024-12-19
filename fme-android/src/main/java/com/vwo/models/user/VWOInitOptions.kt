@@ -17,11 +17,13 @@ package com.vwo.models.user
 
 import android.content.Context
 import com.vwo.VWOBuilder
+import com.vwo.constants.Constants
 import com.vwo.interfaces.networking.NetworkClientInterface
 import com.vwo.packages.segmentation_evaluator.evaluators.SegmentEvaluator
 import com.vwo.packages.storage.Connector
 import com.vwo.interfaces.integration.IntegrationCallback
 import com.vwo.packages.storage.MobileDefaultStorage
+import com.vwo.sdk.fme.BuildConfig
 
 /**
  * Represents initialization options for the VWO SDK.
@@ -39,11 +41,27 @@ class VWOInitOptions {
     var segmentEvaluator: SegmentEvaluator? = null
     var storage: Connector = MobileDefaultStorage()
     var pollInterval: Int? = null
-
     var vwoBuilder: VWOBuilder? = null
 
     var gatewayService: Map<String, Any> = HashMap()
     var context: Context? = null
     /**If this value is provided, SDK will keep using cached settings till this interval is valid.*/
     var cachedSettingsExpiryTime: Int = 0
+    /**
+     * The name of the SDK.
+     *
+     * This is used to identifying the SDK.
+     *
+     * @param sdkName The name of the SDK. **For hybrid SDKs only.**
+     */
+    var sdkName = Constants.SDK_NAME
+
+    /**
+     * The version of the SDK.
+     *
+     * This is used for identifying the SDK version.
+     *
+     * @param sdkVersion The version of the SDK. **For hybrid SDKs only.**
+     */
+    var sdkVersion = BuildConfig.SDK_VERSION
 }

@@ -30,4 +30,5 @@
 -keep class com.vwo.VWO { *; }
 -keep class com.vwo.interfaces.IVwoInitCallback { *; }
 -keep class com.vwo.interfaces.IVwoListener { *; }
+-keep class com.vwo.interfaces.integration.IntegrationCallback { *; }
 -keep class com.vwo.models.** { *; }

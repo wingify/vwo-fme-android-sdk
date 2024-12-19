@@ -166,7 +166,7 @@ class NetworkUtil {
          */
         private fun createProps(settings: Settings): Props {
             val props = Props()
-            props.setSdkName(Constants.SDK_NAME)
+            props.setSdkName(SDKMetaUtil.sdkName)
             props.setSdkVersion(SDKMetaUtil.sdkVersion)
             props.setEnvKey(settings.sdkKey)
             props.setEnvKey(settings.sdkKey)

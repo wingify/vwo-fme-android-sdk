@@ -15,6 +15,7 @@
  */
 package com.vwo.utils
 
+import com.vwo.constants.Constants
 import com.vwo.sdk.fme.BuildConfig
 
 /**
@@ -28,5 +29,7 @@ object SDKMetaUtil {
     /**
      * Returns the sdkVersion
      */
-    val sdkVersion: String = BuildConfig.SDK_VERSION
+    var sdkVersion: String = BuildConfig.SDK_VERSION
+
+    var sdkName: String = Constants.SDK_NAME
 }

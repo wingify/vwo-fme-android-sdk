@@ -16,10 +16,10 @@
 package com.vwo
 
 import com.vwo.interfaces.IVwoInitCallback
-import com.vwo.packages.network_layer.client.ApiCallRepeater
 import com.vwo.interfaces.IVwoListener
 import com.vwo.models.user.VWOContext
 import com.vwo.models.user.VWOInitOptions
+import com.vwo.utils.SDKMetaUtil
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -55,6 +55,8 @@ object VWO {
             .setSegmentation() // Sets up segmentation for targeted functionality.
             .initPolling() // Initializes the polling mechanism for fetching settings.
 
+        SDKMetaUtil.sdkName = options.sdkName
+        SDKMetaUtil.sdkVersion = options.sdkVersion
         val settings = vwoBuilder.getSettings(false)
         val vwoInstance = this
         vwoClient = VWOClient(settings, options)
