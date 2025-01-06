@@ -17,13 +17,14 @@ package com.vwo.packages.network_layer.manager
 
 import com.google.gson.Gson
 import com.vwo.interfaces.networking.NetworkClientInterface
-import com.vwo.providers.StorageProvider
+import com.vwo.models.Settings
 import com.vwo.packages.logger.enums.LogLevelEnum
 import com.vwo.packages.network_layer.client.NetworkClient
 import com.vwo.packages.network_layer.handlers.RequestHandler
 import com.vwo.packages.network_layer.models.GlobalRequestModel
 import com.vwo.packages.network_layer.models.RequestModel
 import com.vwo.packages.network_layer.models.ResponseModel
+import com.vwo.providers.StorageProvider
 import com.vwo.services.LoggerService
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
@@ -38,7 +39,7 @@ import java.util.concurrent.Executors
 object NetworkManager {
 
     var config: GlobalRequestModel? = null
-    private var client: NetworkClientInterface? = null
+    var client: NetworkClientInterface? = null
 
     // Executors.newCachedThreadPool() is a factory method in the Java Executors class
     // that creates a thread pool that can dynamically adjust the number of threads it uses.
@@ -118,14 +119,18 @@ object NetworkManager {
      *
      * @param request The RequestModel containing the URL, headers, and body of the POST request.
      */
-    fun postAsync(request: RequestModel) {
+    fun postAsync(settings: Settings, request: RequestModel) {
         executorService.submit {
             val response = post(request)
-            if (StorageProvider.requestStore == null) return@submit
+            if (StorageProvider.sdkDataManager == null) return@submit
 
             if (response == null || response.statusCode != 200) {
-                val requestString = Gson().toJson(request)
-                StorageProvider.requestStore?.addRequest(requestString)
+                val requestString = Gson().toJson(request.body).toString()
+                StorageProvider.sdkDataManager?.saveSdkData(
+                    sdkKey = settings.sdkKey,
+                    accountId = settings.accountId,
+                    payload = requestString
+                )
             }
         }
     }

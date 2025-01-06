@@ -194,8 +194,8 @@ object MegUtil {
                 )
                 if (variation != null) {
                     val rollOutInformation: MutableMap<String, Any> = HashMap()
-                    variation.id?.let { rollOutInformation["rolloutId"] = it }
-                    variation.name?.let { rollOutInformation["rolloutKey"] = it }
+                    ruleToTestForTraffic.id?.let { rollOutInformation["rolloutId"] = it }
+                    ruleToTestForTraffic.key?.let { rollOutInformation["rolloutKey"] = it }
                     variation.id?.let { rollOutInformation["rolloutVariationId"] = it }
                     evaluatedFeatureMap[featureKey] = rollOutInformation
 

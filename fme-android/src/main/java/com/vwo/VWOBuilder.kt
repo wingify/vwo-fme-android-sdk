@@ -16,13 +16,13 @@
 package com.vwo
 
 import android.app.Application
+import SdkDataManager
 import com.fasterxml.jackson.databind.JsonNode
-import com.vwo.utils.AppLifecycleListener
 import com.vwo.packages.storage.MobileDefaultStorage
 import com.vwo.providers.StorageProvider
-import com.vwo.packages.storage.RequestStore
 import com.vwo.models.user.VWOInitOptions
 import com.vwo.packages.logger.enums.LogLevelEnum
+import com.vwo.packages.network_layer.manager.BatchManager
 import com.vwo.packages.network_layer.manager.NetworkManager
 import com.vwo.packages.segmentation_evaluator.core.SegmentationManager
 import com.vwo.packages.storage.Storage
@@ -30,8 +30,8 @@ import com.vwo.services.LoggerService
 import com.vwo.services.SettingsManager
 import com.vwo.utils.DataTypeUtil
 import com.vwo.utils.LogMessageUtil.buildMessage
-import com.vwo.packages.storage.SettingsStore
 import java.lang.ref.WeakReference
+import com.vwo.packages.storage.SettingsStore
 
 /**
  * Builder class for constructing and configuring VWO instances.
@@ -294,20 +294,6 @@ open class VWOBuilder(options: VWOInitOptions?) {
     }
 
     /**
-     * Sets the lifecycle listener for the VWO SDK.
-     *
-     * This function initializes and starts the app lifecycle listener using the provided context.
-     *
-     * @return This VWOBuilder instance.
-     */
-    fun setLifeCycleListener(): VWOBuilder {
-        val context = options?.context ?: return this
-        val appLifecycleListener = AppLifecycleListener()
-        appLifecycleListener.start(context.applicationContext as Application)
-        return this
-    }
-
-    /**
      * Sets the context for the VWO SDK.
      *
      * This function sets the context reference using a WeakReference to avoid memory leaks.
@@ -317,6 +303,8 @@ open class VWOBuilder(options: VWOInitOptions?) {
     fun setContext(): VWOBuilder {
         val context = options?.context ?: return this
         StorageProvider.contextRef = WeakReference(context)
+        StorageProvider.sdkDataManager = SdkDataManager(context)
+        BatchManager.sdkDataManager = StorageProvider.sdkDataManager
         return this
     }
 }

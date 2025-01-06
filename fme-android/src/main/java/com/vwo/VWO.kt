@@ -20,6 +20,9 @@ import com.vwo.interfaces.IVwoListener
 import com.vwo.models.user.VWOContext
 import com.vwo.models.user.VWOInitOptions
 import com.vwo.utils.SDKMetaUtil
+import com.vwo.packages.network_layer.manager.BatchManager
+import com.vwo.providers.StorageProvider
+import com.vwo.services.PeriodicDataUploader
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -45,9 +48,8 @@ object VWO {
     private fun setInstance(options: VWOInitOptions): VWO {
 
         val vwoBuilder: VWOBuilder = options.vwoBuilder ?: VWOBuilder(options)
-        vwoBuilder.setLogger()
+        vwoBuilder.setLogger() // Sets up logging for debugging and monitoring.
             .setContext()
-            //.setLifeCycleListener() // Sets app life cycle listener to trigger any pending API calls
             .setSharePreferences()// Sets up local storage for saving settings
             .setSettingsManager() // Sets the settings manager for configuration management.
             .setStorage() // Configures storage for data persistence.
@@ -92,7 +94,7 @@ object VWO {
 
             instance = setInstance(options)
             instance?.let { initListener.vwoInitSuccess(it, "VWO initialized successfully") }
-            //ApiCallRepeater.start()
+            BatchManager.start()
         }
     }
 

@@ -17,6 +17,7 @@
 
 package com.vwo.providers
 
+import SdkDataManager
 import android.content.Context
 import com.vwo.packages.storage.RequestStore
 import com.vwo.packages.storage.SettingsStore
@@ -36,12 +37,9 @@ internal object StorageProvider {
     var settingsStore: SettingsStore? = null
 
     /**
-     * The instance of `RequestStore` used to manage API requests.
-     */
-    var requestStore: RequestStore? = null
-
-    /**
      * A weak reference to the application context.
      */
     var contextRef: WeakReference<Context> = WeakReference(null)
+
+    var sdkDataManager: SdkDataManager? = null
 }

@@ -66,6 +66,7 @@ object ImpressionUtil {
 
         // Send the constructed properties and payload as a POST request
         NetworkUtil.sendPostApiRequest(
+            settings,
             properties,
             payload,
             context.userAgent,

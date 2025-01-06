@@ -49,6 +49,8 @@ class StorageTest : Connector() {
         value["rolloutVariationId"] = data["rolloutVariationId"]
         value["experimentKey"] = data["experimentKey"]
         value["experimentVariationId"] = data["experimentVariationId"]
+        value["rolloutId"] = data["rolloutId"]
+        value["experimentId"] = data["experimentId"]
 
         // Store the value in the storage
         storage[key] = value

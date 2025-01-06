@@ -332,6 +332,7 @@ class NetworkUtil {
          * @param ipAddress The IP address of the user.
          */
         fun sendPostApiRequest(
+            settings: Settings,
             properties: MutableMap<String, String>,
             payload: Map<String, Any?>?,
             userAgent: String?,
@@ -350,7 +351,7 @@ class NetworkUtil {
                     SettingsManager.instance!!.protocol,
                     SettingsManager.instance!!.port
                 )
-                NetworkManager.postAsync(request)
+                NetworkManager.postAsync(settings, request)
             } catch (exception: Exception) {
                 log(
                     LogLevelEnum.ERROR,

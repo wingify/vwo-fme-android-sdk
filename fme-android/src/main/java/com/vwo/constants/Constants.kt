@@ -32,6 +32,7 @@ object Constants {
 
     const val HOST_NAME: String = "dev.visualwebsiteoptimizer.com"
     const val SETTINGS_ENDPOINT: String = "/server-side/v2-settings"
+    const val EVENT_BATCH_ENDPOINT: String = "/server-side/batch-events-v2"
 
     const val VWO_FS_ENVIRONMENT: String = "vwo_fs_environment"
     const val HTTPS_PROTOCOL: String = "https"
@@ -42,4 +43,7 @@ object Constants {
     const val RANDOM_ALGO: Int = 1
 
     const val AUTH_TOKEN = ""
+
+    const val BATCH_UPLOADER_INITIAL_DELAY = 1L //minutes
+    const val BATCH_UPLOADER_RETRY_INTERVAL = 3L //minutes
 }

@@ -245,11 +245,13 @@ object GetFlagAPI {
                 }
             }
         } else {
-            LoggerService.log(
-                LogLevelEnum.DEBUG,
-                "EXPERIMENTS_EVALUATION_WHEN_NO_ROLLOUT_PRESENT",
-                null
-            )
+            if (rollOutRules.isEmpty()) {
+                LoggerService.log(
+                    LogLevelEnum.DEBUG,
+                    "EXPERIMENTS_EVALUATION_WHEN_NO_ROLLOUT_PRESENT",
+                    null
+                )
+            }
             shouldCheckForExperimentsRules = true
         }
 
@@ -379,7 +381,7 @@ object GetFlagAPI {
     ) {
         if (campaign.type == CampaignTypeEnum.ROLLOUT.value) {
             passedRulesInformation["rolloutId"] = campaign.id ?: 0
-            passedRulesInformation["rolloutKey"] = campaign.name ?: ""
+            passedRulesInformation["rolloutKey"] = campaign.key ?: ""
             passedRulesInformation["rolloutVariationId"] = variation.id ?: 0
         } else {
             passedRulesInformation["experimentId"] = campaign.id ?: 0

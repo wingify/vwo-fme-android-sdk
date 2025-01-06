@@ -10,11 +10,11 @@ import com.vwo.VWO
 import com.vwo.fme.databinding.ActivityMainBinding
 import com.vwo.interfaces.IVwoInitCallback
 import com.vwo.interfaces.IVwoListener
+import com.vwo.interfaces.integration.IntegrationCallback
 import com.vwo.models.user.GetFlag
 import com.vwo.models.user.Recommendation
 import com.vwo.models.user.VWOContext
 import com.vwo.models.user.VWOInitOptions
-import com.vwo.services.LoggerService
 
 val prod = TestApp(
     accountId = 0,
@@ -49,6 +49,12 @@ class MainActivity : AppCompatActivity() {
         binding.btnInitSdk.setOnClickListener {
             // Initialize VWO SDK
             val vwoInitOptions = VWOInitOptions()
+            val integrations = object : IntegrationCallback {
+                override fun execute(properties: Map<String, Any>) {
+                    // your function definition
+                }
+            }
+            vwoInitOptions.integrations = integrations
             // Set SDK Key and Account ID
             vwoInitOptions.sdkKey = SDK_KEY
             vwoInitOptions.accountId = ACCOUNT_ID

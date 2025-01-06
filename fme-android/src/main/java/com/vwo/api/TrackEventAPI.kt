@@ -99,6 +99,6 @@ object TrackEventAPI {
         )
 
         // Send the constructed properties and payload as a POST request
-        NetworkUtil.sendPostApiRequest(properties, payload, context.userAgent, context.ipAddress)
+        NetworkUtil.sendPostApiRequest(settings, properties, payload, context.userAgent, context.ipAddress)
     }
 }
