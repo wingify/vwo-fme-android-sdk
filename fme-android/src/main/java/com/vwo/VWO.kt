@@ -1,5 +1,5 @@
 /**
- * Copyright 2024 Wingify Software Pvt. Ltd.
+ * Copyright (c) 2024-2025 Wingify Software Pvt. Ltd.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -56,6 +56,7 @@ object VWO {
             .setNetworkManager() // Configures network management for API communication.
             .setSegmentation() // Sets up segmentation for targeted functionality.
             .initPolling() // Initializes the polling mechanism for fetching settings.
+            .initBatchManager() // Initialize batch manager
 
         SDKMetaUtil.sdkName = options.sdkName
         SDKMetaUtil.sdkVersion = options.sdkVersion
@@ -94,7 +95,7 @@ object VWO {
 
             instance = setInstance(options)
             instance?.let { initListener.vwoInitSuccess(it, "VWO initialized successfully") }
-            BatchManager.start()
+            BatchManager.start("SDK Initialization")
         }
     }
 

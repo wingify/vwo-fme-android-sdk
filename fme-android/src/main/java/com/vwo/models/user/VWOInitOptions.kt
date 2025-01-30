@@ -1,5 +1,5 @@
 /**
- * Copyright 2024 Wingify Software Pvt. Ltd.
+ * Copyright (c) 2024-2025 Wingify Software Pvt. Ltd.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -44,8 +44,11 @@ class VWOInitOptions {
     var vwoBuilder: VWOBuilder? = null
 
     var gatewayService: Map<String, Any> = HashMap()
+
+    /** Optional: Even though context is optional, it is required if you want to use features like cached settings, offline batch upload, etc.*/
     var context: Context? = null
-    /**If this value is provided, SDK will keep using cached settings till this interval is valid.*/
+
+    /** Optional: If this value is provided, SDK will keep using cached settings till this interval is valid.*/
     var cachedSettingsExpiryTime: Int = 0
     /**
      * The name of the SDK.
@@ -64,4 +67,10 @@ class VWOInitOptions {
      * @param sdkVersion The version of the SDK. **For hybrid SDKs only.**
      */
     var sdkVersion = BuildConfig.SDK_VERSION
+
+    /** Optional: Minimum size of Batch to upload*/
+    var batchMinSize = -1
+
+    /** Optional: Batch upload time interval in milliseconds. Please specify at least few minutes*/
+    var batchUploadTimeInterval: Long = -1L
 }

@@ -23,5 +23,6 @@
 
   "GATEWAY_URL_ERROR": "Please provide a valid URL for VWO Gateway Service",
 
-  "NETWORK_CALL_FAILED": "Error occurred while sending {method} request. Error: {err}"
+  "NETWORK_CALL_FAILED": "Error occurred while sending {method} request. Error: {err}",
+  "DATABASE_ERROR": "Error while performing database operation. Error: {err}"
 }

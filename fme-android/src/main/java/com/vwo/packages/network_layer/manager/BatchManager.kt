@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2024 Wingify Software Pvt. Ltd.
+ * Copyright (c) 2024-2025 Wingify Software Pvt. Ltd.
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -20,8 +20,11 @@ package com.vwo.packages.network_layer.manager
 import SdkDataManager
 import com.vwo.VWOClient
 import com.vwo.models.OfflineEventData
+import com.vwo.packages.logger.enums.LogLevelEnum
 import com.vwo.services.BatchUploader
+import com.vwo.services.LoggerService
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
@@ -51,12 +54,25 @@ internal object BatchManager {
      *
      * @return `true` if all batches were uploaded successfully, `false` otherwise.
      */
-    suspend fun start(): Boolean {
+    suspend fun start(entryName: String): Boolean {
         // When using mutex.withLock, the coroutine is suspended until the lock is available, and
         // the thread remains free to execute other coroutines. This leads to better scalability in
         // coroutine-based programs.
         mutex.withLock {
-            return sendBatches()
+            val result = sendBatches()
+            if ((result.isUploaded && result.uploadEventCount > 0) || !result.isUploaded) {
+                // If isUploaded==true && uploadEventCount==0, events are already uploaded, log is not required
+                LoggerService.log(
+                    LogLevelEnum.INFO,
+                    "BATCH_PROCESSING_FINISHED",
+                    mapOf(
+                        "status" to result.isUploaded.toString(),
+                        "name" to entryName,
+                        "count" to result.uploadEventCount.toString()
+                    )
+                )
+            }
+            return result.isUploaded
         }
     }
 
@@ -68,8 +84,9 @@ internal object BatchManager {
      *
      * @return `true` if all batches were uploaded successfully, `false` otherwise.
      */
-    private suspend fun sendBatches(): Boolean = withContext(Dispatchers.IO) {
+    private suspend fun sendBatches(): BatchUploadResult = withContext(Dispatchers.IO) {
         var result = true
+        var count = 0
         try {
 
             val batches = getData()
@@ -82,6 +99,7 @@ internal object BatchManager {
                 val isUploaded =
                     batchUploader.uploadBatch(firstItem.accountId, firstItem.sdkKey, values)
                 if (isUploaded) {
+                    count += batch.size
                     removeStoredData(batch)
                 }
                 result = isUploaded && result
@@ -90,7 +108,7 @@ internal object BatchManager {
             e.printStackTrace()
             result = false
         }
-        result
+        BatchUploadResult(result, count)
     }
 
     /**
@@ -126,4 +144,23 @@ internal object BatchManager {
         }
         return result
     }
+
+    /**
+     * Determines whether online batching is allowed based on configured settings.
+     *
+     * This function checks if online batching is enabled by verifying if either the minimum batch
+     * size or the batch upload time interval is configured.
+     * Online batching is considered allowed if either of these settings is greater than 0.
+     *
+     * @return `true` if online batching is allowed, `false` otherwise.
+     */
+    fun isOnlineBatchingAllowed(): Boolean {
+        val batchMinSize = OnlineBatchUploadManager.batchMinSize
+        val isBatchSizeProvided = batchMinSize > 0
+
+        val isBatchUploadIntervalProvided = OnlineBatchUploadManager.batchUploadTimeInterval > 0
+        return isBatchSizeProvided || isBatchUploadIntervalProvided
+    }
 }
+
+data class BatchUploadResult(val isUploaded: Boolean, val uploadEventCount: Int)

@@ -84,4 +84,4 @@ Please go through our [contributing guidelines](https://github.com/wingify/vwo-f
 
 [Apache License, Version 2.0](https://github.com/wingify/vwo-fme-android-sdk/blob/master/LICENSE)
 
-Copyright 2024 Wingify Software Pvt. Ltd.
+Copyright (c) 2024-2025 Wingify Software Pvt. Ltd.

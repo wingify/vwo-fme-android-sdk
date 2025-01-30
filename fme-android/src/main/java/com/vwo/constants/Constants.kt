@@ -1,5 +1,5 @@
 /**
- * Copyright 2024 Wingify Software Pvt. Ltd.
+ * Copyright (c) 2024-2025 Wingify Software Pvt. Ltd.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -46,4 +46,6 @@ object Constants {
 
     const val BATCH_UPLOADER_INITIAL_DELAY = 1L //minutes
     const val BATCH_UPLOADER_RETRY_INTERVAL = 3L //minutes
+
+    const val DEFAULT_BATCH_UPLOAD_INTERVAL = 3 * 60 * 1000L //3 minutes in milliseconds
 }

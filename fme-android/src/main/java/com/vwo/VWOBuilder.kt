@@ -1,5 +1,5 @@
 /**
- * Copyright 2024 Wingify Software Pvt. Ltd.
+ * Copyright (c) 2024-2025 Wingify Software Pvt. Ltd.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,7 +15,6 @@
  */
 package com.vwo
 
-import android.app.Application
 import SdkDataManager
 import com.fasterxml.jackson.databind.JsonNode
 import com.vwo.packages.storage.MobileDefaultStorage
@@ -24,6 +23,7 @@ import com.vwo.models.user.VWOInitOptions
 import com.vwo.packages.logger.enums.LogLevelEnum
 import com.vwo.packages.network_layer.manager.BatchManager
 import com.vwo.packages.network_layer.manager.NetworkManager
+import com.vwo.packages.network_layer.manager.OnlineBatchUploadManager
 import com.vwo.packages.segmentation_evaluator.core.SegmentationManager
 import com.vwo.packages.storage.Storage
 import com.vwo.services.LoggerService
@@ -156,7 +156,7 @@ open class VWOBuilder(options: VWOInitOptions?) {
      */
     fun setStorage(): VWOBuilder {
         if (options?.storage != null) {
-            if(options.storage is MobileDefaultStorage)
+            if (options.storage is MobileDefaultStorage)
                 (options.storage as MobileDefaultStorage).init()
 
             Storage.instance?.attachConnector(options.storage)
@@ -306,5 +306,24 @@ open class VWOBuilder(options: VWOInitOptions?) {
         StorageProvider.sdkDataManager = SdkDataManager(context)
         BatchManager.sdkDataManager = StorageProvider.sdkDataManager
         return this
+    }
+
+    /**
+     * Initializes batch manager & necessary values for it.
+     */
+    fun initBatchManager() {
+        OnlineBatchUploadManager.batchMinSize = options?.batchMinSize ?: -1
+        OnlineBatchUploadManager.batchUploadTimeInterval = options?.batchUploadTimeInterval ?: -1
+
+        val onlineBatchingAllowed = BatchManager.isOnlineBatchingAllowed()
+        val status = if(onlineBatchingAllowed) "enabled" else "disabled"
+        if (onlineBatchingAllowed) {
+            OnlineBatchUploadManager.startBatchUploader()
+        }
+        LoggerService.log(
+            LogLevelEnum.INFO,
+            "ONLINE_BATCH_PROCESSING_STATUS",
+            mapOf("status" to status)
+        )
     }
 }

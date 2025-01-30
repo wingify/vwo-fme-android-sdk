@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2024 Wingify Software Pvt. Ltd.
+ * Copyright (c) 2024-2025 Wingify Software Pvt. Ltd.
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -21,6 +21,8 @@ import android.database.Cursor
 import android.database.sqlite.SQLiteDatabase
 import com.vwo.db.SdkDatabaseHelper
 import com.vwo.models.OfflineEventData
+import com.vwo.packages.logger.enums.LogLevelEnum
+import com.vwo.services.LoggerService
 import com.vwo.providers.StorageProvider
 import com.vwo.services.PeriodicDataUploader
 
@@ -55,18 +57,21 @@ class SdkDataManager(context: Context) {
     fun saveSdkData(sdkKey: String?, accountId: Int?, payload: String): Boolean {
         if (sdkKey.isNullOrEmpty() || accountId == null) return false
 
-        val db = dbHelper.writableDatabase
-        val values = ContentValues().apply {
-            put(COLUMN_SDK_KEY, sdkKey)
-            put(COLUMN_ACCOUNT_ID, accountId)
-            put(COLUMN_PAYLOAD, payload)
+        return try {
+            val db = dbHelper.writableDatabase
+            val values = ContentValues().apply {
+                put(COLUMN_SDK_KEY, sdkKey)
+                put(COLUMN_ACCOUNT_ID, accountId)
+                put(COLUMN_PAYLOAD, payload)
+            }
+            val rowId = db.insertWithOnConflict(
+                TABLE_NAME, null, values, SQLiteDatabase.CONFLICT_REPLACE
+            )
+            rowId != -1L
+        } catch (e: Exception) {
+            LoggerService.log(LogLevelEnum.ERROR, "DATABASE_ERROR", mapOf("err" to e.message))
+            false
         }
-        val rowId = db.insertWithOnConflict(
-            TABLE_NAME, null, values, SQLiteDatabase.CONFLICT_REPLACE
-        )
-        db.close()
-        StorageProvider.contextRef.get()?.let { PeriodicDataUploader().enqueue(it) }
-        return rowId != -1L
     }
 
     /**
@@ -80,25 +85,30 @@ class SdkDataManager(context: Context) {
      * @return A list of `OfflineEventData` objects.
      */
     fun getSdkData(accountId: Long, sdkKey: String): List<OfflineEventData> {
-        val db = dbHelper.readableDatabase
-        val cursor: Cursor = db.query(
-            TABLE_NAME,
-            null,  // Select all columns
-            "$COLUMN_SDK_KEY = ? AND $COLUMN_ACCOUNT_ID = ?",
-            arrayOf(sdkKey, accountId.toString()),
-            null,
-            null,
-            null
-        )
         val offlineEventDataList = mutableListOf<OfflineEventData>()
-        while (cursor.moveToNext()) {
-            val id = cursor.getLong(cursor.getColumnIndexOrThrow(COLUMN_ID_KEY))
-            val accountId = cursor.getLong(cursor.getColumnIndexOrThrow(COLUMN_ACCOUNT_ID))
-            val payload = cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_PAYLOAD))
-            offlineEventDataList.add(OfflineEventData(id, sdkKey, accountId, payload))
+        val db = dbHelper.readableDatabase
+
+        var cursor: Cursor? = null
+        try {
+            cursor = db.query(
+                TABLE_NAME,
+                null,  // Select all columns
+                "$COLUMN_SDK_KEY = ? AND $COLUMN_ACCOUNT_ID = ?",
+                arrayOf(sdkKey, accountId.toString()),
+                null,
+                null,
+                null
+            )
+            while (cursor.moveToNext()) {
+                val id = cursor.getLong(cursor.getColumnIndexOrThrow(COLUMN_ID_KEY))
+                val payload = cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_PAYLOAD))
+                offlineEventDataList.add(OfflineEventData(id, sdkKey, accountId, payload))
+            }
+        } catch (e: Exception) {
+            LoggerService.log(LogLevelEnum.ERROR, "DATABASE_ERROR", mapOf("err" to e.message))
+        } finally {
+            cursor?.close()
         }
-        cursor.close()
-        db.close()
         return offlineEventDataList
     }
 
@@ -111,14 +121,14 @@ class SdkDataManager(context: Context) {
      * @return `true` if at least one row was deleted, `false` otherwise.
      */
     fun deleteSdkData(sdkKey: String): Boolean {
-        val db = dbHelper.writableDatabase
-        val rowsDeleted = db.delete(
-            TABLE_NAME,
-            "$COLUMN_SDK_KEY = ?",
-            arrayOf(sdkKey)
-        )
-        db.close()
-        return rowsDeleted > 0
+        return try {
+            val db = dbHelper.writableDatabase
+            val rowsDeleted = db.delete(TABLE_NAME, "$COLUMN_SDK_KEY = ?", arrayOf(sdkKey))
+            rowsDeleted > 0
+        } catch (e: Exception) {
+            LoggerService.log(LogLevelEnum.ERROR, "DATABASE_ERROR", mapOf("err" to e.message))
+            false
+        }
     }
 
     /**
@@ -130,21 +140,26 @@ class SdkDataManager(context: Context) {
      * @return A list of `OfflineEventData` objects representing the distinct SDK keys.
      */
     fun getDistinctSdkKeys(): List<OfflineEventData> {
-        val db = dbHelper.readableDatabase
+        var cursor: Cursor? = null
         val sdkKeys = mutableListOf<OfflineEventData>()
-        val query = "SELECT DISTINCT $COLUMN_ACCOUNT_ID, $COLUMN_SDK_KEY FROM $TABLE_NAME"
+        try {
+            val db = dbHelper.readableDatabase
+            val query = "SELECT DISTINCT $COLUMN_ACCOUNT_ID, $COLUMN_SDK_KEY FROM $TABLE_NAME"
 
-        val cursor: Cursor = db.rawQuery(query, null)
-        if (cursor.moveToFirst()) {
-            do {
-                val sdkKey = cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_SDK_KEY))
-                val accountId = cursor.getLong(cursor.getColumnIndexOrThrow(COLUMN_ACCOUNT_ID))
+            cursor = db.rawQuery(query, null)
+            if (cursor.moveToFirst()) {
+                do {
+                    val sdkKey = cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_SDK_KEY))
+                    val accountId = cursor.getLong(cursor.getColumnIndexOrThrow(COLUMN_ACCOUNT_ID))
 
-                sdkKeys.add(OfflineEventData(0, sdkKey, accountId, ""))
-            } while (cursor.moveToNext())
+                    sdkKeys.add(OfflineEventData(0, sdkKey, accountId, ""))
+                } while (cursor.moveToNext())
+            }
+        } catch (e: Exception) {
+            LoggerService.log(LogLevelEnum.ERROR, "DATABASE_ERROR", mapOf("err" to e.message))
+        } finally {
+            cursor?.close()
         }
-        cursor.close()
-        db.close()
         return sdkKeys
     }
 
@@ -155,11 +170,53 @@ class SdkDataManager(context: Context) {
      * @return `true` if the row was deleted successfully, `false` otherwise.
      */
     fun deleteData(id: Long): Boolean {
-        val db = dbHelper.writableDatabase
-        val whereClause = "$COLUMN_ID_KEY = ?"
-        val whereArgs = arrayOf(id.toString())
-        val rowCount = db.delete(TABLE_NAME, whereClause, whereArgs)
-        db.close()
-        return rowCount!=0
+        return try {
+            val db = dbHelper.writableDatabase
+            val whereClause = "$COLUMN_ID_KEY = ?"
+            val whereArgs = arrayOf(id.toString())
+            val rowCount = db.delete(TABLE_NAME, whereClause, whereArgs)
+            rowCount != 0
+        } catch (e: Exception) {
+            LoggerService.log(LogLevelEnum.ERROR, "DATABASE_ERROR", mapOf("err" to e.message))
+            false
+        }
+    }
+
+    /**
+     * Retrieves the total number of entries in the database table.
+     *
+     * This function queries the database to count the total number of rows in the specified table.
+     * It returns the count as an integer value.
+     *
+     * @return The total number of entries in the database table.
+     */
+    fun getEntryCount(): Int {
+        var cursor: Cursor? = null
+        return try {
+            val db = dbHelper.readableDatabase
+
+            cursor = db.query(
+                TABLE_NAME,
+                arrayOf("COUNT(*)"),
+                null,
+                null,
+                null,
+                null,
+                null
+            )
+
+            var entryCount = 0
+            if (cursor != null && cursor.moveToFirst()) {
+                entryCount = cursor.getInt(0)
+                cursor.close()
+            }
+
+            entryCount
+        } catch (e: Exception) {
+            LoggerService.log(LogLevelEnum.ERROR, "DATABASE_ERROR", mapOf("err" to e.message))
+            0
+        } finally {
+            cursor?.close()
+        }
     }
 }

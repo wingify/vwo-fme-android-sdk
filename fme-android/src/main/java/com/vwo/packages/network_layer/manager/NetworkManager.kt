@@ -1,5 +1,5 @@
 /**
- * Copyright 2024 Wingify Software Pvt. Ltd.
+ * Copyright (c) 2024-2025 Wingify Software Pvt. Ltd.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -26,6 +26,11 @@ import com.vwo.packages.network_layer.models.RequestModel
 import com.vwo.packages.network_layer.models.ResponseModel
 import com.vwo.providers.StorageProvider
 import com.vwo.services.LoggerService
+import com.vwo.services.PeriodicDataUploader
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
 
@@ -121,17 +126,46 @@ object NetworkManager {
      */
     fun postAsync(settings: Settings, request: RequestModel) {
         executorService.submit {
-            val response = post(request)
-            if (StorageProvider.sdkDataManager == null) return@submit
+            if (BatchManager.isOnlineBatchingAllowed()) { // Online batching
+                addToBatch(request, settings)
+                val count = StorageProvider.sdkDataManager?.getEntryCount() ?: 0
+                if (OnlineBatchUploadManager.batchMinSize > 0 && count >= OnlineBatchUploadManager.batchMinSize) {
+                    CoroutineScope(Dispatchers.IO).launch {
+                        BatchManager.start("Batch size count")
+                    }
+                }
+                StorageProvider.contextRef.get()?.let { PeriodicDataUploader().enqueue(it) }
+            } else { // Offline batching
+                val response = post(request)
+                if (StorageProvider.sdkDataManager == null) return@submit
 
-            if (response == null || response.statusCode != 200) {
-                val requestString = Gson().toJson(request.body).toString()
-                StorageProvider.sdkDataManager?.saveSdkData(
-                    sdkKey = settings.sdkKey,
-                    accountId = settings.accountId,
-                    payload = requestString
-                )
+                if (response == null || response.statusCode != 200) {
+                    addToBatch(request, settings)
+                    StorageProvider.contextRef.get()?.let { PeriodicDataUploader().enqueue(it) }
+                }
             }
         }
+    }
+
+    /**
+     * Adds a request to the offline batch for later uploading.
+     *
+     * This function serializes the request body using Gson and stores it in the database along
+     * with the SDK key and account ID.
+     * The stored request will be included in the next batch upload when the device is online.
+     *
+     * @param request The request to be added to the batch.
+     * @param settings The settings containing the SDK key and account ID.
+     */
+    private fun addToBatch(
+        request: RequestModel,
+        settings: Settings
+    ) {
+        val requestString = Gson().toJson(request.body).toString()
+        StorageProvider.sdkDataManager?.saveSdkData(
+            sdkKey = settings.sdkKey,
+            accountId = settings.accountId,
+            payload = requestString
+        )
     }
 }
