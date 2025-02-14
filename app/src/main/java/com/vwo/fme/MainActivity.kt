@@ -11,10 +11,12 @@ import com.vwo.fme.databinding.ActivityMainBinding
 import com.vwo.interfaces.IVwoInitCallback
 import com.vwo.interfaces.IVwoListener
 import com.vwo.interfaces.integration.IntegrationCallback
+import com.vwo.interfaces.logger.LogTransport
 import com.vwo.models.user.GetFlag
 import com.vwo.models.user.Recommendation
 import com.vwo.models.user.VWOContext
 import com.vwo.models.user.VWOInitOptions
+import com.vwo.packages.logger.enums.LogLevelEnum
 
 val prod = TestApp(
     accountId = 0,
@@ -63,6 +65,19 @@ class MainActivity : AppCompatActivity() {
             vwoInitOptions.context = this@MainActivity.applicationContext
 
             vwoInitOptions.logger = mutableMapOf<String, Any>().apply { put("level", "TRACE") }
+            /*val logger: MutableList<Map<String, Any>> = mutableListOf()
+            val transport: MutableMap<String, Any> = mutableMapOf()
+            transport["defaultTransport"] = object : LogTransport {
+                override fun log(level: LogLevelEnum, message: String?) {
+                    if (message == null) return
+                    Log.d("FME", message)
+                }
+            }
+            logger.add(transport)
+            vwoInitOptions.logger = mutableMapOf<String, Any>().apply {
+                put("level", "TRACE")
+                put("transports", logger)
+            }*/
             /*vwoInitOptions.gatewayService = mutableMapOf<String, Any>().apply {
                     put("url", "http://10.0.2.2:8000")
             }*/

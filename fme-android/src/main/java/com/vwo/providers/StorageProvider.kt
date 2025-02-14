@@ -19,7 +19,6 @@ package com.vwo.providers
 
 import SdkDataManager
 import android.content.Context
-import com.vwo.packages.storage.RequestStore
 import com.vwo.packages.storage.SettingsStore
 import java.lang.ref.WeakReference
 

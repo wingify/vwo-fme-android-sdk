@@ -50,6 +50,7 @@ class VWOInitOptions {
 
     /** Optional: If this value is provided, SDK will keep using cached settings till this interval is valid.*/
     var cachedSettingsExpiryTime: Int = 0
+
     /**
      * The name of the SDK.
      *

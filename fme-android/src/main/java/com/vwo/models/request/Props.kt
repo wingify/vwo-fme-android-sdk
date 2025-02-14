@@ -41,6 +41,9 @@ class Props {
     @JsonProperty("isFirst")
     private var isFirst: Int? = null
 
+    @JsonProperty("isMII")
+    private var isMII: Boolean = false
+
     @JsonProperty("isCustomEvent")
     private var isCustomEvent: Boolean? = null
 
@@ -59,6 +62,10 @@ class Props {
 
     fun setIsFirst(isFirst: Int?) {
         this.isFirst = isFirst
+    }
+
+    fun setIsMii(isMii: Boolean) {
+        this.isMII = isMii
     }
 
     fun setIsCustomEvent(isCustomEvent: Boolean?) {

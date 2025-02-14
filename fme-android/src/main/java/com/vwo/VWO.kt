@@ -110,7 +110,8 @@ object VWO {
     /**
      * This method is used to get the flag value for the given feature key
      * @param featureKey Feature key for which the flag value is to be fetched
-     * @param context User context
+     * @param ctx User context
+     * @param listener IVwoListener Callback when getFlag operation completes
      * @return GetFlag object containing the flag values
      */
     fun getFlag(featureKey: String, ctx: VWOContext, listener: IVwoListener) {

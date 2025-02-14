@@ -18,6 +18,7 @@ package com.vwo.utils
 import com.vwo.VWOClient
 import com.vwo.constants.Constants
 import com.vwo.constants.Constants.defaultString
+import com.vwo.enums.EventEnum
 import com.vwo.enums.HeadersEnum
 import com.vwo.enums.UrlEnum
 import com.vwo.models.Settings
@@ -28,6 +29,7 @@ import com.vwo.models.request.EventArchQueryParams.RequestQueryParams
 import com.vwo.models.request.EventArchQueryParams.SettingsQueryParams
 import com.vwo.models.request.Props
 import com.vwo.models.request.visitor.Visitor
+import com.vwo.models.user.FMEConfig
 import com.vwo.models.user.VWOContext
 import com.vwo.packages.logger.enums.LogLevelEnum
 import com.vwo.packages.network_layer.manager.NetworkManager
@@ -101,12 +103,12 @@ class NetworkUtil {
         ): EventArchPayload {
             val uuid = UUIDUtils.getUUID(userId, settings.accountId.toString())
             val eventArchData = EventArchData()
-            eventArchData.msgId = generateMsgId(uuid, context)
+            eventArchData.msgId = generateMsgId(uuid)
             eventArchData.visId = uuid
-            eventArchData.sessionId = generateSessionId(context)
+            eventArchData.sessionId = FMEConfig.generateSessionId()
             setOptionalVisitorData(eventArchData, visitorUserAgent, ipAddress)
 
-            val event = createEvent(eventName, settings, context)
+            val event = createEvent(eventName, settings)
             eventArchData.event = event
 
             val visitor = createVisitor(settings)
@@ -143,19 +145,12 @@ class NetworkUtil {
          * @param settings The settings model containing configuration.
          * @return The event model.
          */
-        private fun createEvent(eventName: String, settings: Settings, context: VWOContext): Event {
+        private fun createEvent(eventName: String, settings: Settings): Event {
             val event = Event()
             val props = createProps(settings)
-            var time = Calendar.getInstance().timeInMillis
-
-            // Commenting this code as it causing same time in all the events.
-//            if (context.sessionId != 0L) {
-//                time = context.sessionId
-//            }
-
             event.props = props
             event.name = eventName
-            event.time = time
+            event.time = System.currentTimeMillis()
             return event
         }
 
@@ -219,6 +214,10 @@ class NetworkUtil {
             properties.d!!.event!!.props!!.id = campaignId
             properties.d!!.event!!.props!!.variation = variationId.toString()
             properties.d!!.event!!.props!!.setIsFirst(1)
+            if (eventName == EventEnum.VWO_VARIATION_SHOWN.value) {
+                properties.d?.event?.props?.setIsMii(FMEConfig.isMISdkLinked)
+            }
+
             log(
                 LogLevelEnum.DEBUG,
                 "IMPRESSION_FOR_TRACK_USER",
@@ -408,26 +407,8 @@ class NetworkUtil {
          * @param uuid The UUID of the user.
          * @return The message ID.
          */
-        private fun generateMsgId(uuid: String?, context: VWOContext): String {
-            var time = Calendar.getInstance().timeInMillis
-
-            if (context.sessionId != 0L) {
-                time = context.sessionId
-            }
-
-            return uuid + "-" + time
-        }
-
-        /**
-         * Generates a session ID for the event.
-         * @return The session ID.
-         */
-        private fun generateSessionId(context: VWOContext): Long {
-            if (context.sessionId != 0L) {
-                return context.sessionId / 1000
-            }
-
-            return Calendar.getInstance().timeInMillis / 1000
+        private fun generateMsgId(uuid: String?): String {
+            return uuid + "-" + Calendar.getInstance().timeInMillis
         }
 
         /**
