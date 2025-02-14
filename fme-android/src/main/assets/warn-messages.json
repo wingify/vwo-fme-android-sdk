@@ -1,1 +1,3 @@
-{}
+{
+  "ATTRIBUTES_NOT_FOUND": "{key} passed to the {apiName} API is empty. Please provide {expectedFormat}."
+}

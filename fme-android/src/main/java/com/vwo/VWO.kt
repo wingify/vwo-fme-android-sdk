@@ -158,12 +158,11 @@ object VWO {
     /**
      * Sets an attribute for a user in the context provided.
      * This method validates the types of the inputs before proceeding with the API call.
-     * @param attributeKey - The key of the attribute to set.
-     * @param attributeValue - The value of the attribute to set.
+     * @param attributes - Map of attribute key and value to be set
      * @param context User context
      */
-    fun setAttribute(attributeKey: String, attributeValue: Any, context: VWOContext) {
-        vwoClient?.setAttribute(attributeKey, attributeValue, context)
+    fun setAttribute(attributes: Map<String, Any>, context: VWOContext) {
+        vwoClient?.setAttribute(attributes, context)
     }
 }
 

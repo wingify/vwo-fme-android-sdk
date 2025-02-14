@@ -19,9 +19,8 @@ import android.content.Context
 import com.fasterxml.jackson.databind.DeserializationFeature
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.vwo.api.GetFlagAPI
-import com.vwo.api.SetAttributeAPI
+import com.vwo.api.SetAttributeAPI.setAttribute
 import com.vwo.api.TrackEventAPI
-import com.vwo.interfaces.IVwoListener
 import com.vwo.models.Settings
 import com.vwo.models.schemas.SettingsSchema
 import com.vwo.models.user.GetFlag
@@ -31,7 +30,7 @@ import com.vwo.packages.logger.enums.LogLevelEnum
 import com.vwo.services.HooksManager
 import com.vwo.services.LoggerService
 import com.vwo.services.UrlService
-import com.vwo.utils.DataTypeUtil
+import com.vwo.utils.DataTypeUtil.getType
 import com.vwo.utils.DataTypeUtil.isBoolean
 import com.vwo.utils.DataTypeUtil.isNumber
 import com.vwo.utils.DataTypeUtil.isString
@@ -173,7 +172,7 @@ class VWOClient(settings: String?, options: VWOInitOptions?) {
                         init {
                             put("apiName", apiName)
                             put("key", "eventName")
-                            put("type", DataTypeUtil.getType(eventName))
+                            put("type", getType(eventName))
                             put("correctType", "String")
                         }
                     })
@@ -248,73 +247,65 @@ class VWOClient(settings: String?, options: VWOInitOptions?) {
     /**
      * Sets an attribute for a user in the context provided.
      * This method validates the types of the inputs before proceeding with the API call.
-     * @param attributeKey - The key of the attribute to set.
-     * @param attributeValue - The value of the attribute to set.
+     * @param attributes - Map of attribute key and value to be set
      * @param context User context
      */
-    fun setAttribute(attributeKey: String, attributeValue: Any, context: VWOContext?) {
+    fun setAttribute(immutableAttributes: Map<String, Any>, context: VWOContext) {
         val apiName = "setAttribute"
         try {
-            LoggerService.log(
-                LogLevelEnum.DEBUG,
-                "API_CALLED",
-                object : HashMap<String?, String?>() {
-                    init {
-                        put("apiName", apiName)
-                    }
-                })
-            if (!isString(attributeKey)) {
-                LoggerService.log(
-                    LogLevelEnum.ERROR,
-                    "API_INVALID_PARAM",
-                    object : HashMap<String?, String?>() {
-                        init {
-                            put("apiName", apiName)
-                            put("key", "eventName")
-                            put("type", DataTypeUtil.getType(attributeKey))
-                            put("correctType", "String")
-                        }
-                    })
-                throw IllegalArgumentException("TypeError: attributeKey should be a string")
-            }
+            LoggerService.log(LogLevelEnum.DEBUG, "API_CALLED", mapOf("apiName" to apiName))
 
-            if (!isString(attributeValue) && !isNumber(attributeValue) && !isBoolean(attributeValue)) {
-                LoggerService.log(
-                    LogLevelEnum.ERROR,
-                    "API_INVALID_PARAM",
-                    object : HashMap<String?, String?>() {
-                        init {
-                            put("apiName", apiName)
-                            put("key", "eventName")
-                            put("type", DataTypeUtil.getType(attributeValue))
-                            put("correctType", "String, Number, Boolean")
-                        }
-                    })
-                throw IllegalArgumentException("TypeError: attributeValue should be a String, Number or Boolean")
-            }
+            val attributes = immutableAttributes.toMutableMap()
 
-            require(!(context?.id == null || context.id?.isEmpty()==true)) { "User ID is required" }
+            if (attributes.isEmpty()) {
+                LoggerService.log(
+                    LogLevelEnum.WARN, "ATTRIBUTES_NOT_FOUND", mapOf(
+                        "apiName" to apiName,
+                        "key" to "attributes",
+                        "expectedFormat" to "a Map with String keys and String, Number or Boolean value types"
+                    )
+                )
+                throw java.lang.IllegalArgumentException("TypeError: attributeMap should be a non empty map")
+            }
+            removedUnsupportedValues(attributes, apiName)
+
+            require(!(context.id == null || context.id?.isEmpty() == true)) { "User ID is required" }
 
             if (this.processedSettings == null || !SettingsSchema().isSettingsValid(this.processedSettings)) {
                 LoggerService.log(LogLevelEnum.ERROR, "SETTINGS_SCHEMA_INVALID", null)
                 return
             }
-            SetAttributeAPI.setAttribute(
-                this.processedSettings!!,
-                attributeKey,
-                attributeValue,
-                context!!
-            )
+
+            setAttribute(processedSettings!!, attributes, context)
         } catch (exception: Exception) {
             LoggerService.log(
-                LogLevelEnum.ERROR,
-                "API_THROW_ERROR",
-                object : HashMap<String?, String?>() {
-                    init {
-                        put("apiName", apiName)
-                        put("err", exception.toString())
-                    }
-                })
+                LogLevelEnum.ERROR, "API_THROW_ERROR", mapOf(
+                    "apiName" to apiName,
+                    "err" to exception.toString()
+                )
+            )
+        }
+    }
+
+    private fun removedUnsupportedValues(
+        attributes: MutableMap<String, Any>,
+        apiName: String
+    ) {
+        attributes.entries.forEach { entry ->
+
+            if (!isString(entry.value) && !isNumber(entry.value) && !isBoolean(entry.value)) {
+                LoggerService.log(
+                    LogLevelEnum.ERROR,
+                    "API_INVALID_PARAM",
+                    mapOf(
+                        "apiName" to apiName,
+                        "key" to "attribute value",
+                        "type" to getType(entry.value),
+                        "correctType" to "String, Number, Boolean"
+                    )
+                )
+                throw java.lang.IllegalArgumentException("TypeError: attributeMap should values of type String, Number, Boolean")
+            }
         }
     }
 

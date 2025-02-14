@@ -51,8 +51,8 @@ class MainActivity : AppCompatActivity() {
         binding.btnInitSdk.setOnClickListener {
             // Initialize VWO SDK
             val vwoInitOptions = VWOInitOptions()
-            vwoInitOptions.batchMinSize = 10
-            vwoInitOptions.batchUploadTimeInterval = 5 * 60 * 1000
+            /*vwoInitOptions.batchMinSize = 10
+            vwoInitOptions.batchUploadTimeInterval = 5 * 60 * 1000*/
             val integrations = object : IntegrationCallback {
                 override fun execute(properties: Map<String, Any>) {
                     // your function definition
@@ -215,9 +215,12 @@ class MainActivity : AppCompatActivity() {
     private fun sendAttribute() {
         if (!::userContext.isInitialized) return
 
-        vwo?.setAttribute(server.attributeName, "attribute-value1", userContext)
-        vwo?.setAttribute("attribute-name-float", 1.01, userContext)
-        vwo?.setAttribute("attribute-name-boolean", true, userContext)
+        val attributes = mapOf(
+            server.attributeName to "paid",
+            "price" to 99,
+            "isEnterpriseCustomer" to false
+        )
+        vwo?.setAttribute(attributes, userContext)
     }
 }
 

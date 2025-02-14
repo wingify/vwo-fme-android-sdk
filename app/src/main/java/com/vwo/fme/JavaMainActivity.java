@@ -160,9 +160,12 @@ public class JavaMainActivity extends AppCompatActivity {
 
     private void sendAttribute() {
         if (vwo != null) {
-            vwo.setAttribute("userType", "paid", userContext);
-            vwo.setAttribute("attribute-name-float", 1.01, userContext);
-            vwo.setAttribute("attribute-name-boolean", true, userContext);
+            HashMap<String, Object> map = new HashMap<>();
+            map.put("userType", "paid");
+            map.put("price", 99);
+            map.put("isEnterpriseCustomer", true);
+
+            vwo.setAttribute(map, userContext);
         }
     }
 }

@@ -293,8 +293,7 @@ class NetworkUtil {
          * @param settings  The settings model containing configuration.
          * @param userId  The ID of the user.
          * @param eventName The name of the event.
-         * @param attributeKey  The key of the attribute.
-         * @param attributeValue The value of the attribute.
+         * @param attributeMap - Map of attribute key and value to be set
          * @return
          */
         fun getAttributePayloadData(
@@ -302,12 +301,11 @@ class NetworkUtil {
             context: VWOContext,
             userId: String?,
             eventName: String,
-            attributeKey: String,
-            attributeValue: Any
-        ): Map<String, Any?> {
+            attributeMap: Map<String, Any>
+        ): Map<String, Any> {
             val properties = getEventBasePayload(settings, context, userId, eventName, null, null)
             properties.d?.event?.props?.setIsCustomEvent(true)
-            properties.d?.visitor?.props?.set(attributeKey, attributeValue)
+            properties.d?.visitor?.props?.putAll(attributeMap)
             log(
                 LogLevelEnum.DEBUG,
                 "IMPRESSION_FOR_SYNC_VISITOR_PROP",

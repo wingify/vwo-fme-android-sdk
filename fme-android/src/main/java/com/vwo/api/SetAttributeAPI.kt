@@ -25,18 +25,11 @@ object SetAttributeAPI {
     /**
      * This method is used to set an attribute for the user.
      * @param settings The settings model containing configuration.
-     * @param attributeKey The key of the attribute to set.
-     * @param attributeValue The value of the attribute to set.
+     * @param attributeMap - Map of attribute key and value to be set
      * @param context  The user context model containing user-specific data.
      */
-    @JvmStatic
-    fun setAttribute(
-        settings: Settings,
-        attributeKey: String,
-        attributeValue: Any,
-        context: VWOContext
-    ) {
-        createAndSendImpressionForSetAttribute(settings, attributeKey, attributeValue, context)
+    fun setAttribute(settings: Settings, attributeMap: Map<String, Any>, context: VWOContext) {
+        createAndSendImpressionForSetAttribute(settings, attributeMap, context)
     }
 
     /**
@@ -45,14 +38,12 @@ object SetAttributeAPI {
      * and uses the NetworkUtil to send a POST API request.
      *
      * @param settings   The settings model containing configuration.
-     * @param attributeKey  The key of the attribute to set.
-     * @param attributeValue  The value of the attribute to set.
+     * @param attributeMap - Map of attribute key and value to be set
      * @param context    The user context model containing user-specific data.
      */
     private fun createAndSendImpressionForSetAttribute(
         settings: Settings,
-        attributeKey: String,
-        attributeValue: Any,
+        attributeMap: Map<String, Any>,
         context: VWOContext
     ) {
         // Get base properties for the event
@@ -69,8 +60,7 @@ object SetAttributeAPI {
             context,
             context.id,
             EventEnum.VWO_SYNC_VISITOR_PROP.value,
-            attributeKey,
-            attributeValue
+            attributeMap
         )
 
         // Send the constructed properties and payload as a POST request
