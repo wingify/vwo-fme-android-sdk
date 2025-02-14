@@ -33,4 +33,6 @@ class Expectation {
     var jsonVariable: Map<String, Any>? = null
     @JsonProperty("storageData")
     var storageData: Storage? = null
+
+    var shouldReturnSameVariation: Boolean? = null
 }

@@ -475,7 +475,6 @@ object DecisionUtil {
             map["variationId"] = whitelistedVariation.id
             return map
         }
-
         return null
     }
 }

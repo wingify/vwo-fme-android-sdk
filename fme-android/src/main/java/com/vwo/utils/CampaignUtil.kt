@@ -24,7 +24,7 @@ import com.vwo.models.Settings
 import com.vwo.models.Variation
 import com.vwo.packages.logger.enums.LogLevelEnum
 import com.vwo.services.LoggerService.Companion.log
-import java.util.function.Consumer
+import java.util.Objects
 import kotlin.math.ceil
 import kotlin.math.min
 
@@ -123,8 +123,22 @@ object CampaignUtil {
         if (groupId != null) {
             return groupId.toString() + "_" + userId
         }
+
+        // get campaign type
+        val campaignType = campaign?.type
+        // check if campaign type is rollout or personalize
+        val isRolloutOrPersonalize = Objects.equals(campaignType, CampaignTypeEnum.ROLLOUT.value) ||
+                Objects.equals(campaignType, CampaignTypeEnum.PERSONALIZE.value)
+
+        // Get salt based on campaign type
+        val salt = if (isRolloutOrPersonalize) campaign?.variations?.getOrNull(0)?.salt else campaign?.salt
+        // if salt is not null and not empty, use salt else use campaign id
+        val bucketKey = if (salt.isNullOrEmpty())
+            campaign?.id.toString() + "_" + userId
+        else
+            salt + "_" + userId
         // Return a seed combining campaign ID and user ID otherwise
-        return campaign!!.id.toString() + "_" + userId
+        return bucketKey
     }
 
     /**

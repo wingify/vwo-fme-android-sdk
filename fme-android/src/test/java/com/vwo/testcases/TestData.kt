@@ -21,6 +21,8 @@ class TestData {
     var description: String? = null
     var settings: String? = null
     var context: VWOContext? = null
+    var userIds: ArrayList<String>? = null
     var expectation: Expectation? = null
     var featureKey: String? = null
+    var featureKey2: String? = null
 }

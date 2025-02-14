@@ -50,6 +50,9 @@ class Campaign {
     @JsonProperty("ruleKey")
     var ruleKey: String? = null
 
+    @JsonProperty("salt")
+    var salt: String? = null
+
     @get:JsonProperty("status")
     @set:JsonProperty("status")
     @JsonProperty("status")
@@ -163,6 +166,10 @@ class Campaign {
 
         if (model.segments_events != null) {
             this.segments_events = model.segments_events
+        }
+
+        if (model.salt != null) {
+            this.salt = model.salt
         }
     }
 }

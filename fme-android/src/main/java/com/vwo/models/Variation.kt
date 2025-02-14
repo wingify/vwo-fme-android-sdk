@@ -59,6 +59,9 @@ class Variation {
     @JsonProperty("segments")
     var segments: Map<String, Any> = HashMap()
 
+    @JsonProperty("salt")
+    var salt: String? = null
+
     @get:JsonProperty("segments_events")
     @set:JsonProperty("segments_events")
     @JsonProperty("segments_events")

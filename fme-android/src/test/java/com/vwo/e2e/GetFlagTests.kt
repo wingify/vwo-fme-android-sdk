@@ -23,14 +23,17 @@ import com.vwo.VWOBuilder
 import com.vwo.interfaces.IVwoInitCallback
 import com.vwo.interfaces.IVwoListener
 import com.vwo.models.user.GetFlag
+import com.vwo.models.user.VWOContext
 import com.vwo.models.user.VWOInitOptions
 import com.vwo.testcases.TestData
 import com.vwo.testcases.TestDataReader
 import com.vwo.utils.DummySettingsReader
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Before
 import org.junit.Test
 import org.mockito.Mockito.spy
+import org.mockito.Mockito.`when`
 import org.mockito.kotlin.whenever
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
@@ -50,6 +53,11 @@ class GetFlagTests {
     @Test
     fun testGetFlagWithoutStorage() {
         testCases?.getFlagWithoutStorage?.let { runTests(it) }
+    }
+
+    @Test
+    fun testGetFlagWithSalt() {
+        testCases?.GETFLAG_WITH_SALT?.let { runSaltTest(it)}
     }
 
     @Test
@@ -138,5 +146,82 @@ class GetFlagTests {
                 featureFlag?.getVariable("json", HashMap<Any, Any>())
             )
         }
+    }
+
+    private fun runSaltTest(tests: List<TestData>) {
+        for (testData in tests) {
+            val vwoInitOptions = VWOInitOptions()
+            vwoInitOptions.sdkKey = SDK_KEY
+            vwoInitOptions.accountId = ACCOUNT_ID
+
+            val vwoBuilder = VWOBuilder(vwoInitOptions)
+            val vwoBuilderSpy = spy(vwoBuilder)
+
+            settingsReader = DummySettingsReader()
+            val settingsMap = settingsReader.settingsMap
+            `when`<String?>(vwoBuilderSpy.getSettings(false)).thenReturn(settingsMap[testData.settings])
+
+            vwoInitOptions.vwoBuilder = vwoBuilderSpy
+            val latch = CountDownLatch(1)
+            init(vwoInitOptions, object : IVwoInitCallback {
+                override fun vwoInitSuccess(vwo: VWO, message: String) {
+                    this@GetFlagTests.vwo = vwo
+                    latch.countDown()
+                }
+
+                override fun vwoInitFailed(message: String) {
+                    println("VWO $message")
+                    latch.countDown()
+                }
+            })
+            latch.await(10, TimeUnit.SECONDS)
+            if (!::vwo.isInitialized) return
+
+            val userIds = testData.userIds
+
+            for (userId in userIds!!) {
+                val vwoContext = VWOContext()
+                vwoContext.id = userId
+
+                val featureFlag = getFlagCountDownLatchPair(testData.featureKey!!, vwoContext )
+                val featureFlag2 = getFlagCountDownLatchPair(testData.featureKey2!!, vwoContext)
+                if (featureFlag == null || featureFlag2 == null) return
+
+                val featureFlagVariables = featureFlag.getVariables()
+                val featureFlag2Variables = featureFlag2.getVariables()
+                if (testData.expectation!!.shouldReturnSameVariation!!) {
+                    assertEquals("The feature flag variables are not equal!",
+                        featureFlagVariables,
+                        featureFlag2Variables,
+                    )
+                } else {
+                    val areEqual = featureFlagVariables == featureFlag2Variables
+                    assertFalse("The feature flag variables are equal!",areEqual)
+                }
+            }
+        }
+    }
+
+    private fun getFlagCountDownLatchPair(
+        flagName: String,
+        vwoContext: VWOContext
+    ): GetFlag? {
+
+        val latch = CountDownLatch(1)
+        var featureFlag: GetFlag? = null
+        vwo.getFlag(flagName, vwoContext, object : IVwoListener {
+            override fun onSuccess(data: Any) {
+                featureFlag = data as? GetFlag
+                latch.countDown()
+            }
+
+            override fun onFailure(message: String) {
+                println(message)
+                latch.countDown()
+            }
+        })
+        // Wait for onSuccess/onFailure to be called
+        latch.await(5, TimeUnit.SECONDS)
+        return featureFlag
     }
 }

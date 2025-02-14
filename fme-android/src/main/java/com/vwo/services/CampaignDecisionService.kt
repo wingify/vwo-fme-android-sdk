@@ -43,36 +43,39 @@ class CampaignDecisionService {
         if (campaign == null || userId == null) {
             return false
         }
+        val trafficAllocation: Double
         // Check if the campaign is of type ROLLOUT or PERSONALIZE
         // If yes, set the traffic allocation to the weight of the first variation
-        val trafficAllocation =
-            if (campaign.type == CampaignTypeEnum.ROLLOUT.value || campaign.type == CampaignTypeEnum.PERSONALIZE.value) {
-                campaign.variations!![0].weight
-            } else {
-                // If the campaign is of type AB, set the traffic allocation to the percent traffic of the campaign
-                campaign.percentTraffic!!.toDouble()
-            }
+        val campaignType = campaign.type
+        val isRolloutOrPersonalize = campaignType == CampaignTypeEnum.ROLLOUT.value ||
+                campaignType == CampaignTypeEnum.PERSONALIZE.value
 
-        // Get the bucket value assigned to the user
-        val valueAssignedToUser =
-            DecisionMaker().getBucketValueForUser(campaign.id.toString() + "_" + userId)
+        // Get salt and traffic allocation based on campaign type
+        val variation = campaign.variations?.getOrNull(0)
+        val salt = if (isRolloutOrPersonalize) variation?.salt else campaign.salt
+        trafficAllocation = if (isRolloutOrPersonalize)
+            variation?.weight!!
+        else
+            campaign.percentTraffic!!.toDouble()
+
+        // Generate bucket key using salt if available, otherwise use campaign ID
+        val bucketKey = if (salt.isNullOrEmpty())
+            campaign.id.toString() + "_" + userId
+        else
+            salt + "_" + userId
+
+        val valueAssignedToUser = DecisionMaker().getBucketValueForUser(bucketKey)
         val isUserPart = valueAssignedToUser != 0 && valueAssignedToUser <= trafficAllocation
 
         LoggerService.log(
             LogLevelEnum.INFO,
             "USER_PART_OF_CAMPAIGN",
-            object : HashMap<String?, String?>() {
-                init {
-                    put("userId", userId)
-                    put("notPart", if (isUserPart) "" else "not")
-                    put("campaignKey",
-                        if (campaign.type.equals(CampaignTypeEnum.AB.value))
-                            campaign.key
-                        else
-                            campaign.name + "_" + campaign.ruleKey
-                    )
-                }
-            })
+            mapOf(
+                "userId" to userId,
+                "campaignKey" to campaign.ruleKey,
+                "notPart" to if (isUserPart) "" else "not"
+            )
+        )
         return isUserPart
     }
 
@@ -118,25 +121,31 @@ class CampaignDecisionService {
 
         val multiplier = if (campaign.percentTraffic != 0) 1 else 0
         val percentTraffic = campaign.percentTraffic!!
-        val hashValue =
-            DecisionMaker().generateHashValue(campaign.id.toString() + "_" + accountId + "_" + userId)
+        // get salt from campaign
+        val salt = campaign.salt
+        // if salt is not null and not empty, use salt else use campaign id
+        val bucketKey = if (salt.isNullOrEmpty()) {
+            campaign.id.toString() + "_" + accountId + "_" + userId
+        } else {
+            salt + "_" + accountId + "_" + userId
+        }
+        val hashValue = DecisionMaker().generateHashValue(bucketKey)
         val bucketValue =
             DecisionMaker().generateBucketValue(hashValue, Constants.MAX_TRAFFIC_VALUE, multiplier)
 
         LoggerService.log(
             LogLevelEnum.DEBUG,
             "USER_BUCKET_TO_VARIATION",
-            object : HashMap<String?, String?>() {
-                init {
-                    put("userId", userId)
-                    put("campaignKey", campaign.ruleKey)
-                    put("percentTraffic", percentTraffic.toString())
-                    put("bucketValue", bucketValue.toString())
-                    put("hashValue", hashValue.toString())
-                }
-            })
+            mapOf(
+                "userId" to userId,
+                "campaignKey" to campaign.ruleKey,
+                "percentTraffic" to percentTraffic.toString(),
+                "bucketValue" to bucketValue.toString(),
+                "hashValue" to hashValue.toString()
+            )
+        )
 
-        return campaign.variations?.let { getVariation(it, bucketValue) }
+        return getVariation(campaign.variations!!, bucketValue)
     }
 
     /**
@@ -172,17 +181,14 @@ class CampaignDecisionService {
             LoggerService.log(
                 LogLevelEnum.INFO,
                 "SEGMENTATION_SKIP",
-                object : HashMap<String?, String?>() {
-                    init {
-                        put("userId", context.id)
-                        put("campaignKey",
-                            if (campaign.type.equals(CampaignTypeEnum.AB.value))
-                                campaign.key
-                            else
-                                campaign.name + "_" + campaign.ruleKey
-                        )
-                    }
-                })
+                mapOf(
+                    "userId" to context.id,
+                    "campaignKey" to if (campaign.type.equals(CampaignTypeEnum.AB.value))
+                        campaign.key
+                    else
+                        campaign.name + "_" + campaign.ruleKey,
+                )
+            )
             return true
         } else {
 

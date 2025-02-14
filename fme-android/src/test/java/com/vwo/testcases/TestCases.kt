@@ -29,4 +29,7 @@ class TestCases {
 
     @JsonProperty("GETFLAG_WITH_STORAGE")
     var getFlagWithStorage: List<TestData>? = null
+
+    @JsonProperty("GETFLAG_WITH_SALT")
+    var GETFLAG_WITH_SALT: List<TestData>? = null
 }
