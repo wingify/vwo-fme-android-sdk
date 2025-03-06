@@ -27,6 +27,7 @@ import com.vwo.packages.network_layer.models.ResponseModel
 import com.vwo.providers.StorageProvider
 import com.vwo.services.LoggerService
 import com.vwo.services.PeriodicDataUploader
+import com.vwo.services.SettingsManager
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
@@ -124,10 +125,10 @@ object NetworkManager {
      *
      * @param request The RequestModel containing the URL, headers, and body of the POST request.
      */
-    fun postAsync(settings: Settings, request: RequestModel) {
+    fun postAsync(request: RequestModel) {
         executorService.submit {
             if (BatchManager.isOnlineBatchingAllowed()) { // Online batching
-                addToBatch(request, settings)
+                addToBatch(request)
                 val count = StorageProvider.sdkDataManager?.getEntryCount() ?: 0
                 if (OnlineBatchUploadManager.batchMinSize > 0 && count >= OnlineBatchUploadManager.batchMinSize) {
                     CoroutineScope(Dispatchers.IO).launch {
@@ -140,7 +141,7 @@ object NetworkManager {
                 if (StorageProvider.sdkDataManager == null) return@submit
 
                 if (response == null || response.statusCode != 200) {
-                    addToBatch(request, settings)
+                    addToBatch(request)
                     StorageProvider.contextRef.get()?.let { PeriodicDataUploader().enqueue(it) }
                 }
             }
@@ -158,13 +159,12 @@ object NetworkManager {
      * @param settings The settings containing the SDK key and account ID.
      */
     private fun addToBatch(
-        request: RequestModel,
-        settings: Settings
+        request: RequestModel
     ) {
         val requestString = Gson().toJson(request.body).toString()
         StorageProvider.sdkDataManager?.saveSdkData(
-            sdkKey = settings.sdkKey,
-            accountId = settings.accountId,
+            sdkKey = SettingsManager.instance?.sdkKey,
+            accountId = SettingsManager.instance?.accountId,
             payload = requestString
         )
     }

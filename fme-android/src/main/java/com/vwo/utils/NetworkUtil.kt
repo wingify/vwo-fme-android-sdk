@@ -68,17 +68,16 @@ class NetworkUtil {
          * @return
          */
         fun getEventsBaseProperties(
-            setting: Settings,
             eventName: String,
             visitorUserAgent: String?,
             ipAddress: String?
         ): MutableMap<String, String> {
             val requestQueryParams = RequestQueryParams(
                 eventName,
-                setting.accountId.toString(),
-                setting.sdkKey!!,
-                visitorUserAgent!!,
-                ipAddress!!,
+                SettingsManager.instance?.accountId.toString(),
+                SettingsManager.instance?.sdkKey?:"",
+                visitorUserAgent,
+                ipAddress,
                 generateEventUrl()
             )
             return requestQueryParams.queryParams
@@ -94,24 +93,24 @@ class NetworkUtil {
          * @return
          */
         fun getEventBasePayload(
-            settings: Settings,
-            context: VWOContext,
+            settings: Settings?,
+            context: VWOContext?,
             userId: String?,
             eventName: String,
             visitorUserAgent: String?,
             ipAddress: String?
         ): EventArchPayload {
-            val uuid = UUIDUtils.getUUID(userId, settings.accountId.toString())
+            val uuid = UUIDUtils.getUUID(userId, SettingsManager.instance?.accountId.toString())
             val eventArchData = EventArchData()
             eventArchData.msgId = generateMsgId(uuid)
             eventArchData.visId = uuid
             eventArchData.sessionId = FMEConfig.generateSessionId()
             setOptionalVisitorData(eventArchData, visitorUserAgent, ipAddress)
 
-            val event = createEvent(eventName, settings)
+            val event = createEvent(eventName)
             eventArchData.event = event
 
-            val visitor = createVisitor(settings)
+            val visitor = createVisitor()
             eventArchData.visitor = visitor
 
             val eventArchPayload = EventArchPayload()
@@ -145,9 +144,9 @@ class NetworkUtil {
          * @param settings The settings model containing configuration.
          * @return The event model.
          */
-        private fun createEvent(eventName: String, settings: Settings): Event {
+        private fun createEvent(eventName: String): Event {
             val event = Event()
-            val props = createProps(settings)
+            val props = createProps()
             event.props = props
             event.name = eventName
             event.time = System.currentTimeMillis()
@@ -159,12 +158,11 @@ class NetworkUtil {
          * @param settings The settings model containing configuration.
          * @return The visitor model.
          */
-        private fun createProps(settings: Settings): Props {
+        private fun createProps(): Props {
             val props = Props()
             props.setSdkName(SDKMetaUtil.sdkName)
             props.setSdkVersion(SDKMetaUtil.sdkVersion)
-            props.setEnvKey(settings.sdkKey)
-            props.setEnvKey(settings.sdkKey)
+            props.setEnvKey(SettingsManager.instance?.sdkKey)
             return props
         }
 
@@ -173,10 +171,10 @@ class NetworkUtil {
          * @param settings The settings model containing configuration.
          * @return The visitor model.
          */
-        private fun createVisitor(settings: Settings): Visitor {
+        private fun createVisitor(): Visitor {
             val visitor = Visitor()
             val visitorProps: MutableMap<String, Any> = HashMap()
-            visitorProps[Constants.VWO_FS_ENVIRONMENT] = settings.sdkKey ?: defaultString
+            visitorProps[Constants.VWO_FS_ENVIRONMENT] = SettingsManager.instance?.sdkKey ?: defaultString
             visitor.setProps(visitorProps)
             return visitor
         }
@@ -322,6 +320,39 @@ class NetworkUtil {
         }
 
         /**
+         * Returns the payload data for the messaging event.
+         * @param messageType The type of the message.
+         * @param message The content of the message.
+         * @param eventName The name of the event.
+         * @return
+         */
+        fun getMessagingEventPayload(
+            messageType: String,
+            message: String,
+            eventName: String
+        ): Map<String, Any> {
+            val settingsManager = SettingsManager.instance
+            val userId = settingsManager?.accountId.toString() + "_" + settingsManager?.sdkKey
+            val properties = getEventBasePayload(null, null, userId, eventName, null, null)
+            properties.d?.event?.props?.setProduct("fme")
+            val data: MutableMap<String, Any> = HashMap()
+            data["type"] = messageType
+
+            val messageContent: MutableMap<String, Any> = HashMap()
+            messageContent["title"] = message
+            messageContent["dateTime"] = System.currentTimeMillis()
+
+            data["content"] = messageContent
+            properties.d!!.event!!.props!!.setData(data)
+
+            val payload: Map<*, *> = VWOClient.objectMapper.convertValue(
+                properties,
+                MutableMap::class.java
+            )
+            return removeNullValues(payload)
+        }
+
+        /**
          * Sends a POST request to the VWO server.
          * @param properties The properties required for the request.
          * @param payload  The payload data for the request.
@@ -348,7 +379,35 @@ class NetworkUtil {
                     SettingsManager.instance!!.protocol,
                     SettingsManager.instance!!.port
                 )
-                NetworkManager.postAsync(settings, request)
+                NetworkManager.postAsync(request)
+            } catch (exception: Exception) {
+                log(
+                    LogLevelEnum.ERROR,
+                    "NETWORK_CALL_FAILED",
+                    object : HashMap<String?, String?>() {
+                        init {
+                            put("method", "POST")
+                            put("err", exception.toString())
+                        }
+                    })
+            }
+        }
+
+        fun sendMessagingEvent(properties: MutableMap<String, String>?, payload: Map<String, Any?>?) {
+            try {
+                NetworkManager.attachClient()
+                val headers = createHeaders(null, null)
+                val request = RequestModel(
+                    Constants.HOST_NAME,
+                    "POST",
+                    UrlEnum.EVENTS.url,
+                    properties,
+                    payload,
+                    headers,
+                    Constants.HTTPS_PROTOCOL,
+                    0
+                )
+                NetworkManager.postAsync(request)
             } catch (exception: Exception) {
                 log(
                     LogLevelEnum.ERROR,

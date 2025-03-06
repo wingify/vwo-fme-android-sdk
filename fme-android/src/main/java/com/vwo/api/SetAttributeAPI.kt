@@ -48,7 +48,6 @@ object SetAttributeAPI {
     ) {
         // Get base properties for the event
         val properties = NetworkUtil.getEventsBaseProperties(
-            settings,
             EventEnum.VWO_SYNC_VISITOR_PROP.value,
             encodeURIComponent(context.userAgent),
             context.ipAddress

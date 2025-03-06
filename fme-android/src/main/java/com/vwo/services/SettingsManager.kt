@@ -35,7 +35,7 @@ import java.net.URL
  * options.
  */
 class SettingsManager(options: VWOInitOptions) {
-    private val sdkKey = options.sdkKey
+    val sdkKey = options.sdkKey
     val accountId = options.accountId
 
     private val cachedSettingsExpiryInterval = options.cachedSettingsExpiryTime

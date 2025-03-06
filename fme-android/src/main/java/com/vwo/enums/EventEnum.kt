@@ -32,5 +32,8 @@ enum class EventEnum(val value: String) {
      */
     VWO_SYNC_VISITOR_PROP("vwo_syncVisitorProp"),
 
+    /** Error log*/
+    VWO_ERROR("vwo_log"),
+
     VWO_RECOMMENDATION_SHOWN("vwo_recommendation_block_shown");
 }

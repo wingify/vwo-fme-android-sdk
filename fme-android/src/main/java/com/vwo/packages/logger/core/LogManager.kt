@@ -15,12 +15,16 @@
  */
 package com.vwo.packages.logger.core
 
+import android.R.id
+import com.vwo.constants.Constants
+import com.vwo.enums.EventEnum
 import com.vwo.interfaces.logger.ILogManager
 import com.vwo.interfaces.logger.LogTransport
 import com.vwo.packages.logger.Logger
 import com.vwo.packages.logger.enums.LogLevelEnum
-import com.vwo.packages.logger.transports.ConsoleTransport
 import com.vwo.packages.logger.transports.LogcatTransport
+import com.vwo.utils.NetworkUtil
+import com.vwo.utils.SDKMetaUtil.sdkVersion
 import java.text.SimpleDateFormat
 import java.util.Locale
 import java.util.UUID
@@ -51,6 +55,8 @@ class LogManager(override val config: Map<String, Any>) : Logger(), ILogManager 
         (config["dateTimeFormat"] as? String) ?: "yyyy-MM-dd'T'HH:mm:ss.SSSZ",
         Locale.getDefault()
     )
+
+    private val storedMessages = mutableSetOf<String>()
 
     init {
         handleTransports()
@@ -161,10 +167,22 @@ class LogManager(override val config: Map<String, Any>) : Logger(), ILogManager 
     /**
      * Logs an error message.
      *
-     * @param message The messageto log.
+     * @param message The message to log.
      */
     override fun error(message: String?) {
         transportManager.error(message)
+        if (message == null) return
+
+        val messageToSend = message + "_" + Constants.SDK_NAME + "_" + sdkVersion
+        if (!storedMessages.contains(messageToSend)) {
+            storedMessages.add(messageToSend)
+
+            val properties =
+                NetworkUtil.getEventsBaseProperties(EventEnum.VWO_ERROR.value, null, null)
+            val payload: Map<String, Any> =
+                NetworkUtil.getMessagingEventPayload("error", message, EventEnum.VWO_ERROR.value)
+            NetworkUtil.sendMessagingEvent(properties, payload)
+        }
     }
 
     companion object {

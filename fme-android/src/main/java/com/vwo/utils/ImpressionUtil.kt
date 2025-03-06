@@ -46,7 +46,6 @@ object ImpressionUtil {
     ) {
         // Get base properties for the event
         val properties: MutableMap<String, String> = NetworkUtil.getEventsBaseProperties(
-            settings,
             EventEnum.VWO_VARIATION_SHOWN.value,
             encodeURIComponent(context.userAgent),
             context.ipAddress

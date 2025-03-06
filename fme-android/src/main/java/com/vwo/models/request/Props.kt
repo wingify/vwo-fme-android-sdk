@@ -47,6 +47,12 @@ class Props {
     @JsonProperty("isCustomEvent")
     private var isCustomEvent: Boolean? = null
 
+    @JsonProperty("product")
+    private var product: String? = null
+
+    @JsonProperty("data")
+    private var data: Map<String, Any>? = null
+
     @JsonIgnore
     private var additionalProperties: Map<String, Any> = HashMap()
 
@@ -85,5 +91,13 @@ class Props {
     @JsonAnySetter
     fun setAdditionalProperties(additionalProperties: Map<String, Any>) {
         this.additionalProperties = additionalProperties
+    }
+
+    fun setProduct(product: String?) {
+        this.product = product
+    }
+
+    fun setData(data: Map<String, Any>?) {
+        this.data = data
     }
 }

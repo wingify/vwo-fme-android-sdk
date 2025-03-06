@@ -33,8 +33,8 @@ class RequestQueryParams(
     private val en: String,
     private val a: String,
     private val env: String,
-    private val visitor_ua: String,
-    private val visitor_ip: String,
+    private val visitor_ua: String?,
+    private val visitor_ip: String?,
     private val url: String
 ) {
     private val eTime = Calendar.getInstance().timeInMillis
@@ -53,8 +53,8 @@ class RequestQueryParams(
         path["eTime"] = eTime.toString()
         path["random"] = random.toString()
         path["p"] = p
-        path["visitor_ua"] = visitor_ua
-        path["visitor_ip"] = visitor_ip
+        visitor_ua?.let { path["visitor_ua"] = it }
+        visitor_ip?.let { path["visitor_ip"] = it }
         path
     }
 }

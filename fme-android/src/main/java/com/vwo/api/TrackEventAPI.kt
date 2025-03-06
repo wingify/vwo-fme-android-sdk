@@ -83,7 +83,6 @@ object TrackEventAPI {
     ) {
         // Get base properties for the event
         val properties = NetworkUtil.getEventsBaseProperties(
-            settings,
             eventName,
             encodeURIComponent(context.userAgent),
             context.ipAddress
