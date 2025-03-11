@@ -18,6 +18,7 @@ package com.vwo.utils
 import com.vwo.enums.EventEnum
 import com.vwo.models.Settings
 import com.vwo.models.user.VWOContext
+import com.vwo.providers.StorageProvider
 import java.io.UnsupportedEncodingException
 import java.net.URLEncoder
 
@@ -47,8 +48,8 @@ object ImpressionUtil {
         // Get base properties for the event
         val properties: MutableMap<String, String> = NetworkUtil.getEventsBaseProperties(
             EventEnum.VWO_VARIATION_SHOWN.value,
-            encodeURIComponent(context.userAgent),
-            context.ipAddress
+            encodeURIComponent(StorageProvider.userAgent),
+            StorageProvider.ipAddress
         )
 
         // Construct payload data for tracking the user
@@ -59,8 +60,8 @@ object ImpressionUtil {
             EventEnum.VWO_VARIATION_SHOWN.value,
             campaignId,
             variationId,
-            context.userAgent,
-            context.ipAddress
+            StorageProvider.userAgent,
+            StorageProvider.ipAddress
         )
 
         // Send the constructed properties and payload as a POST request
@@ -68,8 +69,8 @@ object ImpressionUtil {
             settings,
             properties,
             payload,
-            context.userAgent,
-            context.ipAddress
+            StorageProvider.userAgent,
+            StorageProvider.ipAddress
         )
     }
 

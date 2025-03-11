@@ -34,6 +34,7 @@ import com.vwo.models.user.VWOContext
 import com.vwo.packages.logger.enums.LogLevelEnum
 import com.vwo.packages.network_layer.manager.NetworkManager
 import com.vwo.packages.network_layer.models.RequestModel
+import com.vwo.providers.StorageProvider
 import com.vwo.services.LoggerService.Companion.log
 import com.vwo.services.SettingsManager
 import com.vwo.services.UrlService.baseUrl
@@ -252,8 +253,8 @@ class NetworkUtil {
                 context,
                 userId,
                 eventName,
-                context.userAgent,
-                context.ipAddress
+                StorageProvider.userAgent,
+                StorageProvider.ipAddress
             )
             properties.d!!.event!!.props!!.setIsCustomEvent(true)
             addCustomEventProperties(properties, eventProperties)

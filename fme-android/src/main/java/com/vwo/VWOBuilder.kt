@@ -25,6 +25,7 @@ import com.vwo.packages.network_layer.manager.BatchManager
 import com.vwo.packages.network_layer.manager.NetworkManager
 import com.vwo.packages.network_layer.manager.OnlineBatchUploadManager
 import com.vwo.packages.segmentation_evaluator.core.SegmentationManager
+import com.vwo.packages.storage.GatewayResponseStore
 import com.vwo.packages.storage.Storage
 import com.vwo.services.LoggerService
 import com.vwo.services.SettingsManager
@@ -290,6 +291,7 @@ open class VWOBuilder(options: VWOInitOptions?) {
         val context = options?.context ?: return this
 
         StorageProvider.settingsStore = SettingsStore(context)
+        StorageProvider.gatewayStore = GatewayResponseStore(context)
         return this
     }
 

@@ -19,6 +19,7 @@ package com.vwo.providers
 
 import SdkDataManager
 import android.content.Context
+import com.vwo.packages.storage.GatewayResponseStore
 import com.vwo.packages.storage.SettingsStore
 import java.lang.ref.WeakReference
 
@@ -36,9 +37,23 @@ internal object StorageProvider {
     var settingsStore: SettingsStore? = null
 
     /**
+     * The instance of `GatewayResponseStore` used to manage gateway data chaching.
+     */
+    var gatewayStore: GatewayResponseStore? = null
+
+    /**
      * A weak reference to the application context.
      */
     var contextRef: WeakReference<Context> = WeakReference(null)
 
     var sdkDataManager: SdkDataManager? = null
+
+    /** User Agent*/
+    internal lateinit var userAgent :String
+
+    /**
+     * Ip address
+     * Ip address will be empty as Mobile app can not get the ip address.
+     */
+    internal var ipAddress: String = ""
 }

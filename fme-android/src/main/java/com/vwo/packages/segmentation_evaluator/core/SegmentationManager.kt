@@ -25,6 +25,7 @@ import com.vwo.models.user.GatewayService
 import com.vwo.models.user.VWOContext
 import com.vwo.packages.logger.enums.LogLevelEnum
 import com.vwo.packages.segmentation_evaluator.evaluators.SegmentEvaluator
+import com.vwo.providers.StorageProvider
 import com.vwo.services.LoggerService
 import com.vwo.services.UrlService
 import com.vwo.utils.GatewayServiceUtil
@@ -65,25 +66,24 @@ object SegmentationManager {
         evaluator?.settings = settings
         evaluator?.feature = feature
 
-        // if user agent and ipAddress both are null or empty, return
-        if (context.userAgent.isEmpty() && context.ipAddress.isEmpty()) {
+        // if user agent is null or empty, return
+        if (StorageProvider.userAgent.isEmpty()) {
             return
         }
         // If gateway service is required and the base URL is not the default one, fetch the data from the gateway service
-        if (feature.isGatewayServiceRequired && !UrlService.baseUrl.contains(Constants.HOST_NAME)
-            && (context.vwo == null)) {
+        if (feature.isGatewayServiceRequired && context.vwo == null) {
 
             val queryParams: MutableMap<String, String> = HashMap()
-            if (context.userAgent.isEmpty() && context.ipAddress.isEmpty()) {
+            if (StorageProvider.userAgent.isEmpty()) {
                 return
             }
-            queryParams["userAgent"] = context.userAgent
-            queryParams["ipAddress"] = context.ipAddress
+            queryParams["userAgent"] = StorageProvider.userAgent
+            settings.accountId?.toString()?.let { queryParams["accountId"] = it }
 
             try {
                 val params = GatewayServiceUtil.getQueryParams(queryParams)
-                val vwo =
-                    GatewayServiceUtil.getFromGatewayService(params, UrlEnum.GET_USER_DATA.url)
+                val vwo = getGatewayServiceResponse(params)
+
                 val gatewayServiceModel =
                     VWOClient.objectMapper.readValue(vwo, GatewayService::class.java)
 
@@ -95,6 +95,31 @@ object SegmentationManager {
                 )
             }
         }
+    }
+
+    private fun getGatewayServiceResponse(params: MutableMap<String, String>): String? {
+        val vwo = if (isCachedResponseValid()) {
+            StorageProvider.gatewayStore?.getGatewayResponse()
+        } else {
+            val response =
+                GatewayServiceUtil.getFromGatewayService(params, UrlEnum.GET_USER_DATA.url)
+            updateResponseCache(response)
+            response
+        }
+        return vwo
+    }
+
+    private fun isCachedResponseValid(): Boolean {
+        val expiryTime = StorageProvider.gatewayStore?.getGatewayResponseExpiry() ?: -1
+        return expiryTime != -1L && System.currentTimeMillis() <= expiryTime
+    }
+
+    private fun updateResponseCache(responseString: String?) {
+        if (responseString == null) return
+
+        StorageProvider.gatewayStore?.saveGatewayResponse(responseString)
+        val expiryTime = System.currentTimeMillis() + Constants.GATEWAY_USER_DATA_CACHE_DURATION
+        StorageProvider.gatewayStore?.saveGatewayResponseExpiry(expiryTime)
     }
 
     /**

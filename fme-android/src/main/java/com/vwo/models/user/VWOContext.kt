@@ -22,8 +22,6 @@ package com.vwo.models.user
  */
 class VWOContext {
     var id: String? = null
-    var userAgent: String = ""
-    var ipAddress: String = ""
     var customVariables: MutableMap<String, Any> = HashMap()
 
     var variationTargetingVariables: MutableMap<String, Any> = HashMap()

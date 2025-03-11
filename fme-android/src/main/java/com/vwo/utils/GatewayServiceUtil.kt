@@ -15,11 +15,8 @@
  */
 package com.vwo.utils
 
-import com.vwo.constants.Constants
-import com.vwo.packages.logger.enums.LogLevelEnum
 import com.vwo.packages.network_layer.manager.NetworkManager
 import com.vwo.packages.network_layer.models.RequestModel
-import com.vwo.services.LoggerService.Companion.log
 import com.vwo.services.SettingsManager
 import com.vwo.services.UrlService.baseUrl
 import java.net.URLEncoder
@@ -39,12 +36,9 @@ object GatewayServiceUtil {
      */
     fun getFromGatewayService(
         queryParams: MutableMap<String, String>,
-        endpoint: String
+        endpoint: String,
+        expectedResponseType: String = "application/json"
     ): String? {
-        if (baseUrl.contains(Constants.HOST_NAME)) {
-            log(LogLevelEnum.ERROR, "GATEWAY_URL_ERROR", null)
-            return null
-        }
         var responseString: String? = null
         try {
             val request = RequestModel(
@@ -55,7 +49,8 @@ object GatewayServiceUtil {
                 null,
                 null,
                 SettingsManager.instance?.protocol,
-                SettingsManager.instance?.port ?: 0
+                SettingsManager.instance?.port ?: 0,
+                expectedResponseType,
             )
             val response = NetworkManager.get(request)
 

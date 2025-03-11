@@ -79,6 +79,7 @@ class MainActivity : AppCompatActivity() {
                 put("transports", logger)
             }*/
             /*vwoInitOptions.gatewayService = mutableMapOf<String, Any>().apply {
+                    put("url", "http://dev.visualwebsiteoptimizer.com")
                     put("url", "http://10.0.2.2:8000")
             }*/
             //vwoInitOptions.pollInterval = 60000
@@ -117,8 +118,8 @@ class MainActivity : AppCompatActivity() {
     private fun getFlag(vwo: VWO) {
         userContext = VWOContext()
         userContext.id = USER_ID
-        userContext.ipAddress = "0.0.0.0"
-        userContext.userAgent = "AppName/1.0 (Linux; Android 12; Pixel 5) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/93.0.4577.82 Mobile Safari/537.36"
+        //userContext.ipAddress = "0.0.0.0"
+        //userContext.userAgent = "AppName/1.0 (Linux; Android 12; Pixel 5) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/93.0.4577.82 Mobile Safari/537.36"
         userContext.customVariables = mutableMapOf(
             "name1" to 21,
             "name2" to 0,

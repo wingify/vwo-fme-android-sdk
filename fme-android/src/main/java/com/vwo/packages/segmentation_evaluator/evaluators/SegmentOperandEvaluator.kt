@@ -16,12 +16,16 @@
 package com.vwo.packages.segmentation_evaluator.evaluators
 
 import com.fasterxml.jackson.databind.JsonNode
+import com.vwo.constants.Constants
 import com.vwo.enums.UrlEnum
+import com.vwo.models.Feature
 import com.vwo.models.user.VWOContext
 import com.vwo.packages.logger.enums.LogLevelEnum
 import com.vwo.packages.segmentation_evaluator.enums.SegmentOperandRegexEnum
 import com.vwo.packages.segmentation_evaluator.enums.SegmentOperandValueEnum
 import com.vwo.packages.segmentation_evaluator.utils.SegmentUtil
+import com.vwo.packages.storage.GatewayResponseStore
+import com.vwo.providers.StorageProvider
 import com.vwo.services.LoggerService
 import com.vwo.utils.DataTypeUtil
 import com.vwo.utils.GatewayServiceUtil
@@ -46,7 +50,9 @@ class SegmentOperandEvaluator {
      */
     fun evaluateCustomVariableDSL(
         dslOperandValue: JsonNode,
-        properties: Map<String, Any>
+        properties: Map<String, Any>,
+        accountId: Int?,
+        feature: Feature?
     ): Boolean {
         val entry: Map.Entry<String, JsonNode> = SegmentUtil.getKeyValue(dslOperandValue)
         val operandKey = entry.key
@@ -73,14 +79,16 @@ class SegmentOperandEvaluator {
             val queryParamsObj: MutableMap<String, String> = HashMap()
             queryParamsObj["attribute"] = attributeValue
             if (listId != null) queryParamsObj["listId"] = listId
+            accountId?.toString()?.let { queryParamsObj["accountId"] = it }
 
-            // Make a web service call to check the attribute against the list
-            val gatewayServiceResponse: String = GatewayServiceUtil.getFromGatewayService(
+            return evaluateListAttribute(
+                feature,
+                listId,
+                attributeValue,
+                properties,
                 queryParamsObj,
-                UrlEnum.ATTRIBUTE_CHECK.url
+                true
             )
-                ?: return false
-            return gatewayServiceResponse.toBoolean()
         } else {
             // Process other types of operands
             var tagValue:Any? = properties[operandKey]
@@ -204,15 +212,95 @@ class SegmentOperandEvaluator {
      * @param properties The user properties to evaluate against.
      * @return `true` if the operand matches the user properties, `false` otherwise.
      */
-    fun evaluateUserDSL(dslOperandValue: String, properties: Map<String, Any>): Boolean {
-        val users =
-            dslOperandValue.split(",".toRegex()).dropLastWhile { it.isEmpty() }.toTypedArray()
-        for (user in users) {
-            if (user.trim { it <= ' ' }.replace("\"", "") == properties["_vwoUserId"]) {
-                return true
+    fun evaluateUserDSL(
+        dslOperandValue: String,
+        properties: Map<String, Any>,
+        accountId: Int?,
+        feature: Feature?
+    ): Boolean {
+        // Handle 'inlist' operand
+        if (dslOperandValue.contains("inlist")) {
+            val listIdPattern = Pattern.compile("inlist\\(([^)]+)\\)")
+            val matcher = listIdPattern.matcher(dslOperandValue)
+            if (!matcher.find()) {
+                LoggerService.log(LogLevelEnum.ERROR, "Invalid 'inList' operand format")
+                return false
             }
+            val listId = matcher.group(1)
+            // Process the tag value and prepare query parameters
+            val tagValue = properties["_vwoUserId"]
+            val attributeValue = preProcessTagValue(tagValue.toString())
+            val queryParamsObj: MutableMap<String, String> = HashMap()
+            queryParamsObj["attribute"] = attributeValue
+            if (listId != null) queryParamsObj["listId"] = listId
+            accountId?.toString()?.let { queryParamsObj["accountId"] = it }
+
+            return evaluateListAttribute(feature, listId, attributeValue, properties, queryParamsObj, false)
+        } else {
+            val users =
+                dslOperandValue.split(",".toRegex()).dropLastWhile { it.isEmpty() }.toTypedArray()
+            for (user in users) {
+                if (user.trim { it <= ' ' }.replace("\"", "") == properties["_vwoUserId"]) {
+                    return true
+                }
+            }
+            return false
         }
-        return false
+    }
+
+    private fun evaluateListAttribute(
+        feature: Feature?,
+        listId: String?,
+        attributeValue: String,
+        properties: Map<String, Any>,
+        queryParamsObj: MutableMap<String, String>,
+        isCustomVariable: Boolean
+    ): Boolean {
+
+        val gatewayStore = StorageProvider.gatewayStore
+        if (feature?.key != null && listId != null && gatewayStore != null) {
+            val key = gatewayStore.getStorageKeyForAttributeCheck(
+                feature.key!!,
+                listId,
+                attributeValue,
+                properties["_vwoUserId"].toString(),
+                isCustomVariable
+            )
+            val isValid = isCachedEvaluationValid(key, gatewayStore)
+            val value = gatewayStore.getBoolean(key)
+
+            if (value != null && isValid) {
+                LoggerService.log(
+                    LogLevelEnum.INFO,
+                    "CACHED_EVALUATION_RESPONSE",
+                    mapOf("value" to value.toString())
+                )
+                return value
+            } else {
+                // Make a web service call to check the attribute against the list
+                val gatewayServiceResponse: String = GatewayServiceUtil.getFromGatewayService(
+                    queryParamsObj, UrlEnum.ATTRIBUTE_CHECK.url, "application/javascript"
+                ) ?: return false
+                val result = gatewayServiceResponse.toBoolean()
+                gatewayStore.saveBoolean(key, result)
+                val expiryTime =
+                    System.currentTimeMillis() + Constants.GATEWAY_LIST_EVALUATION_CACHE_DURATION
+                gatewayStore.saveLong("${key}_expiry", expiryTime)
+                return result
+            }
+        } else {
+            // Make a web service call to check the attribute against the list
+            val gatewayServiceResponse: String = GatewayServiceUtil.getFromGatewayService(
+                queryParamsObj, UrlEnum.ATTRIBUTE_CHECK.url, "application/javascript"
+            ) ?: return false
+            return gatewayServiceResponse.toBoolean()
+        }
+    }
+
+    private fun isCachedEvaluationValid(key: String, gatewayStore: GatewayResponseStore): Boolean {
+        val expiryTime = gatewayStore.getLong("${key}_expiry")
+        val isValid = expiryTime > 0 && expiryTime >= System.currentTimeMillis()
+        return isValid
     }
 
     /**
@@ -223,11 +311,11 @@ class SegmentOperandEvaluator {
      * @return `true` if the operand matches the user agent, `false` otherwise.
      */
     fun evaluateUserAgentDSL(dslOperandValue: String, context: VWOContext?): Boolean {
-        if (context?.userAgent == null) {
+        if (StorageProvider.userAgent == null) {
             //LogManager.getInstance().info("To Evaluate UserAgent segmentation, please provide userAgent in context");
             return false
         }
-        var tagValue = URLDecoder.decode(context.userAgent)
+        var tagValue = URLDecoder.decode(StorageProvider.userAgent)
         val preProcessOperandValue = preProcessOperandValue(dslOperandValue)
         val processedValues = preProcessOperandValue["operandValue"]?.let {
             processValues(it, tagValue)

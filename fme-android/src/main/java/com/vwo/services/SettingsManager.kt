@@ -47,11 +47,9 @@ class SettingsManager(options: VWOInitOptions) {
 
     @JvmField
     var protocol: String = Constants.HTTPS_PROTOCOL
-    var isGatewayServiceProvided: Boolean = false
 
     init {
         if (options.gatewayService.isNotEmpty()) {
-            isGatewayServiceProvided = true
             try {
                 val parsedUrl: URL
                 val gatewayServiceUrl = options.gatewayService["url"].toString()

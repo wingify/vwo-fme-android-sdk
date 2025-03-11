@@ -43,10 +43,6 @@ object UrlService {
         get() {
             val baseUrl: String = SettingsManager.instance?.hostname?:""
 
-            if (SettingsManager.instance?.isGatewayServiceProvided==true) {
-                return baseUrl
-            }
-
             // Construct URL with collectionPrefix if it exists
             if (!collectionPrefix.isNullOrEmpty()) {
                 return "$baseUrl/$collectionPrefix"

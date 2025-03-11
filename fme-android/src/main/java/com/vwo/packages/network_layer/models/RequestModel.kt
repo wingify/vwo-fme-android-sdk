@@ -15,8 +15,6 @@
  */
 package com.vwo.packages.network_layer.models
 
-import com.google.gson.Gson
-
 /**
  * Represents a network request model.
  *
@@ -32,7 +30,8 @@ class RequestModel(
     var body: Map<String, Any?>?,
     var headers: MutableMap<String, String>?,
     scheme: String?,
-    val port: Int
+    val port: Int,
+    val expectedResponseType: String = "application/json"
 ) {
     var method: String? = method ?: "GET"
     var scheme: String? = scheme ?: "http"

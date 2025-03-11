@@ -17,7 +17,7 @@ package com.vwo.constants
 
 object Constants {
     const val defaultString: String = ""
-    const val PLATFORM: String = "android"
+    const val PLATFORM: String = "Android"
 
     const val MAX_TRAFFIC_PERCENT: Int = 100
     const val MAX_TRAFFIC_VALUE: Int = 10000
@@ -50,4 +50,7 @@ object Constants {
     const val BATCH_UPLOADER_RETRY_INTERVAL = 3L //minutes
 
     const val DEFAULT_BATCH_UPLOAD_INTERVAL = 3 * 60 * 1000L //3 minutes in milliseconds
+
+    const val GATEWAY_USER_DATA_CACHE_DURATION = 60 * 60 * 1000L //1 hour in milliseconds
+    const val GATEWAY_LIST_EVALUATION_CACHE_DURATION = 60 * 60 * 1000L //1 hour in milliseconds
 }

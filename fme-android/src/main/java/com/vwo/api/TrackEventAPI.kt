@@ -19,6 +19,7 @@ import com.vwo.enums.ApiEnum
 import com.vwo.models.Settings
 import com.vwo.models.user.VWOContext
 import com.vwo.packages.logger.enums.LogLevelEnum
+import com.vwo.providers.StorageProvider
 import com.vwo.services.HooksManager
 import com.vwo.services.LoggerService.Companion.log
 import com.vwo.utils.FunctionUtil.doesEventBelongToAnyFeature
@@ -84,8 +85,8 @@ object TrackEventAPI {
         // Get base properties for the event
         val properties = NetworkUtil.getEventsBaseProperties(
             eventName,
-            encodeURIComponent(context.userAgent),
-            context.ipAddress
+            encodeURIComponent(StorageProvider.userAgent),
+            StorageProvider.ipAddress
         )
 
         // Construct payload data for tracking the user
@@ -98,6 +99,6 @@ object TrackEventAPI {
         )
 
         // Send the constructed properties and payload as a POST request
-        NetworkUtil.sendPostApiRequest(settings, properties, payload, context.userAgent, context.ipAddress)
+        NetworkUtil.sendPostApiRequest(settings, properties, payload, StorageProvider.userAgent, StorageProvider.ipAddress)
     }
 }

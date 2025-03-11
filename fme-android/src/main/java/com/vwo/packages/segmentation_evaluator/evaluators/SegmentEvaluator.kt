@@ -25,6 +25,7 @@ import com.vwo.models.user.VWOContext
 import com.vwo.packages.logger.enums.LogLevelEnum
 import com.vwo.packages.segmentation_evaluator.enums.SegmentOperatorValueEnum
 import com.vwo.packages.segmentation_evaluator.utils.SegmentUtil
+import com.vwo.providers.StorageProvider
 import com.vwo.services.LoggerService
 import com.vwo.services.StorageService
 
@@ -64,12 +65,16 @@ class SegmentEvaluator {
             SegmentOperatorValueEnum.OR -> return some(subDsl, properties)
             SegmentOperatorValueEnum.CUSTOM_VARIABLE -> return SegmentOperandEvaluator().evaluateCustomVariableDSL(
                 subDsl,
-                properties
+                properties,
+                settings?.accountId,
+                feature
             )
 
             SegmentOperatorValueEnum.USER -> return SegmentOperandEvaluator().evaluateUserDSL(
                 subDsl.toString(),
-                properties
+                properties,
+                settings?.accountId,
+                feature
             )
 
             SegmentOperatorValueEnum.UA -> return SegmentOperandEvaluator().evaluateUserAgentDSL(
@@ -235,15 +240,6 @@ class SegmentEvaluator {
      * @return A boolean indicating if the location matches.
      */
     fun checkLocationPreSegmentation(locationMap: Map<String, Any>): Boolean {
-        // Ensure user's IP address is available
-        val ipAddress = context?.ipAddress
-        if (ipAddress.isNullOrEmpty()) {
-            LoggerService.log(
-                LogLevelEnum.INFO,
-                "To evaluate location pre Segment, please pass ipAddress in context object"
-            )
-            return false
-        }
         // Check if location data is available and matches the expected values
         val location = context?.vwo?.location
         if (location.isNullOrEmpty()) {
@@ -259,7 +255,7 @@ class SegmentEvaluator {
      */
     fun checkUserAgentParser(uaParserMap: Map<String, MutableList<String>>): Boolean {
         // Ensure user's user agent is available
-        val userAgent = context?.userAgent
+        val userAgent = StorageProvider.userAgent
         if (userAgent.isNullOrEmpty()) {
             LoggerService.log(LogLevelEnum.INFO,
                 "To evaluate user agent related segments, please pass userAgent in context object"

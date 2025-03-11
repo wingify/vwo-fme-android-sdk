@@ -83,6 +83,32 @@ internal open class LocalStorageController(context: Context) {
     }
 
     /**
+     * Retrieves a Boolean value from the storage.
+     *
+     * @param key The key associated with the Boolean value.
+     * @return The Boolean value if found, or null otherwise.
+     */
+    fun getBoolean(key: String): Boolean? {
+        return if (sharedPreferences.contains(key)) {
+            sharedPreferences.getBoolean(key, false) // Default value is ignored since we check for key existence
+        } else {
+            null // Return null if the key does not exist
+        }
+    }
+
+    /**
+     * Saves a Boolean value to the storage.
+     *
+     * @param key The key associated with the Boolean value.
+     * @param value The Boolean value to be saved.
+     */
+    fun saveBoolean(key: String, value: Boolean) {
+        val editor = sharedPreferences.edit()
+        editor.putBoolean(key,value)
+        editor.apply()
+    }
+
+    /**
      * Clears the data associated with a specific key.
      *
      * @param key The key associated with the data to be cleared.

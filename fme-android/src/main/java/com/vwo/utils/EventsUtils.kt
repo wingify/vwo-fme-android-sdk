@@ -21,6 +21,7 @@ import com.vwo.enums.UrlEnum
 import com.vwo.models.user.VWOContext
 import com.vwo.packages.network_layer.manager.NetworkManager
 import com.vwo.packages.network_layer.models.RequestModel
+import com.vwo.providers.StorageProvider
 import com.vwo.services.SettingsManager.Companion.instance
 import com.vwo.services.UrlService.baseUrl
 
@@ -58,8 +59,8 @@ class EventsUtils {
         val contextBody = mutableMapOf<String, Any>()
         contextBody["id"] = context.id ?: ""
         contextBody["customVariables"] = context.customVariables
-        contextBody["ipAddress"] = context.ipAddress
-        contextBody["userAgent"] = context.userAgent
+        contextBody["ipAddress"] = StorageProvider.ipAddress
+        contextBody["userAgent"] = StorageProvider.userAgent
         contextBody["variationTargetingVariables"] = context.variationTargetingVariables
         body["context"] = contextBody
 

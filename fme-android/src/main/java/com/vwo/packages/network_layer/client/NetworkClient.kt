@@ -60,7 +60,7 @@ class NetworkClient : NetworkClientInterface {
 
                 val contentType = connection.getHeaderField("Content-Type")
 
-                if (statusCode != 200 || !contentType.contains("application/json")) {
+                if (statusCode != 200 || !contentType.contains(request.expectedResponseType)) {
                     val error =
                         "Invalid response. Status Code: " + statusCode + ", Response : " + connection.responseMessage
                     responseModel.error = Exception(error)

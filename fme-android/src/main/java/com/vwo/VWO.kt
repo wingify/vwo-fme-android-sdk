@@ -15,6 +15,8 @@
  */
 package com.vwo
 
+import android.os.Build
+import com.vwo.constants.Constants.PLATFORM
 import com.vwo.interfaces.IVwoInitCallback
 import com.vwo.interfaces.IVwoListener
 import com.vwo.models.user.VWOContext
@@ -22,7 +24,7 @@ import com.vwo.models.user.VWOInitOptions
 import com.vwo.utils.SDKMetaUtil
 import com.vwo.packages.network_layer.manager.BatchManager
 import com.vwo.providers.StorageProvider
-import com.vwo.services.PeriodicDataUploader
+import com.vwo.sdk.fme.BuildConfig
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -60,6 +62,7 @@ object VWO {
 
         SDKMetaUtil.sdkName = options.sdkName
         SDKMetaUtil.sdkVersion = options.sdkVersion
+        StorageProvider.userAgent = "VWO FME $PLATFORM ${BuildConfig.SDK_VERSION} ($PLATFORM/${Build.VERSION.RELEASE})"
         val settings = vwoBuilder.getSettings(false)
         val vwoInstance = this
         vwoClient = VWOClient(settings, options)

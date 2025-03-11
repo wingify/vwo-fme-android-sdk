@@ -18,6 +18,7 @@ package com.vwo.api
 import com.vwo.enums.EventEnum
 import com.vwo.models.Settings
 import com.vwo.models.user.VWOContext
+import com.vwo.providers.StorageProvider
 import com.vwo.utils.ImpressionUtil.encodeURIComponent
 import com.vwo.utils.NetworkUtil
 
@@ -49,8 +50,8 @@ object SetAttributeAPI {
         // Get base properties for the event
         val properties = NetworkUtil.getEventsBaseProperties(
             EventEnum.VWO_SYNC_VISITOR_PROP.value,
-            encodeURIComponent(context.userAgent),
-            context.ipAddress
+            encodeURIComponent(StorageProvider.userAgent),
+            StorageProvider.ipAddress
         )
 
         // Construct payload data for tracking the user
@@ -63,6 +64,6 @@ object SetAttributeAPI {
         )
 
         // Send the constructed properties and payload as a POST request
-        NetworkUtil.sendPostApiRequest(settings, properties, payload, context.userAgent, context.ipAddress)
+        NetworkUtil.sendPostApiRequest(settings, properties, payload, StorageProvider.userAgent, StorageProvider.ipAddress)
     }
 }
