@@ -16,9 +16,13 @@
 package com.vwo.packages.network_layer.client
 
 import com.vwo.VWOClient
+import com.vwo.constants.Constants.RETRY_DELAY
+import com.vwo.constants.Constants.MAX_RETRY_ATTEMPTS
 import com.vwo.interfaces.networking.NetworkClientInterface
+import com.vwo.packages.logger.enums.LogLevelEnum
 import com.vwo.packages.network_layer.models.RequestModel
 import com.vwo.packages.network_layer.models.ResponseModel
+import com.vwo.services.LoggerService
 import java.io.BufferedReader
 import java.io.InputStreamReader
 import java.net.HttpURLConnection
@@ -32,8 +36,6 @@ import java.util.Locale
  * This class provides functionality for sending HTTP requests and receiving responses.
  */
 class NetworkClient : NetworkClientInterface {
-
-    private val maxRetryAttempts = 3
 
     /**
      * Performs a GET request using the provided RequestModel.
@@ -62,6 +64,7 @@ class NetworkClient : NetworkClientInterface {
                     val error =
                         "Invalid response. Status Code: " + statusCode + ", Response : " + connection.responseMessage
                     responseModel.error = Exception(error)
+                    LoggerService.log(LogLevelEnum.INFO, "GET: [${responseModel.statusCode}] $url")
                     return@retryWrapper responseModel
                 }
 
@@ -77,9 +80,11 @@ class NetworkClient : NetworkClientInterface {
                 val responseData = response.toString()
                 responseModel.data = responseData
 
+                LoggerService.log(LogLevelEnum.INFO, "GET: [$statusCode] $url")
                 return@retryWrapper responseModel
             } catch (exception: Exception) {
                 responseModel.error = exception
+                LoggerService.log(LogLevelEnum.INFO, "GET: [404] ${constructUrl(request.options)} $exception")
                 return@retryWrapper responseModel
             }
         }
@@ -149,11 +154,12 @@ class NetworkClient : NetworkClientInterface {
                     val error = "Request failed. Status Code: $statusCode, Response: $responseData"
                     responseModel.error = Exception(error)
                 }
-
+                LoggerService.log(LogLevelEnum.INFO, "POST: [${responseModel.statusCode}] $url")
                 return@retryWrapper responseModel
             } catch (exception: Exception) {
                 responseModel.error = exception
                 responseModel.statusCode = 404
+                LoggerService.log(LogLevelEnum.INFO, "POST: [404] ${constructUrl(request.options)} $exception")
                 return@retryWrapper responseModel
             }
         }
@@ -161,11 +167,20 @@ class NetworkClient : NetworkClientInterface {
 
     private fun retryWrapper(requestProcessor: () -> ResponseModel): ResponseModel {
         var countOfRetries = 0
+        var retryDelay = RETRY_DELAY // Initial delay (used for retries, not the first attempt)
         var response: ResponseModel
+
         do {
             response = requestProcessor()
             countOfRetries++
-        } while (countOfRetries < maxRetryAttempts && response.error != null)
+
+            // If the request failed and we need to retry, apply the delay
+            if (response.error != null && countOfRetries < MAX_RETRY_ATTEMPTS) {
+
+                retryDelay *= 2 // Double the delay for the next retry
+                Thread.sleep(retryDelay)
+            }
+        } while (countOfRetries < MAX_RETRY_ATTEMPTS && response.error != null)
 
         return response
     }

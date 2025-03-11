@@ -52,6 +52,7 @@ object FMEConfig {
      *
      * @param sessionData The FmeSession object containing session information.
      */
+    @JvmStatic
     fun setSessionData(sessionData: Map<String, Any>) {
 
         isMISdkLinked = false
