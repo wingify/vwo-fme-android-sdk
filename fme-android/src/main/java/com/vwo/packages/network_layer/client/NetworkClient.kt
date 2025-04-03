@@ -37,13 +37,15 @@ import java.util.Locale
  */
 class NetworkClient : NetworkClientInterface {
 
+    private val logLevel = LogLevelEnum.INFO
+
     /**
      * Performs a GET request using the provided RequestModel.
      * @param request The model containing request options.
      * @return A ResponseModel with the response data.
      */
     override fun GET(request: RequestModel): ResponseModel {
-        return retryWrapper {
+        return retryWrapper { retryCount: Int, outOf: Int ->
             val responseModel = ResponseModel()
             try {
                 val networkOptions = request.options
@@ -64,7 +66,7 @@ class NetworkClient : NetworkClientInterface {
                     val error =
                         "Invalid response. Status Code: " + statusCode + ", Response : " + connection.responseMessage
                     responseModel.error = Exception(error)
-                    LoggerService.log(LogLevelEnum.INFO, "GET: [${responseModel.statusCode}] $url")
+                    LoggerService.log(logLevel, "GET: attempt $retryCount/$outOf [${responseModel.statusCode}] $url")
                     return@retryWrapper responseModel
                 }
 
@@ -80,11 +82,11 @@ class NetworkClient : NetworkClientInterface {
                 val responseData = response.toString()
                 responseModel.data = responseData
 
-                LoggerService.log(LogLevelEnum.INFO, "GET: [$statusCode] $url")
+                LoggerService.log(logLevel, "GET: attempt $retryCount/$outOf [$statusCode] $url")
                 return@retryWrapper responseModel
             } catch (exception: Exception) {
                 responseModel.error = exception
-                LoggerService.log(LogLevelEnum.INFO, "GET: [404] ${constructUrl(request.options)} $exception")
+                LoggerService.log(logLevel, "GET: attempt $retryCount/$outOf [404] ${constructUrl(request.options)} $exception")
                 return@retryWrapper responseModel
             }
         }
@@ -96,7 +98,7 @@ class NetworkClient : NetworkClientInterface {
      * @return A ResponseModel with the response data.
      */
     override fun POST(request: RequestModel): ResponseModel {
-        return retryWrapper {
+        return retryWrapper { retryCount: Int, outOf: Int ->
             val responseModel = ResponseModel()
             try {
                 val networkOptions = request.options
@@ -154,24 +156,24 @@ class NetworkClient : NetworkClientInterface {
                     val error = "Request failed. Status Code: $statusCode, Response: $responseData"
                     responseModel.error = Exception(error)
                 }
-                LoggerService.log(LogLevelEnum.INFO, "POST: [${responseModel.statusCode}] $url")
+                LoggerService.log(logLevel, "POST: attempt $retryCount/$outOf [${responseModel.statusCode}] $url")
                 return@retryWrapper responseModel
             } catch (exception: Exception) {
                 responseModel.error = exception
                 responseModel.statusCode = 404
-                LoggerService.log(LogLevelEnum.INFO, "POST: [404] ${constructUrl(request.options)} $exception")
+                LoggerService.log(logLevel, "POST: attempt $retryCount/$outOf [404] ${constructUrl(request.options)} $exception")
                 return@retryWrapper responseModel
             }
         }
     }
 
-    private fun retryWrapper(requestProcessor: () -> ResponseModel): ResponseModel {
+    private fun retryWrapper(requestProcessor: (retryCount: Int, outOf:Int) -> ResponseModel): ResponseModel {
         var countOfRetries = 0
         var retryDelay = RETRY_DELAY // Initial delay (used for retries, not the first attempt)
         var response: ResponseModel
 
         do {
-            response = requestProcessor()
+            response = requestProcessor(countOfRetries+1, MAX_RETRY_ATTEMPTS)
             countOfRetries++
 
             // If the request failed and we need to retry, apply the delay

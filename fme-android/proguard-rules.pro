@@ -34,3 +34,4 @@
 -keep class com.vwo.packages.logger.enums.LogLevelEnum { *; }
 -keep class com.vwo.interfaces.integration.IntegrationCallback { *; }
 -keep class com.vwo.models.** { *; }
+-keep class com.vwo.packages.storage.Connector { *; }

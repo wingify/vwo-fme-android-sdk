@@ -44,7 +44,7 @@ object Constants {
 
     const val AUTH_TOKEN = ""
     const val RETRY_DELAY = 1000L
-    const val MAX_RETRY_ATTEMPTS = 3
+    const val MAX_RETRY_ATTEMPTS = 4
 
     const val BATCH_UPLOADER_INITIAL_DELAY = 1L //minutes
     const val BATCH_UPLOADER_RETRY_INTERVAL = 3L //minutes
