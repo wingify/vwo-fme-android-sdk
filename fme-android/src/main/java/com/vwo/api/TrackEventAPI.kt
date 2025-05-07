@@ -17,7 +17,7 @@ package com.vwo.api
 
 import com.vwo.enums.ApiEnum
 import com.vwo.models.Settings
-import com.vwo.models.user.VWOContext
+import com.vwo.models.user.VWOUserContext
 import com.vwo.packages.logger.enums.LogLevelEnum
 import com.vwo.providers.StorageProvider
 import com.vwo.services.HooksManager
@@ -39,7 +39,7 @@ object TrackEventAPI {
     fun track(
         settings: Settings,
         eventName: String,
-        context: VWOContext,
+        context: VWOUserContext,
         eventProperties: Map<String, Any>,
         hooksManager: HooksManager
     ): Boolean {
@@ -79,7 +79,7 @@ object TrackEventAPI {
     fun createAndSendImpressionForTrack(
         settings: Settings,
         eventName: String,
-        context: VWOContext,
+        context: VWOUserContext,
         eventProperties: Map<String, Any>
     ) {
         // Get base properties for the event

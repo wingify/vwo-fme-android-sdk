@@ -7,6 +7,7 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import com.vwo.VWO
+import com.vwo.VWO.init
 import com.vwo.fme.databinding.ActivityMainBinding
 import com.vwo.interfaces.IVwoInitCallback
 import com.vwo.interfaces.IVwoListener
@@ -14,7 +15,7 @@ import com.vwo.interfaces.integration.IntegrationCallback
 import com.vwo.interfaces.logger.LogTransport
 import com.vwo.models.user.GetFlag
 import com.vwo.models.user.Recommendation
-import com.vwo.models.user.VWOContext
+import com.vwo.models.user.VWOUserContext
 import com.vwo.models.user.VWOInitOptions
 import com.vwo.packages.logger.enums.LogLevelEnum
 
@@ -34,9 +35,9 @@ private val ACCOUNT_ID = server.accountId
 class MainActivity : AppCompatActivity() {
 
     private val USER_ID = ""
-    private var vwo: VWO? = null
+    private var vwoClient: VWO? = null
     private var featureFlag: GetFlag? = null
-    private lateinit var userContext: VWOContext
+    private lateinit var context: VWOUserContext
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -51,8 +52,8 @@ class MainActivity : AppCompatActivity() {
         binding.btnInitSdk.setOnClickListener {
             // Initialize VWO SDK
             val vwoInitOptions = VWOInitOptions()
-            /*vwoInitOptions.batchMinSize = 10
-            vwoInitOptions.batchUploadTimeInterval = 5 * 60 * 1000*/
+            //vwoInitOptions.batchMinSize = 10
+            //vwoInitOptions.batchUploadTimeInterval = 5 * 60 * 1000
             val integrations = object : IntegrationCallback {
                 override fun execute(properties: Map<String, Any>) {
                     // your function definition
@@ -83,14 +84,18 @@ class MainActivity : AppCompatActivity() {
                     put("url", "http://10.0.2.2:8000")
             }*/
             //vwoInitOptions.pollInterval = 60000
-            vwoInitOptions.cachedSettingsExpiryTime = 2 * 60 * 1000 // 2 min
+            //vwoInitOptions.cachedSettingsExpiryTime = 2 * 60 * 1000 // 2 min
+            //vwoInitOptions.isUsageStatsDisabled = true
 
+            // This is intended for VWO's internal applications only.
+            // Clients should not use this in their implementations.
+            vwoInitOptions._vwo_meta = mapOf("ea" to 1)
             //vwoInitOptions.storage = StorageTest()
             // Create VWO instance with the vwoInitOptions
-            VWO.init(vwoInitOptions, object : IVwoInitCallback {
-                override fun vwoInitSuccess(vwo: VWO, message: String) {
+            init(vwoInitOptions, object : IVwoInitCallback {
+                override fun vwoInitSuccess(vwoClient: VWO, message: String) {
                     // Success
-                    this@MainActivity.vwo = vwo
+                    this@MainActivity.vwoClient = vwoClient
                 }
 
                 override fun vwoInitFailed(message: String) {
@@ -99,7 +104,7 @@ class MainActivity : AppCompatActivity() {
             })
         }
         binding.btnGetFlag.setOnClickListener {
-            vwo?.let { getFlag(it) }
+            vwoClient?.let { getFlag(it) }
         }
         binding.btnGetVariable.setOnClickListener {
             featureFlag?.let { getVariable(it) }
@@ -116,11 +121,11 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun getFlag(vwo: VWO) {
-        userContext = VWOContext()
-        userContext.id = USER_ID
+        context = VWOUserContext()
+        context.id = USER_ID
         //userContext.ipAddress = "0.0.0.0"
         //userContext.userAgent = "AppName/1.0 (Linux; Android 12; Pixel 5) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/93.0.4577.82 Mobile Safari/537.36"
-        userContext.customVariables = mutableMapOf(
+        context.customVariables = mutableMapOf(
             "name1" to 21,
             "name2" to 0,
             "name3" to 5,
@@ -128,7 +133,7 @@ class MainActivity : AppCompatActivity() {
         )
 
         // Get feature flag object
-        vwo.getFlag(server.flagName, userContext, object : IVwoListener {
+        vwo.getFlag(server.flagName, context, object : IVwoListener {
             override fun onSuccess(data: Any) {
                 featureFlag = data as? GetFlag
                 val isFeatureFlagEnabled = featureFlag?.isEnabled()
@@ -148,11 +153,12 @@ class MainActivity : AppCompatActivity() {
         if (isFeatureFlagEnabled) {
             // To get value of a single variable
             recommendation(featureFlag)
-            val variable2 = featureFlag.getVariable(server.variableName, "default-value2")
+            val variable: String =
+                featureFlag.getVariable(server.variableName, "default-value2") as String
 
             // To get value of all variables in object format
             val getAllVariables = featureFlag.getVariables()
-            println("Variable values: getAllVariables=$getAllVariables")
+            println("Variable values: getAllVariables=$getAllVariables variable=$variable")
         } else {
             // Your code when feature flag is disabled
         }
@@ -200,7 +206,7 @@ class MainActivity : AppCompatActivity() {
 
     private fun track() {
 
-        if (!::userContext.isInitialized) return
+        if (!::context.isInitialized) return
 
         val properties = mutableMapOf<String, Any>("cartvalue" to 10)
         // Track the event for the given event name and user context
@@ -209,27 +215,18 @@ class MainActivity : AppCompatActivity() {
         map["isWishlisted"] = false
         map["price"] = 21
         map["productId"] = 1
-        val trackResponse = vwo?.trackEvent(server.eventName, userContext, map)
+        val trackResponse = vwoClient?.trackEvent(server.eventName, context, map)
         //val trackResponse = vwo?.trackEvent(server.eventName, userContext)
     }
 
     private fun sendAttribute() {
-        if (!::userContext.isInitialized) return
+        if (!::context.isInitialized) return
 
         val attributes = mapOf(
             server.attributeName to "paid",
             "price" to 99,
             "isEnterpriseCustomer" to false
         )
-        vwo?.setAttribute(attributes, userContext)
+        vwoClient?.setAttribute(attributes, context)
     }
 }
-
-data class TestApp(
-    val accountId: Int,
-    val sdkKey: String,
-    val flagName: String,
-    val variableName: String,
-    val eventName: String,
-    val attributeName: String
-)

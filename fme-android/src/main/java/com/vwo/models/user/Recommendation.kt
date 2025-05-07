@@ -28,7 +28,7 @@ import org.json.JSONObject
 import kotlin.concurrent.thread
 
 
-class Recommendation(val recommendationBlock: Int, private val context: VWOContext) {
+class Recommendation(val recommendationBlock: Int, private val context: VWOUserContext) {
     /**
      * This method is used to get recommendations based on the options passed.
      *

@@ -15,12 +15,12 @@
  */
 package com.vwo.testcases
 
-import com.vwo.models.user.VWOContext
+import com.vwo.models.user.VWOUserContext
 
 class TestData {
     var description: String? = null
     var settings: String? = null
-    var context: VWOContext? = null
+    var context: VWOUserContext? = null
     var userIds: ArrayList<String>? = null
     var expectation: Expectation? = null
     var featureKey: String? = null

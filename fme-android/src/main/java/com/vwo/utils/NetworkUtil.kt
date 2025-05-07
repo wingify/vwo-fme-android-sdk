@@ -30,7 +30,7 @@ import com.vwo.models.request.EventArchQueryParams.SettingsQueryParams
 import com.vwo.models.request.Props
 import com.vwo.models.request.visitor.Visitor
 import com.vwo.models.user.FMEConfig
-import com.vwo.models.user.VWOContext
+import com.vwo.models.user.VWOUserContext
 import com.vwo.packages.logger.enums.LogLevelEnum
 import com.vwo.packages.network_layer.manager.NetworkManager
 import com.vwo.packages.network_layer.models.RequestModel
@@ -56,7 +56,8 @@ class NetworkUtil {
     fun getSettingsPath(apikey: String?, accountId: Int): MutableMap<String, String> {
         val settingsQueryParams =
             SettingsQueryParams(apikey!!, generateRandom(), accountId.toString())
-        return settingsQueryParams.queryParams
+
+        return settingsQueryParams.getQueryParams()
     }
 
     companion object {
@@ -95,7 +96,7 @@ class NetworkUtil {
          */
         fun getEventBasePayload(
             settings: Settings?,
-            context: VWOContext?,
+            context: VWOUserContext?,
             userId: String?,
             eventName: String,
             visitorUserAgent: String?,
@@ -193,7 +194,7 @@ class NetworkUtil {
          */
         fun getTrackUserPayloadData(
             settings: Settings,
-            context: VWOContext,
+            context: VWOUserContext,
             userId: String?,
             eventName: String,
             campaignId: Int,
@@ -213,6 +214,13 @@ class NetworkUtil {
             properties.d!!.event!!.props!!.id = campaignId
             properties.d!!.event!!.props!!.variation = variationId.toString()
             properties.d!!.event!!.props!!.setIsFirst(1)
+            // Send usageStats once per init
+            val usageStats = UsageStats.getStats()
+
+            if (usageStats.isNotEmpty()) {
+                properties.d!!.event!!.props!!.setUsageStats(usageStats)
+            }
+
             if (eventName == EventEnum.VWO_VARIATION_SHOWN.value) {
                 properties.d?.event?.props?.setIsMii(FMEConfig.isMISdkLinked)
             }
@@ -245,7 +253,7 @@ class NetworkUtil {
             settings: Settings,
             userId: String?,
             eventName: String,
-            context: VWOContext,
+            context: VWOUserContext,
             eventProperties: Map<String, Any>
         ): Map<String, Any?> {
             val properties = getEventBasePayload(
@@ -297,7 +305,7 @@ class NetworkUtil {
          */
         fun getAttributePayloadData(
             settings: Settings,
-            context: VWOContext,
+            context: VWOUserContext,
             userId: String?,
             eventName: String,
             attributeMap: Map<String, Any>
@@ -381,6 +389,8 @@ class NetworkUtil {
                     SettingsManager.instance!!.port
                 )
                 NetworkManager.postAsync(request)
+                if (UsageStats.getStats().isNotEmpty())
+                    UsageStats.clearUsageStats()
             } catch (exception: Exception) {
                 log(
                     LogLevelEnum.ERROR,

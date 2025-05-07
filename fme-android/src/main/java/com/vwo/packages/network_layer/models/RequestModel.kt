@@ -15,6 +15,9 @@
  */
 package com.vwo.packages.network_layer.models
 
+import java.net.URLEncoder
+import java.nio.charset.StandardCharsets
+
 /**
  * Represents a network request model.
  *
@@ -44,12 +47,7 @@ class RequestModel(
      */
     val options: Map<String, Any?>
         get() {
-            val queryParams = StringBuilder()
-            query?.let {
-                for ((key, value) in it) {
-                    queryParams.append(key).append('=').append(value).append('&')
-                }
-            }
+            val queryParams = buildQueryString(query)
 
             val options: MutableMap<String, Any?> = HashMap()
             options["hostname"] = url
@@ -76,7 +74,7 @@ class RequestModel(
             if (path != null) {
                 var combinedPath = path
                 if (queryParams.isNotEmpty()) {
-                    combinedPath += "?" + queryParams.substring(0, queryParams.length - 1)
+                    combinedPath += "?$queryParams"
                 }
                 options["path"] = combinedPath
             }
@@ -86,4 +84,12 @@ class RequestModel(
 
             return options
         }
+
+    private fun buildQueryString(query: Map<String, Any>?): String {
+        return query?.entries?.joinToString("&") { (key, value) ->
+            val encodedKey = URLEncoder.encode(key, StandardCharsets.UTF_8.toString())
+            val encodedValue = URLEncoder.encode(value.toString(), StandardCharsets.UTF_8.toString())
+            "$encodedKey=$encodedValue"
+        } ?: ""
+    }
 }

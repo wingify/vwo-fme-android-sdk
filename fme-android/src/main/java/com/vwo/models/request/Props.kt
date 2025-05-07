@@ -53,6 +53,9 @@ class Props {
     @JsonProperty("data")
     private var data: Map<String, Any>? = null
 
+    @JsonProperty("vwoMeta")
+    private var vwoMeta: Map<String, Any>? = null
+
     @JsonIgnore
     private var additionalProperties: Map<String, Any> = HashMap()
 
@@ -99,5 +102,9 @@ class Props {
 
     fun setData(data: Map<String, Any>?) {
         this.data = data
+    }
+
+    fun setUsageStats(stats: Map<String, Any>) {
+        this.vwoMeta = stats
     }
 }

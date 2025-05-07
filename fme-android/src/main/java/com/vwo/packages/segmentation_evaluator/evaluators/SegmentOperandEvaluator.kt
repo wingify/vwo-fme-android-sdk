@@ -19,7 +19,7 @@ import com.fasterxml.jackson.databind.JsonNode
 import com.vwo.constants.Constants
 import com.vwo.enums.UrlEnum
 import com.vwo.models.Feature
-import com.vwo.models.user.VWOContext
+import com.vwo.models.user.VWOUserContext
 import com.vwo.packages.logger.enums.LogLevelEnum
 import com.vwo.packages.segmentation_evaluator.enums.SegmentOperandRegexEnum
 import com.vwo.packages.segmentation_evaluator.enums.SegmentOperandValueEnum
@@ -310,7 +310,7 @@ class SegmentOperandEvaluator {
      * @param context The user's context containing the user agent information.
      * @return `true` if the operand matches the user agent, `false` otherwise.
      */
-    fun evaluateUserAgentDSL(dslOperandValue: String, context: VWOContext?): Boolean {
+    fun evaluateUserAgentDSL(dslOperandValue: String, context: VWOUserContext?): Boolean {
         if (StorageProvider.userAgent == null) {
             //LogManager.getInstance().info("To Evaluate UserAgent segmentation, please provide userAgent in context");
             return false

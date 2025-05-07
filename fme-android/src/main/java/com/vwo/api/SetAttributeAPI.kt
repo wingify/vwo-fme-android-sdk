@@ -17,7 +17,7 @@ package com.vwo.api
 
 import com.vwo.enums.EventEnum
 import com.vwo.models.Settings
-import com.vwo.models.user.VWOContext
+import com.vwo.models.user.VWOUserContext
 import com.vwo.providers.StorageProvider
 import com.vwo.utils.ImpressionUtil.encodeURIComponent
 import com.vwo.utils.NetworkUtil
@@ -29,7 +29,7 @@ object SetAttributeAPI {
      * @param attributeMap - Map of attribute key and value to be set
      * @param context  The user context model containing user-specific data.
      */
-    fun setAttribute(settings: Settings, attributeMap: Map<String, Any>, context: VWOContext) {
+    fun setAttribute(settings: Settings, attributeMap: Map<String, Any>, context: VWOUserContext) {
         createAndSendImpressionForSetAttribute(settings, attributeMap, context)
     }
 
@@ -45,7 +45,7 @@ object SetAttributeAPI {
     private fun createAndSendImpressionForSetAttribute(
         settings: Settings,
         attributeMap: Map<String, Any>,
-        context: VWOContext
+        context: VWOUserContext
     ) {
         // Get base properties for the event
         val properties = NetworkUtil.getEventsBaseProperties(

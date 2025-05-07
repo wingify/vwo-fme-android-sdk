@@ -16,7 +16,7 @@
 package com.vwo.interfaces.storage
 
 import com.vwo.models.Variation
-import com.vwo.models.user.VWOContext
+import com.vwo.models.user.VWOUserContext
 import com.vwo.services.StorageService
 
 /**
@@ -43,7 +43,7 @@ interface IStorageDecorator {
      */
     fun getFeatureFromStorage(
         featureKey: String,
-        context: VWOContext,
+        context: VWOUserContext,
         storageService: StorageService
     ): Map<String, Any>?
 }

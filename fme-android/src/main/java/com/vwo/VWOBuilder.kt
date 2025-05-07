@@ -42,9 +42,8 @@ import com.vwo.packages.storage.SettingsStore
  *
  * @param options Optional initialization options for pre-configuring the builder.
  */
-open class VWOBuilder(options: VWOInitOptions?) {
+open class VWOBuilder(private val options: VWOInitOptions?) {
     private var vwoClient: VWOClient? = null
-    private val options: VWOInitOptions? = options
     private var settingFileManager: SettingsManager? = null
     private val settings: String? = null
     private var originalSettings: String? = null
@@ -251,6 +250,12 @@ open class VWOBuilder(options: VWOInitOptions?) {
 
         while (true) {
             try {
+                // When sdk is initialized, the settings are fetched from VWO.setInstance() and
+                // checkAndPoll(). To avoid parallel fetching delay is added first and then settings
+                // are fetched.
+                // Sleep for the polling interval, then fetch the latest settings
+                Thread.sleep(pollingInterval.toLong())
+
                 val latestSettings = getSettings(true)
                 if (originalSettings != null && latestSettings != null) {
                     val latestSettingJsonNode: JsonNode =
@@ -258,18 +263,13 @@ open class VWOBuilder(options: VWOInitOptions?) {
                     val originalSettingsJsonNode: JsonNode =
                         VWOClient.objectMapper.readTree(originalSettings)
                     if (!latestSettingJsonNode.equals(originalSettingsJsonNode)) {
-                        originalSettings = latestSettings
-                        LoggerService.log(LogLevelEnum.INFO, "POLLING_SET_SETTINGS", null)
-                        // Update VWOClient settings
-                        if (vwoClient != null) {
-                            vwoClient!!.updateSettings(originalSettings)
-                        }
+                        setNewSettings(latestSettings)
                     } else {
                         LoggerService.log(LogLevelEnum.INFO, "POLLING_NO_CHANGE_IN_SETTINGS", null)
                     }
+                } else if (latestSettings != null) {
+                    setNewSettings(latestSettings)
                 }
-                // Sleep for the polling interval
-                Thread.sleep(pollingInterval.toLong())
             } catch (e: InterruptedException) {
                 LoggerService.log(LogLevelEnum.ERROR, "POLLING_FETCH_SETTINGS_FAILED", null)
                 Thread.currentThread().interrupt()
@@ -278,6 +278,13 @@ open class VWOBuilder(options: VWOInitOptions?) {
                 LoggerService.log(LogLevelEnum.ERROR, "Error is $e")
             }
         }
+    }
+
+    private fun setNewSettings(latestSettings: String?) {
+        originalSettings = latestSettings
+        LoggerService.log(LogLevelEnum.INFO, "POLLING_SET_SETTINGS", null)
+        // Update VWOClient settings
+        vwoClient?.updateSettings(originalSettings)
     }
 
     /**

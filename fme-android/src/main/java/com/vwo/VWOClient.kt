@@ -24,7 +24,7 @@ import com.vwo.api.TrackEventAPI
 import com.vwo.models.Settings
 import com.vwo.models.schemas.SettingsSchema
 import com.vwo.models.user.GetFlag
-import com.vwo.models.user.VWOContext
+import com.vwo.models.user.VWOUserContext
 import com.vwo.models.user.VWOInitOptions
 import com.vwo.packages.logger.enums.LogLevelEnum
 import com.vwo.services.HooksManager
@@ -97,7 +97,7 @@ class VWOClient(settings: String?, options: VWOInitOptions?) {
      * @param context User context
      * @return GetFlag object containing the flag values
      */
-    fun getFlag(featureKey: String?, context: VWOContext): GetFlag {
+    fun getFlag(featureKey: String?, context: VWOUserContext): GetFlag {
         val apiName = "getFlag"
         val getFlag = GetFlag(context)
         try {
@@ -121,7 +121,6 @@ class VWOClient(settings: String?, options: VWOInitOptions?) {
             }
             val procSettings = this.processedSettings
             if (procSettings == null || !SettingsSchema().isSettingsValid(procSettings)) {
-                LoggerService.log(LogLevelEnum.ERROR, "SETTINGS_SCHEMA_INVALID", null)
                 getFlag.setIsEnabled(false)
                 return getFlag
             }
@@ -151,7 +150,7 @@ class VWOClient(settings: String?, options: VWOInitOptions?) {
      */
     private fun track(
         eventName: String,
-        context: VWOContext?,
+        context: VWOUserContext?,
         eventProperties: Map<String, Any>
     ): Map<String, Boolean> {
         val apiName = "trackEvent"
@@ -183,7 +182,6 @@ class VWOClient(settings: String?, options: VWOInitOptions?) {
 
             val pSettings = this.processedSettings
             if (pSettings == null || !SettingsSchema().isSettingsValid(this.processedSettings)) {
-                LoggerService.log(LogLevelEnum.ERROR, "SETTINGS_SCHEMA_INVALID", null)
                 resultMap[eventName] = false
                 return resultMap
             }
@@ -226,7 +224,7 @@ class VWOClient(settings: String?, options: VWOInitOptions?) {
      */
     fun trackEvent(
         eventName: String,
-        context: VWOContext?,
+        context: VWOUserContext?,
         eventProperties: Map<String, Any>
     ): Map<String, Boolean> {
         return track(eventName, context, eventProperties)
@@ -239,7 +237,7 @@ class VWOClient(settings: String?, options: VWOInitOptions?) {
      * @param context User context
      * @return Map containing the event name and its status
      */
-    fun trackEvent(eventName: String, context: VWOContext?): Map<String, Boolean> {
+    fun trackEvent(eventName: String, context: VWOUserContext?): Map<String, Boolean> {
         return track(eventName, context, HashMap())
     }
 
@@ -250,7 +248,7 @@ class VWOClient(settings: String?, options: VWOInitOptions?) {
      * @param attributes - Map of attribute key and value to be set
      * @param context User context
      */
-    fun setAttribute(immutableAttributes: Map<String, Any>, context: VWOContext) {
+    fun setAttribute(immutableAttributes: Map<String, Any>, context: VWOUserContext) {
         val apiName = "setAttribute"
         try {
             LoggerService.log(LogLevelEnum.DEBUG, "API_CALLED", mapOf("apiName" to apiName))
@@ -272,7 +270,6 @@ class VWOClient(settings: String?, options: VWOInitOptions?) {
             require(!(context.id == null || context.id?.isEmpty() == true)) { "User ID is required" }
 
             if (this.processedSettings == null || !SettingsSchema().isSettingsValid(this.processedSettings)) {
-                LoggerService.log(LogLevelEnum.ERROR, "SETTINGS_SCHEMA_INVALID", null)
                 return
             }
 

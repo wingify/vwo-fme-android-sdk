@@ -17,7 +17,7 @@ package com.vwo.decorators
 
 import com.vwo.interfaces.storage.IStorageDecorator
 import com.vwo.models.Variation
-import com.vwo.models.user.VWOContext
+import com.vwo.models.user.VWOUserContext
 import com.vwo.packages.logger.enums.LogLevelEnum
 import com.vwo.services.LoggerService.Companion.log
 import com.vwo.services.StorageService
@@ -41,7 +41,7 @@ class StorageDecorator : IStorageDecorator {
      */
     override fun getFeatureFromStorage(
         featureKey: String,
-        context: VWOContext,
+        context: VWOUserContext,
         storageService: StorageService
     ): Map<String, Any>? {
         return storageService.getDataInStorage(featureKey, context)

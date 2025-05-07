@@ -17,7 +17,7 @@ package com.vwo.utils
 
 import com.vwo.enums.EventEnum
 import com.vwo.models.Settings
-import com.vwo.models.user.VWOContext
+import com.vwo.models.user.VWOUserContext
 import com.vwo.providers.StorageProvider
 import java.io.UnsupportedEncodingException
 import java.net.URLEncoder
@@ -43,7 +43,7 @@ object ImpressionUtil {
         settings: Settings,
         campaignId: Int,
         variationId: Int,
-        context: VWOContext
+        context: VWOUserContext
     ) {
         // Get base properties for the event
         val properties: MutableMap<String, String> = NetworkUtil.getEventsBaseProperties(

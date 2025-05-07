@@ -23,7 +23,7 @@ import com.vwo.VWOBuilder
 import com.vwo.interfaces.IVwoInitCallback
 import com.vwo.interfaces.IVwoListener
 import com.vwo.models.user.GetFlag
-import com.vwo.models.user.VWOContext
+import com.vwo.models.user.VWOUserContext
 import com.vwo.models.user.VWOInitOptions
 import com.vwo.testcases.TestData
 import com.vwo.testcases.TestDataReader
@@ -180,7 +180,7 @@ class GetFlagTests {
             val userIds = testData.userIds
 
             for (userId in userIds!!) {
-                val vwoContext = VWOContext()
+                val vwoContext = VWOUserContext()
                 vwoContext.id = userId
 
                 val featureFlag = getFlagCountDownLatchPair(testData.featureKey!!, vwoContext )
@@ -204,12 +204,12 @@ class GetFlagTests {
 
     private fun getFlagCountDownLatchPair(
         flagName: String,
-        vwoContext: VWOContext
+        context: VWOUserContext
     ): GetFlag? {
 
         val latch = CountDownLatch(1)
         var featureFlag: GetFlag? = null
-        vwo.getFlag(flagName, vwoContext, object : IVwoListener {
+        vwo.getFlag(flagName, context, object : IVwoListener {
             override fun onSuccess(data: Any) {
                 featureFlag = data as? GetFlag
                 latch.countDown()

@@ -19,7 +19,7 @@ import android.os.Build
 import com.vwo.constants.Constants.PLATFORM
 import com.vwo.interfaces.IVwoInitCallback
 import com.vwo.interfaces.IVwoListener
-import com.vwo.models.user.VWOContext
+import com.vwo.models.user.VWOUserContext
 import com.vwo.models.user.VWOInitOptions
 import com.vwo.utils.SDKMetaUtil
 import com.vwo.packages.network_layer.manager.BatchManager
@@ -63,6 +63,7 @@ object VWO {
         SDKMetaUtil.sdkName = options.sdkName
         SDKMetaUtil.sdkVersion = options.sdkVersion
         StorageProvider.userAgent = "VWO FME $PLATFORM ${BuildConfig.SDK_VERSION} ($PLATFORM/${Build.VERSION.RELEASE})"
+        com.vwo.utils.UsageStats.collectStats(options)
         val settings = vwoBuilder.getSettings(false)
         val vwoInstance = this
         vwoClient = VWOClient(settings, options)
@@ -113,14 +114,14 @@ object VWO {
     /**
      * This method is used to get the flag value for the given feature key
      * @param featureKey Feature key for which the flag value is to be fetched
-     * @param ctx User context
+     * @param context User context
      * @param listener IVwoListener Callback when getFlag operation completes
      * @return GetFlag object containing the flag values
      */
-    fun getFlag(featureKey: String, ctx: VWOContext, listener: IVwoListener) {
+    fun getFlag(featureKey: String, context: VWOUserContext, listener: IVwoListener) {
         thread(start = true) {
             try {
-                val flag = vwoClient?.getFlag(featureKey, ctx)
+                val flag = vwoClient?.getFlag(featureKey, context)
                 if (flag != null)
                     listener.onSuccess(flag)
                 else
@@ -141,7 +142,7 @@ object VWO {
      */
     fun trackEvent(
         eventName: String,
-        context: VWOContext,
+        context: VWOUserContext,
         eventProperties: Map<String, Any>
     ): Map<String, Boolean>? {
         return vwoClient?.trackEvent(eventName, context, eventProperties)
@@ -154,7 +155,7 @@ object VWO {
      * @param context User context
      * @return Map containing the event name and its status
      */
-    fun trackEvent(eventName: String, context: VWOContext): Map<String, Boolean>? {
+    fun trackEvent(eventName: String, context: VWOUserContext): Map<String, Boolean>? {
         return vwoClient?.trackEvent(eventName, context)
     }
 
@@ -164,7 +165,7 @@ object VWO {
      * @param attributes - Map of attribute key and value to be set
      * @param context User context
      */
-    fun setAttribute(attributes: Map<String, Any>, context: VWOContext) {
+    fun setAttribute(attributes: Map<String, Any>, context: VWOUserContext) {
         vwoClient?.setAttribute(attributes, context)
     }
 }

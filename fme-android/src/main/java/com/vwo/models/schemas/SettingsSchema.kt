@@ -42,10 +42,7 @@ class SettingsSchema {
             return false
         }
 
-        val campaigns = settings.campaigns
-        if (campaigns.isNullOrEmpty()) {
-            return false
-        }
+        val campaigns = settings.campaigns ?: return false
 
         for (campaign in campaigns) {
             if (!isValidCampaign(campaign)) {

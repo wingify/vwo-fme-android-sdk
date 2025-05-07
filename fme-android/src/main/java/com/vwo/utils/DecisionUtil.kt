@@ -24,7 +24,7 @@ import com.vwo.models.Campaign
 import com.vwo.models.Feature
 import com.vwo.models.Settings
 import com.vwo.models.Variation
-import com.vwo.models.user.VWOContext
+import com.vwo.models.user.VWOUserContext
 import com.vwo.packages.decision_maker.DecisionMaker
 import com.vwo.packages.logger.enums.LogLevelEnum
 import com.vwo.packages.segmentation_evaluator.core.SegmentationManager
@@ -59,7 +59,7 @@ object DecisionUtil {
         settings: Settings,
         feature: Feature?,
         campaign: Campaign,
-        context: VWOContext,
+        context: VWOUserContext,
         evaluatedFeatureMap: MutableMap<String, Any>,
         megGroupWinnerCampaigns: MutableMap<Int, String>?,
         storageService: StorageService?,
@@ -378,7 +378,7 @@ object DecisionUtil {
      */
     private fun checkCampaignWhitelisting(
         campaign: Campaign,
-        context: VWOContext
+        context: VWOUserContext
     ): Map<String, Any?>? {
         val whitelistingResult = evaluateWhitelisting(campaign, context)
         val status = if (whitelistingResult != null) StatusEnum.PASSED else StatusEnum.FAILED
@@ -407,7 +407,7 @@ object DecisionUtil {
      * @param context  Context object containing user information
      * @return  Whitelisted variation or null if not whitelisted
      */
-    private fun evaluateWhitelisting(campaign: Campaign, context: VWOContext): Map<String, Any?>? {
+    private fun evaluateWhitelisting(campaign: Campaign, context: VWOUserContext): Map<String, Any?>? {
         val targetedVariations: MutableList<Variation> = ArrayList()
 
         for (variation in campaign.variations!!) {

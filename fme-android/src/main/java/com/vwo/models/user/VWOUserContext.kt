@@ -20,7 +20,7 @@ package com.vwo.models.user
  *
  * This class encapsulates information about a user in the context of VWO, including their ID, user agent, IP address, custom variables, and variation targeting variables.
  */
-class VWOContext {
+class VWOUserContext {
     var id: String? = null
     var customVariables: MutableMap<String, Any> = HashMap()
 

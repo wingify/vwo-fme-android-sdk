@@ -13,12 +13,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.vwo.packages.logger.enums
+package com.vwo.fme
 
-enum class LogLevelEnum(val position: Int) {
-    TRACE(0),
-    DEBUG(1),
-    INFO(2),
-    WARN(3),
-    ERROR(4)
-}
+data class TestApp(
+    val accountId: Int,
+    val sdkKey: String,
+    val flagName: String,
+    val variableName: String,
+    val eventName: String,
+    val attributeName: String
+) 

@@ -43,8 +43,13 @@ class LogManager(override val config: Map<String, Any>) : Logger(), ILogManager 
     override val requestId: String = UUID.randomUUID().toString()
 
     override val level: LogLevelEnum by lazy {
-        val level = (config["level"] as? String?)?.uppercase(Locale.getDefault())
-        level?.let { LogLevelEnum.valueOf(it) } ?: LogLevelEnum.ERROR
+        val defaultLogLevel = LogLevelEnum.ERROR
+        try {
+            val level = (config["level"] as? String?)?.uppercase(Locale.getDefault())
+            level?.let { LogLevelEnum.valueOf(it) } ?: defaultLogLevel
+        } catch (e: Exception) {
+            defaultLogLevel
+        }
     }
 
     private val transports: List<Map<String, Any>> = ArrayList()

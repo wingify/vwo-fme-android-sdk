@@ -25,7 +25,7 @@ import com.vwo.models.Feature
 import com.vwo.models.Settings
 import com.vwo.models.Storage
 import com.vwo.models.Variation
-import com.vwo.models.user.VWOContext
+import com.vwo.models.user.VWOUserContext
 import com.vwo.packages.decision_maker.DecisionMaker
 import com.vwo.packages.logger.enums.LogLevelEnum
 import com.vwo.services.CampaignDecisionService
@@ -57,7 +57,7 @@ object MegUtil {
         feature: Feature?,
         groupId: Int,
         evaluatedFeatureMap: MutableMap<String, Any>,
-        context: VWOContext,
+        context: VWOUserContext,
         storageService: StorageService
     ): Variation? {
         val featureToSkip: MutableList<String?> = ArrayList()
@@ -153,7 +153,7 @@ object MegUtil {
      */
     private fun isRolloutRuleForFeaturePassed(
         settings: Settings, feature: Feature, evaluatedFeatureMap: MutableMap<String, Any>,
-        featureToSkip: MutableList<String?>, context: VWOContext,
+        featureToSkip: MutableList<String?>, context: VWOUserContext,
         storageService: StorageService
     ): Boolean {
         val featureKey = feature.key ?: return false
@@ -227,7 +227,7 @@ object MegUtil {
      */
     private fun getEligibleCampaigns(
         settings: Settings, campaignMap: Map<String, MutableList<Campaign>>,
-        context: VWOContext, storageService: StorageService
+        context: VWOUserContext, storageService: StorageService
     ): Map<String, Any> {
         val eligibleCampaigns: MutableList<Campaign> = ArrayList<Campaign>()
         val eligibleCampaignsWithStorage: MutableList<Campaign> = ArrayList<Campaign>()
@@ -318,7 +318,7 @@ object MegUtil {
         settings: Settings, featureKey: String?,
         eligibleCampaigns: List<Campaign>?,
         eligibleCampaignsWithStorage: List<Campaign>?,
-        groupId: Int, context: VWOContext, storageService: StorageService
+        groupId: Int, context: VWOUserContext, storageService: StorageService
     ): Variation? {
         val campaignIds = CampaignUtil.getCampaignIdsFromFeatureKey(settings, featureKey)
         var winnerCampaign: Variation? = null
@@ -434,7 +434,7 @@ object MegUtil {
      */
     private fun normalizeWeightsAndFindWinningCampaign(
         shortlistedCampaigns: List<Campaign>?,
-        context: VWOContext, calledCampaignIds: List<Int?>?, groupId: Int, storageService:StorageService
+        context: VWOUserContext, calledCampaignIds: List<Int?>?, groupId: Int, storageService:StorageService
     ): Variation? {
         try {
             shortlistedCampaigns?.forEach{ campaign: Campaign ->
@@ -509,7 +509,7 @@ object MegUtil {
     private fun getCampaignUsingAdvancedAlgo(
         settings: Settings,
         shortlistedCampaigns: List<Campaign>,
-        context: VWOContext,
+        context: VWOUserContext,
         calledCampaignIds: List<Int?>,
         groupId: Int,
         storageService: StorageService

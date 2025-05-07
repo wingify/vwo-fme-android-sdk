@@ -15,11 +15,9 @@
  */
 package com.vwo.models.user
 
-import com.vwo.constants.Constants
 import com.vwo.constants.Constants.defaultString
 import com.vwo.enums.VariableTypeEnum
 import com.vwo.models.Variable
-import org.json.JSONObject
 
 /**
  * Represents a feature flag and its associated variables.
@@ -27,7 +25,7 @@ import org.json.JSONObject
  * This class encapsulates information about a feature flag, including its enabled status and a
  * list of variables with their values.
  */
-class GetFlag(val context: VWOContext) {
+class GetFlag(val context: VWOUserContext) {
     private var isEnabled: Boolean = false
 
     private var variables: List<Variable> = ArrayList<Variable>()

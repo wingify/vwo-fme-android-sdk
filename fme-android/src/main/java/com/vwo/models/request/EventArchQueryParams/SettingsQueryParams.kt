@@ -15,10 +15,19 @@
  */
 package com.vwo.models.request.EventArchQueryParams
 
+import android.util.Log
+import com.google.gson.Gson
+import com.vwo.services.SettingsManager
+import com.vwo.utils.UsageStats
+
 class SettingsQueryParams(private val i: String, private val r: String, private val a: String) {
-    val queryParams = mutableMapOf<String, String>().apply {
+    private val queryParams = mutableMapOf<String, String>().apply {
         this["i"] = i
         this["r"] = r
         this["a"] = a
+    }
+
+    fun getQueryParams(): MutableMap<String, String> {
+        return queryParams
     }
 }

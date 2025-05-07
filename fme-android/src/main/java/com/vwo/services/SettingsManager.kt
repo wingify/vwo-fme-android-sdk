@@ -15,6 +15,7 @@
  */
 package com.vwo.services
 
+import com.fasterxml.jackson.databind.node.ObjectNode
 import com.vwo.VWOClient
 import com.vwo.constants.Constants
 import com.vwo.providers.StorageProvider
@@ -34,7 +35,7 @@ import java.net.URL
  * operate correctly. It initializes and stores settings based on the provided initialization
  * options.
  */
-class SettingsManager(options: VWOInitOptions) {
+class SettingsManager(internal val options: VWOInitOptions) {
     val sdkKey = options.sdkKey
     val accountId = options.accountId
 
@@ -183,7 +184,11 @@ class SettingsManager(options: VWOInitOptions) {
                     })
                 return null
             }
-            return response.data
+
+            // Handle object instead of jsonarray
+            var responseData = response.data
+            responseData = setFeaturesIfEmpty(responseData)
+            return responseData
         } catch (e: Exception) {
             LoggerService.log(LogLevelEnum.ERROR, "SETTINGS_FETCH_ERROR",
                 object : HashMap<String?, String?>() {
@@ -193,6 +198,30 @@ class SettingsManager(options: VWOInitOptions) {
                 })
             return null
         }
+    }
+
+    private fun setFeaturesIfEmpty(responseData: String?): String? {
+        if (responseData == null) return null
+
+        val settingsJson = VWOClient.objectMapper.readTree(responseData)
+
+        // If features is an empty object, convert it to an empty array
+        if (settingsJson.has("features") &&
+            settingsJson.get("features").isObject &&
+            settingsJson.get("features").size() == 0
+        ) {
+            (settingsJson as ObjectNode).replace("features", VWOClient.objectMapper.createArrayNode())
+        }
+
+        // If campaigns is an empty object, convert it to an empty array
+        if (settingsJson.has("campaigns") &&
+            settingsJson.get("campaigns").isObject &&
+            settingsJson.get("campaigns").size() == 0
+        ) {
+            (settingsJson as ObjectNode).replace("campaigns", VWOClient.objectMapper.createArrayNode())
+        }
+
+        return VWOClient.objectMapper.writeValueAsString(settingsJson)
     }
 
     /**
@@ -221,6 +250,7 @@ class SettingsManager(options: VWOInitOptions) {
                     return null
                 }
             } catch (e: Exception) {
+                LoggerService.log(LogLevelEnum.ERROR, "SETTINGS_SCHEMA_INVALID", null)
                 return null
             }
         }

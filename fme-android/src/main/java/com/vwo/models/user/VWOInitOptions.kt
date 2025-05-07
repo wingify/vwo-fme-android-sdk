@@ -74,4 +74,10 @@ class VWOInitOptions {
 
     /** Optional: Batch upload time interval in milliseconds. Please specify at least few minutes*/
     var batchUploadTimeInterval: Long = -1L
+
+    /**Optional: Usage stats should always be collected, don’t collect if `isUsageStatsDisabled` flag is true*/
+    var isUsageStatsDisabled = false
+
+    /**Internal meta data for VWO use.*/
+    var _vwo_meta: Map<String, Any> = emptyMap()
 }

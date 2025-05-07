@@ -19,14 +19,13 @@ import com.vwo.VWOClient
 import com.vwo.decorators.StorageDecorator
 import com.vwo.enums.ApiEnum
 import com.vwo.enums.CampaignTypeEnum
-import com.vwo.interfaces.IVwoListener
 import com.vwo.models.Campaign
 import com.vwo.models.Feature
 import com.vwo.models.Settings
 import com.vwo.models.Storage
 import com.vwo.models.Variation
 import com.vwo.models.user.GetFlag
-import com.vwo.models.user.VWOContext
+import com.vwo.models.user.VWOUserContext
 import com.vwo.packages.logger.enums.LogLevelEnum
 import com.vwo.packages.segmentation_evaluator.core.SegmentationManager
 import com.vwo.services.HooksManager
@@ -52,7 +51,7 @@ object GetFlagAPI {
     fun getFlag(
         featureKey: String,
         settings: Settings,
-        context: VWOContext,
+        context: VWOUserContext,
         hookManager: HooksManager,
     ): GetFlag {
         val getFlag = GetFlag(context)

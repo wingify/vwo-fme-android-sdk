@@ -21,7 +21,7 @@ import com.vwo.decorators.StorageDecorator
 import com.vwo.models.Feature
 import com.vwo.models.Settings
 import com.vwo.models.Storage
-import com.vwo.models.user.VWOContext
+import com.vwo.models.user.VWOUserContext
 import com.vwo.packages.logger.enums.LogLevelEnum
 import com.vwo.packages.segmentation_evaluator.enums.SegmentOperatorValueEnum
 import com.vwo.packages.segmentation_evaluator.utils.SegmentUtil
@@ -36,7 +36,7 @@ import com.vwo.services.StorageService
  * defined segment criteria and user attributes.
  */
 class SegmentEvaluator {
-    var context: VWOContext? = null
+    var context: VWOUserContext? = null
     var settings: Settings? = null
     var feature: Feature? = null
 
@@ -280,7 +280,7 @@ class SegmentEvaluator {
      */
     fun checkInUserStorage(
         featureKey: String,
-        context: VWOContext
+        context: VWOUserContext
     ): Boolean {
         val storageService = StorageService()
         val storedDataMap: Map<String, Any>? = StorageDecorator().getFeatureFromStorage(featureKey, context, storageService)

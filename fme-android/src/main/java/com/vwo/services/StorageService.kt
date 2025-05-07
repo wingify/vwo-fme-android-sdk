@@ -15,7 +15,7 @@
  */
 package com.vwo.services
 
-import com.vwo.models.user.VWOContext
+import com.vwo.models.user.VWOUserContext
 import com.vwo.packages.logger.enums.LogLevelEnum
 import com.vwo.packages.storage.Connector
 import com.vwo.packages.storage.Storage
@@ -34,7 +34,7 @@ class StorageService {
      * @param context The context model containing at least an ID.
      * @return The data retrieved or an error/storage status enum.
      */
-    fun getDataInStorage(featureKey: String?, context: VWOContext): Map<String, Any>? {
+    fun getDataInStorage(featureKey: String?, context: VWOUserContext): Map<String, Any>? {
         val storageInstance = Storage.instance?.getConnector() ?: return null
         try {
             return (storageInstance as Connector).get(featureKey, context.id) as? Map<String, Any>

@@ -18,7 +18,7 @@
 package com.vwo.utils
 
 import com.vwo.enums.UrlEnum
-import com.vwo.models.user.VWOContext
+import com.vwo.models.user.VWOUserContext
 import com.vwo.packages.network_layer.manager.NetworkManager
 import com.vwo.packages.network_layer.models.RequestModel
 import com.vwo.providers.StorageProvider
@@ -47,7 +47,7 @@ class EventsUtils {
      * @param context The VWO context containing user information.
      * @return `true` if the event should be tracked before segmentation, `false` otherwise.
      */
-    fun getEventsPreSegmentation(dsl: Any, context: VWOContext): Boolean {
+    fun getEventsPreSegmentation(dsl: Any, context: VWOUserContext): Boolean {
         var result = false
         val queryParams: MutableMap<String, String> = HashMap()
         val accountId = instance?.accountId.toString()

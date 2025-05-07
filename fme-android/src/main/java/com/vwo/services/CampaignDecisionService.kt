@@ -19,7 +19,7 @@ import com.vwo.constants.Constants
 import com.vwo.enums.CampaignTypeEnum
 import com.vwo.models.Campaign
 import com.vwo.models.Variation
-import com.vwo.models.user.VWOContext
+import com.vwo.models.user.VWOUserContext
 import com.vwo.packages.decision_maker.DecisionMaker
 import com.vwo.packages.logger.enums.LogLevelEnum
 import com.vwo.packages.segmentation_evaluator.core.SegmentationManager
@@ -154,7 +154,7 @@ class CampaignDecisionService {
      * @param context  VWOContext object containing the user context.
      * @return  boolean value indicating if the user passes the pre-segmentation.
      */
-    fun getPreSegmentationDecision(campaign: Campaign, context: VWOContext): Boolean {
+    fun getPreSegmentationDecision(campaign: Campaign, context: VWOUserContext): Boolean {
         val campaignType = campaign.type
 
         val segmentsEvents =
@@ -214,7 +214,7 @@ class CampaignDecisionService {
 
     private fun getPreSegmentationResult(
         campaign: Campaign,
-        context: VWOContext,
+        context: VWOUserContext,
         segments: Map<String, Any>
     ): Boolean {
         val preSegmentationResult = if (campaign.isEventsDsl) {
