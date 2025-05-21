@@ -1,0 +1,41 @@
+name: Android Unit Tests
+
+on:
+  push:
+    branches:
+      - feat/actions # Trigger on pushes to this branch
+      - master     # Trigger on pushes to this branch
+
+jobs:
+  test:
+    # Skip running the job if the commit message contains [skip-ci]
+    if: "!contains(github.event.head_commit.message, '[skip-ci]')"
+    name: Run Unit Tests on Java ${{ matrix.java-version }}
+    runs-on: ubuntu-latest # Use a Linux-based runner
+    strategy:
+      matrix:
+        java-version: ['11', '17']
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up JDK ${{ matrix.java-version }}
+        uses: actions/setup-java@v4
+        with:
+          java-version: ${{ matrix.java-version }}
+          distribution: 'temurin' # Temurin provides OpenJDK 21 builds
+
+      - name: Grant execute permission for gradlew
+        run: chmod +x ./gradlew
+
+      - name: Run unit tests for fme-android module
+        working-directory: ./fme-android
+        run: ../gradlew testDebugUnitTest
+
+      - name: Upload Test Results for Java ${{ matrix.java-version }}
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: unit-test-results-java-${{ matrix.java-version }}
+          path: fme-android/build/reports/tests/testDebugUnitTest/
