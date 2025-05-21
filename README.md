@@ -1,6 +1,7 @@
 # VWO FME Android SDK
 
-[![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](http://www.apache.org/licenses/LICENSE-2.0)
+[![License](https://img.shields.io/github/license/wingify/vwo-fme-android-sdk?style=for-the-badge&color=blue)](http://www.apache.org/licenses/LICENSE-2.0)
+[![CI](https://img.shields.io/github/actions/workflow/status/wingify/vwo-fme-android-sdk/android-unit-tests.yml?style=for-the-badge&logo=github)](https://github.com/wingify/vwo-fme-node-sdk/actions?query=workflow%3ACI)
 
 ## Overview
 
@@ -416,18 +417,18 @@ import org.json.JSONObject
 
 class MixpanelIntegration private constructor(context: Context, projectToken: String) {
     private val mixpanel: MixpanelAPI = MixpanelAPI.getInstance(context, projectToken, true)
-    
+
     companion object {
         @Volatile
         private var instance: MixpanelIntegration? = null
-        
+
         fun getInstance(context: Context, projectToken: String): MixpanelIntegration {
             return instance ?: synchronized(this) {
                 instance ?: MixpanelIntegration(context, projectToken).also { instance = it }
             }
         }
     }
-    
+
     fun trackEvent(eventName: String, properties: Map<String, Any>) {
         val props = JSONObject()
         properties.forEach { (key, value) ->
@@ -435,7 +436,7 @@ class MixpanelIntegration private constructor(context: Context, projectToken: St
         }
         mixpanel.track("vwo_fme_track_event", props)
     }
-    
+
     fun trackFlagEvaluation(properties: Map<String, Any>) {
         mixpanel.trackMap("vwo_fme_flag_evaluation", properties)
     }
@@ -534,9 +535,9 @@ When using the integration callback, you'll receive the following data:
 - **For flag evaluations**:
   ```
   {
-    featureName: "yourFlagName", 
-    featureId: 5, 
-    featureKey: "yourFlagKey", 
+    featureName: "yourFlagName",
+    featureId: 5,
+    featureKey: "yourFlagKey",
     userId: "0duMh1j7krRB",
     ...
   }
@@ -545,7 +546,7 @@ When using the integration callback, you'll receive the following data:
 - **For event tracking**:
   ```
   {
-    eventName: "yourEventName", 
+    eventName: "yourEventName",
     api: "track"
   }
   ```
