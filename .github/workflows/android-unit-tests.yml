@@ -37,12 +37,11 @@ jobs:
         working-directory: ./fme-android
         run: ../gradlew testDebugUnitTest
 
-      - name: Upload Test Results for Java ${{ matrix.java-version }}
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: unit-test-results-java-${{ matrix.java-version }}
-          path: fme-android/build/reports/tests/testDebugUnitTest/
+      - name: Upload coverage to Codecov
+        run: |
+          curl -Os https://uploader.codecov.io/latest/macos/codecov
+          chmod +x codecov
+          ./codecov
 
       - name: Notification
         if: always()
