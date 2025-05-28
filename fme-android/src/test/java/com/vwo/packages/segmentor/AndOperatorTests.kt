@@ -36,6 +36,8 @@ class AndOperatorTests {
         val vwoInitOptions = VWOInitOptions()
         vwoInitOptions.sdkKey = SDK_KEY
         vwoInitOptions.accountId = ACCOUNT_ID
+        vwoInitOptions.isUsageStatsDisabled = true
+
         VWO.init(vwoInitOptions, object : IVwoInitCallback {
             override fun vwoInitSuccess(vwo: VWO, message: String) {
                 this@AndOperatorTests.vwo = vwo

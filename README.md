@@ -403,6 +403,20 @@ vwoInitOptions.logger = mutableMapOf<String, Any>().apply {
 }
 ```
 
+### Running Unit Tests
+
+The SDK includes a comprehensive test suite to ensure reliability and functionality. To run the unit tests:
+
+Using Android Studio:
+   - Right-click on the `test` directory in the project view
+   - Select "Run Tests in 'test'"
+
+The test suite includes:
+- Unit tests for core functionality
+- Integration tests for API interactions
+- Mock tests for external dependencies
+- Coverage reports for code quality assurance
+
 ## 📊 Analytics Integration with Mixpanel
 
 VWO FME SDK provides integration capabilities with analytics platforms like Mixpanel. This allows you to track feature flag evaluations and events in your analytics dashboard.

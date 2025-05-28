@@ -25,11 +25,14 @@ import com.vwo.interfaces.IVwoListener
 import com.vwo.models.user.GetFlag
 import com.vwo.models.user.VWOUserContext
 import com.vwo.models.user.VWOInitOptions
+import com.vwo.packages.storage.Connector
+import com.vwo.testcases.StorageTest
 import com.vwo.testcases.TestData
 import com.vwo.testcases.TestDataReader
 import com.vwo.utils.DummySettingsReader
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
 import org.junit.Before
 import org.junit.Test
 import org.mockito.Mockito.spy
@@ -39,11 +42,9 @@ import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
 
 class GetFlagTests {
-    private val SDK_KEY: String = "abcd"
-    private val ACCOUNT_ID: Int = 1234
-    private lateinit var settingsReader: DummySettingsReader
+    private val sdkKey: String = "abcd"
+    private val accountId: Int = 1234
     private lateinit var vwo: VWO
-    private var vwoInitOptions = VWOInitOptions()
     private val testCases = TestDataReader().testCases
 
     @Before
@@ -57,7 +58,7 @@ class GetFlagTests {
 
     @Test
     fun testGetFlagWithSalt() {
-        testCases?.GETFLAG_WITH_SALT?.let { runSaltTest(it)}
+        testCases?.GETFLAG_WITH_SALT?.let { runSaltTest(it) }
     }
 
     @Test
@@ -70,19 +71,24 @@ class GetFlagTests {
         testCases?.getFlagMegAdvance?.let { runTests(it) }
     }
 
-    /*fun testGetFlagWithStorage() {
-        testCases?.getFlagWithStorage?.let { runTests(it) }
-    }*/
+    @Test
+    fun testGetFlagWithStorage() {
+        testCases?.getFlagWithStorage?.let { runTests(it, StorageTest()) }
+    }
 
-    fun runTests(tests: List<TestData>) {
+    private fun runTests(tests: List<TestData>, storage: Connector? = null) {
 
         var featureFlag: GetFlag? = null
         tests.forEach { testData ->
             val vwoInitOptions = VWOInitOptions()
-            vwoInitOptions.sdkKey = SDK_KEY
-            vwoInitOptions.accountId = ACCOUNT_ID
+            vwoInitOptions.sdkKey = sdkKey
+            vwoInitOptions.accountId = accountId
+            vwoInitOptions.isUsageStatsDisabled = true
+            if (storage != null) {
+                vwoInitOptions.storage = storage
+            }
 
-            settingsReader = DummySettingsReader()
+            val settingsReader = DummySettingsReader()
             val vwoBuilder = VWOBuilder(vwoInitOptions)
             val vwoBuilderSpy: VWOBuilder = spy(vwoBuilder)
             val settingsMap = settingsReader.settingsMap
@@ -109,6 +115,14 @@ class GetFlagTests {
             latch.await(10, TimeUnit.SECONDS)
             if (!::vwo.isInitialized) return
             latch = CountDownLatch(1)
+
+            if (storage != null) {
+                val storageData =
+                    storage.get(testData.featureKey, testData.context?.id) as? Map<String, Any>
+
+                assertNull(storageData)
+            }
+
             vwo.getFlag(testData.featureKey!!, testData.context!!, object : IVwoListener {
                 override fun onSuccess(data: Any) {
                     featureFlag = data as? GetFlag
@@ -145,19 +159,42 @@ class GetFlagTests {
                 testData.expectation?.jsonVariable,
                 featureFlag?.getVariable("json", HashMap<Any, Any>())
             )
+
+            if (storage != null) {
+                val storageData =
+                    storage.get(testData.featureKey, testData.context?.id) as? Map<String, Any>
+
+                assertEquals(
+                    storageData?.get("rolloutKey"),
+                    testData.expectation!!.storageData?.rolloutKey
+                )
+                assertEquals(
+                    storageData?.get("rolloutVariationId"),
+                    testData.expectation!!.storageData?.rolloutVariationId
+                )
+                assertEquals(
+                    storageData?.get("experimentKey"),
+                    testData.expectation!!.storageData?.experimentKey
+                )
+                assertEquals(
+                    storageData?.get("experimentVariationId"),
+                    testData.expectation!!.storageData?.experimentVariationId
+                )
+            }
         }
     }
 
     private fun runSaltTest(tests: List<TestData>) {
         for (testData in tests) {
             val vwoInitOptions = VWOInitOptions()
-            vwoInitOptions.sdkKey = SDK_KEY
-            vwoInitOptions.accountId = ACCOUNT_ID
+            vwoInitOptions.sdkKey = sdkKey
+            vwoInitOptions.accountId = accountId
+            vwoInitOptions.isUsageStatsDisabled = true
 
             val vwoBuilder = VWOBuilder(vwoInitOptions)
             val vwoBuilderSpy = spy(vwoBuilder)
 
-            settingsReader = DummySettingsReader()
+            val settingsReader = DummySettingsReader()
             val settingsMap = settingsReader.settingsMap
             `when`<String?>(vwoBuilderSpy.getSettings(false)).thenReturn(settingsMap[testData.settings])
 
@@ -183,20 +220,21 @@ class GetFlagTests {
                 val vwoContext = VWOUserContext()
                 vwoContext.id = userId
 
-                val featureFlag = getFlagCountDownLatchPair(testData.featureKey!!, vwoContext )
+                val featureFlag = getFlagCountDownLatchPair(testData.featureKey!!, vwoContext)
                 val featureFlag2 = getFlagCountDownLatchPair(testData.featureKey2!!, vwoContext)
                 if (featureFlag == null || featureFlag2 == null) return
 
                 val featureFlagVariables = featureFlag.getVariables()
                 val featureFlag2Variables = featureFlag2.getVariables()
                 if (testData.expectation!!.shouldReturnSameVariation!!) {
-                    assertEquals("The feature flag variables are not equal!",
+                    assertEquals(
+                        "The feature flag variables are not equal!",
                         featureFlagVariables,
                         featureFlag2Variables,
                     )
                 } else {
                     val areEqual = featureFlagVariables == featureFlag2Variables
-                    assertFalse("The feature flag variables are equal!",areEqual)
+                    assertFalse("The feature flag variables are equal!", areEqual)
                 }
             }
         }

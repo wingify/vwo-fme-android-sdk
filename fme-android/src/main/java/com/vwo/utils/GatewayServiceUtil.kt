@@ -70,6 +70,10 @@ object GatewayServiceUtil {
         val encodedParams: MutableMap<String, String> = HashMap()
 
         for ((key, value) in queryParams) {
+            // Check if the value is null or empty before encoding
+            if (value.isNullOrEmpty()) {
+                continue // Skip encoding for null or empty values
+            }
             // Encode the parameter value to ensure it is URL-safe
             val encodedValue = URLEncoder.encode(value)
             // Add the encoded parameter to the result map

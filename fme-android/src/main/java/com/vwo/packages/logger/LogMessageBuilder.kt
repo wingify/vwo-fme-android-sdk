@@ -30,14 +30,9 @@ class LogMessageBuilder(
     private val loggerConfig: Map<String, Any>,
     private val transport: LogTransport?
 ) {
-    private val prefix = loggerConfig.getOrDefault("prefix", "VWO-SDK") as String
+    private val prefix = (loggerConfig["prefix"]?:"VWO-SDK") as String
     private val dateTimeFormat =
-        SimpleDateFormat(
-            loggerConfig.getOrDefault(
-                "dateTimeFormat",
-                "yyyy-MM-dd'T'HH:mm:ss.SSSZ"
-            ) as String
-        )
+        SimpleDateFormat((loggerConfig["dateTimeFormat"]?: "yyyy-MM-dd'T'HH:mm:ss.SSSZ") as String)
 
     /**
      * Formats a log message with level, prefix, timestamp, and message.

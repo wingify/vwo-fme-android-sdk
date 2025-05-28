@@ -71,7 +71,7 @@ object GetFlagAPI {
             feature?.id?.let { put("featureId", it) }
             feature?.key?.let { put("featureKey", it) }
             context.id?.let { put("userId", it) }
-            put("api", ApiEnum.GET_FLAG)
+            put("api", ApiEnum.GET_FLAG.value)
         }
 
         val storageService = StorageService()

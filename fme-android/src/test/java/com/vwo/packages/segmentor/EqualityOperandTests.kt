@@ -36,6 +36,7 @@ class EqualityOperandTests {
         val vwoInitOptions = VWOInitOptions()
         vwoInitOptions.sdkKey = sdkKey
         vwoInitOptions.accountId = accountId
+        vwoInitOptions.isUsageStatsDisabled = true
         init(vwoInitOptions, object : IVwoInitCallback {
             override fun vwoInitSuccess(vwo: VWO, message: String) {
                 this@EqualityOperandTests.vwo = vwo

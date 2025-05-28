@@ -15,6 +15,7 @@
  */
 package com.vwo.models
 
+import androidx.annotation.VisibleForTesting
 import com.fasterxml.jackson.annotation.JsonInclude
 import com.fasterxml.jackson.annotation.JsonProperty
 
@@ -28,7 +29,8 @@ import com.fasterxml.jackson.annotation.JsonProperty
 class Rule {
     @JsonProperty("ruleKey")
     var ruleKey: String? = null
-        private set
+        @VisibleForTesting(otherwise = VisibleForTesting.PRIVATE)
+        internal set
 
     @JsonProperty("variationId")
     var variationId: Int? = null

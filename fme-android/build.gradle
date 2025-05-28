@@ -22,6 +22,7 @@ android {
     sourceSets {
         test {
             resources.srcDirs 'src/test/resources'
+            resources.srcDirs += ["src/test/resources/assets"]
         }
     }
     buildTypes {
@@ -138,6 +139,10 @@ dependencies {
     testImplementation 'com.fasterxml.jackson.core:jackson-core:2.10.3'
     testImplementation 'com.fasterxml.jackson.core:jackson-annotations:2.10.3'
     testImplementation 'com.fasterxml.jackson.core:jackson-databind:2.10.3'
+    testImplementation("org.robolectric:robolectric:4.12.2")
+    testImplementation 'androidx.test:core:1.4.0'
+    testImplementation("io.mockk:mockk:1.12.0")
+    testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.5.2")
     androidTestImplementation 'androidx.test.ext:junit:1.2.1'
     androidTestImplementation 'androidx.test.espresso:espresso-core:3.6.1'
 }

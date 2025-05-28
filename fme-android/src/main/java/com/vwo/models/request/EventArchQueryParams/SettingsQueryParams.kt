@@ -16,12 +16,14 @@
 package com.vwo.models.request.EventArchQueryParams
 
 import android.util.Log
+import androidx.annotation.VisibleForTesting
 import com.google.gson.Gson
 import com.vwo.services.SettingsManager
 import com.vwo.utils.UsageStats
 
 class SettingsQueryParams(private val i: String, private val r: String, private val a: String) {
-    private val queryParams = mutableMapOf<String, String>().apply {
+    @VisibleForTesting(otherwise = VisibleForTesting.PRIVATE)
+    internal val queryParams = mutableMapOf<String, String>().apply {
         this["i"] = i
         this["r"] = r
         this["a"] = a

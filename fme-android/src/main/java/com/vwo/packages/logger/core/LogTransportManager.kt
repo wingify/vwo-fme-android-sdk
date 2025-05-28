@@ -15,6 +15,7 @@
  */
 package com.vwo.packages.logger.core
 
+import androidx.annotation.VisibleForTesting
 import com.vwo.interfaces.logger.LogTransport
 import com.vwo.packages.logger.Logger
 import com.vwo.packages.logger.enums.LogLevelEnum
@@ -27,7 +28,8 @@ import java.util.Locale
  * This class is responsible for managing a list of log transports and logging messages to them based on the configured log level.
  */
 class LogTransportManager(private val config: Map<String, Any>) : Logger(), LogTransport {
-    private val transports: MutableList<LogTransport> = ArrayList()
+    @VisibleForTesting(otherwise = VisibleForTesting.PRIVATE)
+    internal val transports: MutableList<LogTransport> = ArrayList()
 
     /**
      * Adds a log transport to the manager.
@@ -46,7 +48,8 @@ class LogTransportManager(private val config: Map<String, Any>) : Logger(), LogT
      * @param configLevel The log level specified in the configuration.
      * @return True if the message should be logged, false otherwise.
      */
-    private fun shouldLog(transportLevel: String, configLevel: String): Boolean {
+    @VisibleForTesting(otherwise = VisibleForTesting.PRIVATE)
+    internal fun shouldLog(transportLevel: String, configLevel: String): Boolean {
         val targetLevel =
             LogLevelNumberEnum.valueOf(transportLevel.uppercase(Locale.getDefault())).level
         val desiredLevel =

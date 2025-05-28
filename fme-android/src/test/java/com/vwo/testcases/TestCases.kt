@@ -32,4 +32,7 @@ class TestCases {
 
     @JsonProperty("GETFLAG_WITH_SALT")
     var GETFLAG_WITH_SALT: List<TestData>? = null
+
+    @JsonProperty("SETTINGS_WITH_DIFFERENT_SALT")
+    var settingsWithDifferentSalt: List<TestData>? = null
 }

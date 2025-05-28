@@ -12,12 +12,10 @@ import com.vwo.fme.databinding.ActivityMainBinding
 import com.vwo.interfaces.IVwoInitCallback
 import com.vwo.interfaces.IVwoListener
 import com.vwo.interfaces.integration.IntegrationCallback
-import com.vwo.interfaces.logger.LogTransport
 import com.vwo.models.user.GetFlag
 import com.vwo.models.user.Recommendation
 import com.vwo.models.user.VWOUserContext
 import com.vwo.models.user.VWOInitOptions
-import com.vwo.packages.logger.enums.LogLevelEnum
 
 val prod = TestApp(
     accountId = 0,
