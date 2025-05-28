@@ -37,11 +37,11 @@ jobs:
         working-directory: ./fme-android
         run: ../gradlew testDebugUnitTest
 
-      - name: Upload coverage to Codecov
-        run: |
-          curl -Os https://uploader.codecov.io/latest/macos/codecov
-          chmod +x codecov
-          ./codecov
+      # - name: Upload coverage to Codecov
+      #   run: |
+      #     curl -Os https://uploader.codecov.io/latest/macos/codecov
+      #     chmod +x codecov
+      #     ./codecov
 
       - name: Notification
         if: always()
