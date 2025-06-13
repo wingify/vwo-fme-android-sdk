@@ -5,17 +5,25 @@
 
 ## Overview
 
-The **VWO Feature Management and Experimentation SDK** (VWO FME Android SDK) enables Android developers to integrate feature flagging and experimentation into their applications. This SDK provides full control over feature rollout, A/B testing, and event tracking, allowing teams to manage features dynamically and gain insights into user behavior.
+The **VWO Feature Management and Experimentation SDK** (VWO FME Android SDK) enables Android developers to integrate feature flagging and experimentation into their applications across mobile, tablet and Android tv. This SDK provides full control over feature rollout, A/B testing, and event tracking, allowing teams to manage features dynamically and gain insights into user behavior.
 
 ## Requirements
 
 The Android SDK supports: `Android API level 21 onwards`
 
+## Device Support
+
+This SDK supports the following devices:
+
+- Mobile
+- Tablet
+- Android TV
+
 ## SDK Installation
 
 Add below Maven dependency in your project's `build.gradle` file.
 
-```java
+```groovy
 implementation 'com.vwo.sdk:vwo-fme-android-sdk:<latestVersion>'
 ```
 
@@ -85,13 +93,13 @@ vwoClient?.setAttribute(attributes, context)
 
 Java usage
 ```java
-import com.vwo.VWO
-import com.vwo.VWO.init
-import com.vwo.interfaces.IVwoInitCallback
-import com.vwo.interfaces.IVwoListener
-import com.vwo.models.user.GetFlag
-import com.vwo.models.user.VWOUserContext
-import com.vwo.models.user.VWOInitOptions
+import com.vwo.VWO;
+import com.vwo.VWO.init;
+import com.vwo.interfaces.IVwoInitCallback;
+import com.vwo.interfaces.IVwoListener;
+import com.vwo.models.user.GetFlag;
+import com.vwo.models.user.VWOUserContext;
+import com.vwo.models.user.VWOInitOptions;
 
 // Initialize VWO SDK
 VWOInitOptions vwoInitOptions = new VWOInitOptions();
