@@ -1,6 +1,5 @@
 package com.vwo.utils
 
-import com.google.common.hash.Hashing
 import org.junit.Test
 import org.junit.Assert.*
 import java.nio.charset.StandardCharsets
@@ -51,110 +50,6 @@ class UUIDUtilsTest {
         // Same inputs should generate same UUID
         assertEquals("Same inputs should generate same UUID", uuid1, uuid2)
         assertNotNull("UUID should not be null", uuid1)
-    }
-
-    /**
-     * CRITICAL COMPARISON TEST: Guava vs Java MessageDigest
-     * This test ensures our replacement produces identical results to the original Guava implementation
-     * Run this test whenever you need to verify compatibility
-     */
-    @Test
-    fun testGuavaVsJavaHashingComparison() {
-        val testCases = listOf(
-            "hello world",
-            "VWO SDK",
-            "",
-            "123456789",
-            "special chars: !@#$%^&*()",
-            "unicode: 你好世界",
-            "long string: " + "x".repeat(1000),
-            "mixed: Abc123!@#测试"
-        )
-
-        for (testString in testCases) {
-            val inputBytes = testString.toByteArray(StandardCharsets.UTF_8)
-            
-            // Guava's implementation (ORIGINAL)
-            @Suppress("DEPRECATION") // We know it's deprecated, that's why we replaced it
-            val guavaHash = Hashing.sha1().hashBytes(inputBytes).asBytes()
-            
-            // Java's implementation (CURRENT)
-            val javaHash = MessageDigest.getInstance("SHA-1").digest(inputBytes)
-            
-            // They should produce identical results
-            assertArrayEquals(
-                "Guava and Java MessageDigest should produce identical SHA-1 hashes for: '$testString'",
-                guavaHash,
-                javaHash
-            )
-        }
-    }
-
-    /**
-     * END-TO-END COMPARISON TEST: Complete UUID generation pipeline
-     * This tests the complete generateUUID function with both implementations
-     * Run this to verify complete pipeline compatibility
-     */
-    @Test
-    fun testCompleteUUIDGenerationComparison() {
-        val testCases = listOf(
-            Pair("test-user-123", "account-456"),
-            Pair("", ""),
-            Pair("user with spaces", "account with spaces"),
-            Pair("特殊用户", "特殊账户"),
-            Pair("very-long-user-id-" + "x".repeat(100), "very-long-account-id-" + "y".repeat(100)),
-            Pair("null-test", null),
-            Pair(null, "null-test")
-        )
-
-        for ((name, _) in testCases) {
-            val namespace = UUID.fromString("6ba7b810-9dad-11d1-80b4-00c04fd430c8")
-            
-            // Generate UUID using current (Java MessageDigest) implementation
-            val currentUuid = UUIDUtils.generateUUID(name, namespace)
-            
-            // Generate UUID using Guava implementation (for comparison)
-            val guavaUuid = generateUUIDWithGuava(name, namespace)
-            
-            // They should produce identical UUIDs
-            assertEquals(
-                "UUID generation should be identical between Guava and Java implementations for name='$name'",
-                guavaUuid,
-                currentUuid
-            )
-        }
-    }
-
-    /**
-     * USER UUID COMPARISON TEST: Compare complete getUUID method
-     * This tests the full user UUID generation pipeline
-     */
-    @Test
-    fun testUserUUIDPipelineComparison() {
-        val testUsers = listOf(
-            Pair("user123", "account456"),
-            Pair("test@email.com", "12345"),
-            Pair("用户测试", "账户测试"),
-            Pair("", ""),
-            Pair(null, null),
-            Pair("user", null),
-            Pair(null, "account")
-        )
-
-        for ((userId, accountId) in testUsers) {
-            // Current implementation 
-            val currentUuid = UUIDUtils.getUUID(userId, accountId)
-            
-            // Guava-based implementation (for comparison)
-            val guavaBasedUuid = getUserUUIDWithGuava(userId, accountId)
-            
-            // Should be identical
-            assertEquals(
-                "User UUID should be identical between implementations for userId='$userId', accountId='$accountId'",
-                guavaBasedUuid,
-                currentUuid
-            )
-        }
     }
 
     /**
@@ -248,64 +143,6 @@ class UUIDUtilsTest {
         val variantChar = uuidString.split("-")[3][0]
         assertTrue("UUID variant should be RFC 4122 compliant", 
             variantChar in listOf('8', '9', 'a', 'b'))
-    }
-
-    // ========================================
-    // HELPER FUNCTIONS FOR GUAVA COMPARISON
-    // ========================================
-
-    /**
-     * Helper function to generate UUID using Guava's hashing (for comparison)
-     * This is exactly how the OLD implementation worked
-     */
-    @Suppress("DEPRECATION")
-    private fun generateUUIDWithGuava(name: String?, namespace: UUID?): UUID? {
-        if (name == null || namespace == null) {
-            return null
-        }
-
-        val namespaceBytes = toBytes(namespace)
-        val nameBytes = name.toByteArray(StandardCharsets.UTF_8)
-        val combined = ByteArray(namespaceBytes.size + nameBytes.size)
-        System.arraycopy(namespaceBytes, 0, combined, 0, namespaceBytes.size)
-        System.arraycopy(nameBytes, 0, combined, namespaceBytes.size, nameBytes.size)
-
-        // OLD: Using Guava's Hashing
-        val hash = Hashing.sha1().hashBytes(combined).asBytes()
-
-        // Set version to 5 (name-based using SHA-1)
-        hash[6] = (hash[6].toInt() and 0x0f).toByte() // Clear version
-        hash[6] = (hash[6].toInt() or 0x50).toByte() // Set to version 5
-        hash[8] = (hash[8].toInt() and 0x3f).toByte() // Clear variant
-        hash[8] = (hash[8].toInt() or 0x80).toByte() // Set to IETF variant
-
-        return fromBytes(hash)
-    }
-
-    /**
-     * Helper function to generate User UUID using Guava-based pipeline (for comparison)
-     */
-    private fun getUserUUIDWithGuava(userId: String?, accountId: String?): String {
-        // Constants from UUIDUtils
-        val SEED_URL = "https://vwo.com"
-        val URL_NAMESPACE = UUID.fromString("6ba7b811-9dad-11d1-80b4-00c04fd430c8")
-        
-        // Generate VWO namespace using Guava
-        val VWO_NAMESPACE = generateUUIDWithGuava(SEED_URL, URL_NAMESPACE)
-        
-        // Ensure userId and accountId are strings
-        val userIdStr = userId ?: ""
-        val accountIdStr = accountId ?: ""
-        
-        // Generate namespace UUID based on the accountId using Guava
-        val userIdNamespace = generateUUIDWithGuava(accountIdStr, VWO_NAMESPACE)
-        
-        // Generate UUID based on the userId and the previously generated namespace using Guava
-        val uuidForUserIdAccountId = generateUUIDWithGuava(userIdStr, userIdNamespace)
-
-        // Remove all dashes from the UUID and convert it to uppercase
-        val desiredUuid = uuidForUserIdAccountId.toString().replace("-".toRegex(), "").uppercase()
-        return desiredUuid
     }
 
     // Helper functions (copied from UUIDUtils for testing)
