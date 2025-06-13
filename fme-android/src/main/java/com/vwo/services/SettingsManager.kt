@@ -15,7 +15,8 @@
  */
 package com.vwo.services
 
-import com.fasterxml.jackson.databind.node.ObjectNode
+import com.vwo.utils.ObjectNode
+import com.vwo.utils.*
 import com.vwo.VWOClient
 import com.vwo.constants.Constants
 import com.vwo.providers.StorageProvider
@@ -206,19 +207,21 @@ class SettingsManager(internal val options: VWOInitOptions) {
         val settingsJson = VWOClient.objectMapper.readTree(responseData)
 
         // If features is an empty object, convert it to an empty array
-        if (settingsJson.has("features") &&
-            settingsJson.get("features").isObject &&
-            settingsJson.get("features").size() == 0
+        if (settingsJson.isJsonObject &&
+            settingsJson.asJsonObject.has("features") &&
+            settingsJson.asJsonObject.get("features").isJsonObject &&
+            settingsJson.asJsonObject.get("features").asJsonObject.size() == 0
         ) {
-            (settingsJson as ObjectNode).replace("features", VWOClient.objectMapper.createArrayNode())
+            settingsJson.asJsonObject.add("features", VWOClient.objectMapper.createArrayNode())
         }
 
         // If campaigns is an empty object, convert it to an empty array
-        if (settingsJson.has("campaigns") &&
-            settingsJson.get("campaigns").isObject &&
-            settingsJson.get("campaigns").size() == 0
+        if (settingsJson.isJsonObject &&
+            settingsJson.asJsonObject.has("campaigns") &&
+            settingsJson.asJsonObject.get("campaigns").isJsonObject &&
+            settingsJson.asJsonObject.get("campaigns").asJsonObject.size() == 0
         ) {
-            (settingsJson as ObjectNode).replace("campaigns", VWOClient.objectMapper.createArrayNode())
+            settingsJson.asJsonObject.add("campaigns", VWOClient.objectMapper.createArrayNode())
         }
 
         return VWOClient.objectMapper.writeValueAsString(settingsJson)

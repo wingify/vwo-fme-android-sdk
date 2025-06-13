@@ -15,23 +15,23 @@
  */
 package com.vwo.testcases
 
-import com.fasterxml.jackson.annotation.JsonProperty
+import com.google.gson.annotations.SerializedName
 import com.vwo.models.Storage
 
 class Expectation {
-    @JsonProperty("isEnabled")
+    @SerializedName("isEnabled")
     var isEnabled: Boolean? = null
-    @JsonProperty("intVariable")
+    @SerializedName("intVariable")
     var intVariable: Int? = null
-    @JsonProperty("stringVariable")
+    @SerializedName("stringVariable")
     var stringVariable: String? = null
-    @JsonProperty("floatVariable")
+    @SerializedName("floatVariable")
     var floatVariable: Double? = null
-    @JsonProperty("booleanVariable")
+    @SerializedName("booleanVariable")
     var booleanVariable: Boolean? = null
-    @JsonProperty("jsonVariable")
+    @SerializedName("jsonVariable")
     var jsonVariable: Map<String, Any>? = null
-    @JsonProperty("storageData")
+    @SerializedName("storageData")
     var storageData: Storage? = null
 
     var shouldReturnSameVariation: Boolean? = null

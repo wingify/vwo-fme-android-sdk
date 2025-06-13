@@ -116,7 +116,7 @@ object SettingsUtil {
                         rule.segments
                     }
                 if (segments != null) {
-                    val jsonSegments: String = Gson().toJson(segments)
+                    val jsonSegments: String = GsonUtil.gson.toJson(segments)
                     val matcher = pattern.matcher(jsonSegments)
                     var foundMatch = false
 

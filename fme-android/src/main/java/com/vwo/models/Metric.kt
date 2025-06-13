@@ -15,8 +15,7 @@
  */
 package com.vwo.models
 
-import com.fasterxml.jackson.annotation.JsonInclude
-import com.fasterxml.jackson.annotation.JsonProperty
+import com.google.gson.annotations.SerializedName
 
 /**
  * Represents a metric in VWO.
@@ -24,20 +23,19 @@ import com.fasterxml.jackson.annotation.JsonProperty
  * This class encapsulates information about a VWO metric, including its various properties such as
  * `mca`, `hashProps`, `identifier`, `id`, and `type`.
  */
-@JsonInclude(JsonInclude.Include.NON_NULL)
 class Metric {
-    @JsonProperty("mca")
+    @SerializedName("mca")
     var mca: Int? = null
 
-    @JsonProperty("hasProps")
+    @SerializedName("hasProps")
     var hashProps: Boolean? = null
 
-    @JsonProperty("identifier")
+    @SerializedName("identifier")
     var identifier: String? = null
 
-    @JsonProperty("id")
+    @SerializedName("id")
     var id: Int? = null
 
-    @JsonProperty("type")
+    @SerializedName("type")
     var type: String? = null
 }

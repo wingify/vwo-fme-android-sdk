@@ -15,8 +15,7 @@
  */
 package com.vwo.testcases
 
-import com.fasterxml.jackson.databind.DeserializationFeature
-import com.fasterxml.jackson.databind.ObjectMapper
+import com.google.gson.Gson
 import com.vwo.VWOClient
 import com.vwo.utils.NetworkUtil.Companion.removeNullValues
 import java.nio.file.Files
@@ -25,7 +24,7 @@ import java.nio.file.Paths
 class TestDataReader {
     var testCases = readTestCases("index.json")
 
-    private var objectMapper: ObjectMapper? = null
+    private var gson: Gson? = null
 
     /**
      * Reads the test cases from a JSON file located in the specified folder.
@@ -35,11 +34,7 @@ class TestDataReader {
      * @return An instance of TestCases containing the data from the JSON file, or null if the file does not exist.
      */
     private fun readTestCases(folderPath: String): TestCases? {
-        objectMapper = object : ObjectMapper() {
-            init {
-                configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false)
-            }
-        }
+        gson = Gson()
         val content = readFile(folderPath)
         return content
     }
@@ -51,7 +46,7 @@ class TestDataReader {
         try {
             val inputStream = this.javaClass.classLoader?.getResourceAsStream(fileName)
             val contents = inputStream?.bufferedReader().use { it?.readText() }
-            val values = objectMapper?.readValue(contents, TestCases::class.java)
+            val values = gson?.fromJson(contents, TestCases::class.java)
             return values
         } catch (ex: Exception) {
             ex.printStackTrace()

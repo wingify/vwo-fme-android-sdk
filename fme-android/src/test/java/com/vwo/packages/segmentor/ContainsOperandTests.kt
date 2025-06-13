@@ -15,11 +15,15 @@
  */
 package com.vwo.packages.segmentor
 
+import android.os.Build
 import com.vwo.VWO
 import com.vwo.VWO.init
+import com.vwo.constants.Constants.PLATFORM
 import com.vwo.interfaces.IVwoInitCallback
 import com.vwo.models.user.VWOInitOptions
 import com.vwo.packages.segmentation_evaluator.core.SegmentationManager
+import com.vwo.providers.StorageProvider
+import com.vwo.sdk.fme.BuildConfig
 import com.vwo.utils.NetworkUtil.Companion.removeNullValues
 import org.junit.Assert.assertEquals
 import org.junit.Before
@@ -448,11 +452,37 @@ class ContainsOperandTests {
         verifyExpectation(dsl, removeNullValues(customVariables))
     }
 
+    @Test
+    fun userAgentTest() {
+        val dsl = "{ \"or\": [ { \"ua\": \"wildcard(*Android*)\" } ] }"
+        val customVariables: Map<String?, Any?> = object : HashMap<String?, Any?>() {
+            init {
+                put("eq", 'E')
+                put("expectation", true)
+            }
+        }
+        StorageProvider.userAgent = "VWO FME $PLATFORM ${BuildConfig.SDK_VERSION} ($PLATFORM/${Build.VERSION.RELEASE})"
+        verifyExpectation(dsl, removeNullValues(customVariables))
+    }
+
+    @Test
+    fun wrongUserAgentTest() {
+        val dsl = "{ \"or\": [ { \"ua\": \"wildcard(*iOS*)\" } ] }"
+        val customVariables: Map<String?, Any?> = object : HashMap<String?, Any?>() {
+            init {
+                put("eq", 'E')
+                put("expectation", false)
+            }
+        }
+        StorageProvider.userAgent = "VWO FME $PLATFORM ${BuildConfig.SDK_VERSION} ($PLATFORM/${Build.VERSION.RELEASE})"
+        verifyExpectation(dsl, removeNullValues(customVariables))
+    }
+
     private fun verifyExpectation(dsl: String, customVariables: Map<String, Any>) {
         SegmentationManager.attachEvaluator()
         assertEquals(
-            SegmentationManager.validateSegmentation(dsl, customVariables),
-            customVariables["expectation"]
+            customVariables["expectation"],
+            SegmentationManager.validateSegmentation(dsl, customVariables)
         )
     }
 }

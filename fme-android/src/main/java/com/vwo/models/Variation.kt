@@ -15,8 +15,7 @@
  */
 package com.vwo.models
 
-import com.fasterxml.jackson.annotation.JsonInclude
-import com.fasterxml.jackson.annotation.JsonProperty
+import com.google.gson.annotations.SerializedName
 
 /**
  * Represents a variation in VWO.
@@ -24,46 +23,43 @@ import com.fasterxml.jackson.annotation.JsonProperty
  * This class encapsulates information about a VWO variation, including its ID, key, name, weight,
  * start range variation, end range variation, variables, variations, and segments.
  */
-@JsonInclude(JsonInclude.Include.NON_NULL)
 class Variation {
-    @JsonProperty("id")
+    @SerializedName("id")
     var id: Int? = null
 
-    @JsonProperty("key")
+    @SerializedName("key")
     var key: String? = null
 
-    @JsonProperty("name")
+    @SerializedName("name")
     var name: String? = null
 
-    @JsonProperty("ruleKey")
+    @SerializedName("ruleKey")
     var ruleKey: String? = null
 
-    @JsonProperty("type")
+    @SerializedName("type")
     var type: String? = null
 
-    @JsonProperty("weight")
+    @SerializedName("weight")
     var weight: Double = 0.0
 
-    @JsonProperty("startRangeVariation")
+    @SerializedName("startRangeVariation")
     var startRangeVariation: Int = 0
 
-    @JsonProperty("endRangeVariation")
+    @SerializedName("endRangeVariation")
     var endRangeVariation: Int = 0
 
-    @JsonProperty("variables")
+    @SerializedName("variables")
     var variables: List<Variable> = ArrayList()
 
-    @JsonProperty("variations")
+    @SerializedName("variations")
     var variations: List<Variation> = ArrayList()
 
-    @JsonProperty("segments")
+    @SerializedName("segments")
     var segments: Map<String, Any> = HashMap()
 
-    @JsonProperty("salt")
+    @SerializedName("salt")
     var salt: String? = null
 
-    @get:JsonProperty("segments_events")
-    @set:JsonProperty("segments_events")
-    @JsonProperty("segments_events")
+    @SerializedName("segments_events")
     var segments_events: List<Any>? = null
 }

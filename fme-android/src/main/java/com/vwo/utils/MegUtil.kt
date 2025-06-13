@@ -15,7 +15,8 @@
  */
 package com.vwo.utils
 
-import com.fasterxml.jackson.core.JsonProcessingException
+import com.vwo.utils.JsonProcessingException
+import com.vwo.utils.*
 import com.vwo.VWOClient
 import com.vwo.constants.Constants
 import com.vwo.decorators.StorageDecorator
@@ -238,8 +239,7 @@ object MegUtil {
                 val storedDataMap: Map<String, Any>? =
                     StorageDecorator().getFeatureFromStorage(featureKey, context, storageService)
                 try {
-                    val storageMapAsString: String =
-                        VWOClient.objectMapper.writeValueAsString(storedDataMap)
+                    val storageMapAsString: String = VWOClient.objectMapper.writeValueAsString(storedDataMap ?: emptyMap<String, Any>())
                     val storedData: Storage? = VWOClient.objectMapper.readValue(storageMapAsString, Storage::class.java)
                     if (storedData?.experimentVariationId != null
                         && storedData.experimentVariationId.toString().isNotEmpty()) {
@@ -526,7 +526,7 @@ object MegUtil {
                 for (shortlistedCampaign in shortlistedCampaigns) {
                     if (shortlistedCampaign.id.toString() == integer) {
                         val campaignModel = VWOClient.objectMapper.writeValueAsString(
-                            cloneObject(shortlistedCampaign)
+                            cloneObject(shortlistedCampaign)!!
                         )
                         winnerCampaign = VWOClient.objectMapper.readValue(
                             campaignModel,
@@ -565,7 +565,7 @@ object MegUtil {
                     }
                 }
 
-                val variations = participatingCampaignList.map { campaign: Campaign? ->
+                val variations = participatingCampaignList.filterNotNull().map { campaign: Campaign ->
                         try {
                             val campaignModel = VWOClient.objectMapper.writeValueAsString(campaign)
                             return@map VWOClient.objectMapper.readValue<Variation>(

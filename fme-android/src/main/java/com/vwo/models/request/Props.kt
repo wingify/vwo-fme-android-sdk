@@ -15,85 +15,81 @@
  */
 package com.vwo.models.request
 
-import com.fasterxml.jackson.annotation.JsonAnyGetter
-import com.fasterxml.jackson.annotation.JsonAnySetter
-import com.fasterxml.jackson.annotation.JsonIgnore
-import com.fasterxml.jackson.annotation.JsonProperty
+import com.google.gson.annotations.SerializedName
 
 /**
- * Represents a collection of properties associated with an event or entity.
+ * Represents props for VWO requests.
  *
- * This class is used to store various properties, includingSDK information,
- * variation details, custom event flags, and additional dynamic properties.
+ * This class encapsulates information for request properties.
  */
 class Props {
-    @JsonProperty("vwo_sdkName")
+    @SerializedName("vwo_sdkName")
     private var vwo_sdkName: String? = null
 
-    @JsonProperty("vwo_sdkVersion")
+    @SerializedName("vwo_sdkVersion")
     private var vwo_sdkVersion: String? = null
 
-    @JsonProperty("vwo_envKey")
+    @SerializedName("vwo_envKey")
     private var vwo_envKey: String? = null
     var variation: String? = null
     var id: Int? = null
 
-    @JsonProperty("isFirst")
+    @SerializedName("isFirst")
     private var isFirst: Int? = null
 
-    @JsonProperty("isMII")
+    @SerializedName("isMII")
     private var isMII: Boolean = false
 
-    @JsonProperty("isCustomEvent")
+    @SerializedName("isCustomEvent")
     private var isCustomEvent: Boolean? = null
 
-    @JsonProperty("product")
+    @SerializedName("product")
     private var product: String? = null
 
-    @JsonProperty("data")
+    @SerializedName("data")
     private var data: Map<String, Any>? = null
 
-    @JsonProperty("vwoMeta")
+    @SerializedName("vwoMeta")
     private var vwoMeta: Map<String, Any>? = null
 
-    @JsonIgnore
+    // Additional properties are handled by PropsSerializer
+    // The custom serializer excludes this field and flattens its contents into the root JSON
     private var additionalProperties: Map<String, Any> = HashMap()
 
-    @JsonProperty("vwo_sdkName")
     fun setSdkName(sdkName: String?) {
         this.vwo_sdkName = sdkName
     }
 
-    @JsonProperty("vwo_sdkVersion")
     fun setSdkVersion(sdkVersion: String?) {
         this.vwo_sdkVersion = sdkVersion
     }
 
-    fun setIsFirst(isFirst: Int?) {
-        this.isFirst = isFirst
-    }
-
-    fun setIsMii(isMii: Boolean) {
-        this.isMII = isMii
-    }
-
-    fun setIsCustomEvent(isCustomEvent: Boolean?) {
-        this.isCustomEvent = isCustomEvent
-    }
-
-    @JsonProperty("vwo_envKey")
     fun setEnvKey(vwo_envKey: String?) {
         this.vwo_envKey = vwo_envKey
     }
 
-    @JsonAnyGetter
     fun getAdditionalProperties(): Map<String, *> {
         return additionalProperties
     }
 
-    @JsonAnySetter
     fun setAdditionalProperties(additionalProperties: Map<String, Any>) {
         this.additionalProperties = additionalProperties
+    }
+
+    fun setFirst(first: Int?) {
+        isFirst = first
+    }
+
+    fun setCustomEvent(customEvent: Boolean?) {
+        isCustomEvent = customEvent
+    }
+
+    fun setIsMII(mII: Boolean) {
+        isMII = mII
+    }
+
+    fun getIsMII(): Boolean {
+        return isMII
     }
 
     fun setProduct(product: String?) {
@@ -104,7 +100,7 @@ class Props {
         this.data = data
     }
 
-    fun setUsageStats(stats: Map<String, Any>) {
-        this.vwoMeta = stats
+    fun setVwoMeta(vwoMeta: Map<String, Any>?) {
+        this.vwoMeta = vwoMeta
     }
 }

@@ -162,8 +162,7 @@ object DecisionUtil {
                     storageService!!
                 )
                 try {
-                    val storageMapAsString =
-                        VWOClient.objectMapper.writeValueAsString(storedDataMap)
+                    val storageMapAsString: String = VWOClient.objectMapper.writeValueAsString(storedDataMap ?: emptyMap<String, Any>())
                     val storedData: Storage? = VWOClient.objectMapper.readValue(
                         storageMapAsString,
                         Storage::class.java

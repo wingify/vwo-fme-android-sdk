@@ -16,8 +16,8 @@
 package com.vwo
 
 import android.content.Context
-import com.fasterxml.jackson.databind.DeserializationFeature
-import com.fasterxml.jackson.databind.ObjectMapper
+import com.google.gson.Gson
+import com.vwo.utils.GsonUtil
 import com.vwo.api.GetFlagAPI
 import com.vwo.api.SetAttributeAPI.setAttribute
 import com.vwo.api.TrackEventAPI
@@ -57,7 +57,7 @@ class VWOClient(settings: String?, options: VWOInitOptions?) {
             this.options = options
             if (settings != null) {
                 this.settings = settings
-                this.processedSettings = objectMapper.readValue(settings, Settings::class.java)
+                this.processedSettings = gson.fromJson(settings, Settings::class.java)
                 this.processedSettings?.let {
                     SettingsUtil.processSettings(it)
                     // init url version with collection prefix
@@ -81,7 +81,7 @@ class VWOClient(settings: String?, options: VWOInitOptions?) {
      */
     fun updateSettings(newSettings: String?) {
         try {
-            this.processedSettings = objectMapper.readValue(newSettings, Settings::class.java)
+            this.processedSettings = gson.fromJson(newSettings, Settings::class.java)
             this.processedSettings?.let { SettingsUtil.processSettings(it) }
         } catch (exception: Exception) {
             LoggerService.log(
@@ -307,10 +307,47 @@ class VWOClient(settings: String?, options: VWOInitOptions?) {
     }
 
     companion object {
-        var objectMapper: ObjectMapper = object : ObjectMapper() {
-            init {
-                configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false)
-            }
+        val gson: Gson = GsonUtil.gson
+        
+        // Gson-based ObjectMapper replacement for API compatibility
+        @JvmStatic
+        val objectMapper = GsonObjectMapper()
+    }
+    
+    // Companion class for ObjectMapper replacement
+    class GsonObjectMapper {
+        fun <T> readValue(json: String, clazz: Class<T>): T {
+            return gson.fromJson(json, clazz)
+        }
+        
+        fun writeValueAsString(obj: Any): String {
+            return gson.toJson(obj)
+        }
+        
+        // For JsonNode equivalent, we'll use JsonElement
+        fun readTree(json: String): com.google.gson.JsonElement {
+            return gson.fromJson(json, com.google.gson.JsonElement::class.java)
+        }
+        
+        // For type conversion (equivalent to convertValue)
+        fun <T> convertValue(obj: Any, clazz: Class<T>): T {
+            val json = gson.toJson(obj)
+            return gson.fromJson(json, clazz)
+        }
+        
+        // For creating array nodes (basic implementation)
+        fun createArrayNode(): com.google.gson.JsonArray {
+            return com.google.gson.JsonArray()
+        }
+        
+        // For creating object nodes
+        fun createObjectNode(): com.google.gson.JsonObject {
+            return com.google.gson.JsonObject()
+        }
+        
+        // For tree conversion
+        fun valueToTree(obj: Any): com.google.gson.JsonElement {
+            return gson.toJsonTree(obj)
         }
     }
 }

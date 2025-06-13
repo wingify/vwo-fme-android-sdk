@@ -15,19 +15,17 @@
  */
 package com.vwo.models
 
-import com.fasterxml.jackson.annotation.JsonInclude
-import com.fasterxml.jackson.annotation.JsonProperty
+import com.google.gson.annotations.SerializedName
 
 /**
  * Represents an impact campaign in VWO.
  *
  * This class encapsulates information about a VWO impact campaign, including its campaign ID and type.
  */
-@JsonInclude(JsonInclude.Include.NON_NULL)
 class ImpactCampaign {
-    @JsonProperty("campaignId")
+    @SerializedName("campaignId")
     var campaignId: Int? = null
 
-    @JsonProperty("type")
+    @SerializedName("type")
     var type: String? = null
 }

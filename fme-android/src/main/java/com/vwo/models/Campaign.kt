@@ -15,8 +15,7 @@
  */
 package com.vwo.models
 
-import com.fasterxml.jackson.annotation.JsonInclude
-import com.fasterxml.jackson.annotation.JsonProperty
+import com.google.gson.annotations.SerializedName
 
 /**
  * Represents a campaign in VWO.
@@ -24,82 +23,59 @@ import com.fasterxml.jackson.annotation.JsonProperty
  * This class encapsulates information about a VWO campaign, including its ID,segments, status,
  * traffic allocation, variations, and other related data.
  */
-@JsonInclude(JsonInclude.Include.NON_NULL)
 class Campaign {
-    @JsonProperty("isAlwaysCheckSegment")
+    @SerializedName("isAlwaysCheckSegment")
     var isAlwaysCheckSegment: Boolean? = false
 
-    @JsonProperty("isUserListEnabled")
+    @SerializedName("isUserListEnabled")
     var isUserListEnabled: Boolean? = false
 
-    @get:JsonProperty("id")
-    @set:JsonProperty("id")
-    @JsonProperty("id")
+    @SerializedName("id")
     var id: Int? = null
 
-    @get:JsonProperty("segments")
-    @set:JsonProperty("segments")
-    @JsonProperty("segments")
+    @SerializedName("segments")
     var segments: Map<String, Any>? = null
 
-    @get:JsonProperty("segments_events")
-    @set:JsonProperty("segments_events")
-    @JsonProperty("segments_events")
+    @SerializedName("segments_events")
     var segments_events: List<Any>? = null
 
-    @JsonProperty("ruleKey")
+    @SerializedName("ruleKey")
     var ruleKey: String? = null
 
-    @JsonProperty("salt")
+    @SerializedName("salt")
     var salt: String? = null
 
-    @get:JsonProperty("status")
-    @set:JsonProperty("status")
-    @JsonProperty("status")
+    @SerializedName("status")
     var status: String? = null
 
-    @get:JsonProperty("percentTraffic")
-    @set:JsonProperty("percentTraffic")
-    @JsonProperty("percentTraffic")
+    @SerializedName("percentTraffic")
     var percentTraffic: Int? = null
 
-    @get:JsonProperty("key")
-    @set:JsonProperty("key")
-    @JsonProperty("key")
+    @SerializedName("key")
     var key: String? = null
 
-    @get:JsonProperty("type")
-    @set:JsonProperty("type")
-    @JsonProperty("type")
+    @SerializedName("type")
     var type: String? = null
 
-    @get:JsonProperty("name")
-    @set:JsonProperty("name")
-    @JsonProperty("name")
+    @SerializedName("name")
     var name: String? = null
 
-    @get:JsonProperty("isForcedVariationEnabled")
-    @set:JsonProperty("isForcedVariationEnabled")
-    @JsonProperty("isForcedVariationEnabled")
+    @SerializedName("isForcedVariationEnabled")
     var isForcedVariationEnabled: Boolean? = false
 
-    @get:JsonProperty("variations")
-    @set:JsonProperty("variations")
-    @JsonProperty("variations")
+    @SerializedName("variations")
     var variations: List<com.vwo.models.Variation>? = null
 
-    @JsonProperty("startRangeVariation")
+    @SerializedName("startRangeVariation")
     var startRangeVariation: Int = 0
 
-    @JsonProperty("endRangeVariation")
+    @SerializedName("endRangeVariation")
     var endRangeVariation: Int = 0
 
-    @get:JsonProperty("variables")
-    @set:JsonProperty("variables")
-    @JsonProperty("variables")
+    @SerializedName("variables")
     var variables: List<com.vwo.models.Variable>? = null
 
-    @JsonProperty("weight")
+    @SerializedName("weight")
     var weight: Double = 0.0
 
     var isEventsDsl: Boolean = false

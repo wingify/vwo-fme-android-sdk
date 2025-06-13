@@ -15,8 +15,7 @@
  */
 package com.vwo.models
 
-import com.fasterxml.jackson.annotation.JsonInclude
-import com.fasterxml.jackson.annotation.JsonProperty
+import com.google.gson.annotations.SerializedName
 
 /**
  * Represents a feature in VWO.
@@ -24,38 +23,37 @@ import com.fasterxml.jackson.annotation.JsonProperty
  * This class encapsulates information about a VWO feature, including its key,metrics, status, ID,
  * rules, impact campaign, name, type, linked campaigns, gateway service requirement, and variables.
  */
-@JsonInclude(JsonInclude.Include.NON_NULL)
 class Feature {
-    @JsonProperty("key")
+    @SerializedName("key")
     var key: String? = null
 
-    @JsonProperty("metrics")
+    @SerializedName("metrics")
     var metrics: List<Metric>? = null
 
-    @JsonProperty("status")
+    @SerializedName("status")
     var status: String? = null
 
-    @JsonProperty("id")
+    @SerializedName("id")
     var id: Int? = null
 
-    @JsonProperty("rules")
+    @SerializedName("rules")
     var rules: List<Rule>? = null
 
-    @JsonProperty("impactCampaign")
+    @SerializedName("impactCampaign")
     var impactCampaign: ImpactCampaign = ImpactCampaign()
 
-    @JsonProperty("name")
+    @SerializedName("name")
     var name: String? = null
 
-    @JsonProperty("type")
+    @SerializedName("type")
     var type: String? = null
 
-    @JsonProperty("rulesLinkedCampaign")
+    @SerializedName("rulesLinkedCampaign")
     var rulesLinkedCampaign: List<Campaign> = ArrayList()
 
-    @JsonProperty("isGatewayServiceRequired")
+    @SerializedName("isGatewayServiceRequired")
     var isGatewayServiceRequired: Boolean = false
 
-    @JsonProperty("variables")
+    @SerializedName("variables")
     var variables: List<Variable>? = null
 }

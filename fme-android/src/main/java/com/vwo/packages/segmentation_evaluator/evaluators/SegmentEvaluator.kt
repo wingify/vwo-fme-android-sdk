@@ -15,7 +15,8 @@
  */
 package com.vwo.packages.segmentation_evaluator.evaluators
 
-import com.fasterxml.jackson.databind.JsonNode
+import com.vwo.utils.JsonNode
+import com.vwo.utils.*
 import com.vwo.VWOClient
 import com.vwo.decorators.StorageDecorator
 import com.vwo.models.Feature
@@ -78,7 +79,7 @@ class SegmentEvaluator {
             )
 
             SegmentOperatorValueEnum.UA -> return SegmentOperandEvaluator().evaluateUserAgentDSL(
-                subDsl.toString(),
+                subDsl.asText(),
                 context
             )
 
@@ -106,21 +107,23 @@ class SegmentEvaluator {
                     SegmentOperatorValueEnum.Companion.fromValue(key)
                 if (keyEnum == SegmentOperatorValueEnum.OPERATING_SYSTEM || keyEnum == SegmentOperatorValueEnum.BROWSER_AGENT || keyEnum == SegmentOperatorValueEnum.DEVICE_TYPE || keyEnum == SegmentOperatorValueEnum.DEVICE) {
                     isUaParser = true
-                    val value: JsonNode = dsl.get(key)
+                    val value: JsonNode? = dsl.get(key)
 
                     if (!uaParserMap.containsKey(key)) {
                         uaParserMap[key] = ArrayList()
                     }
 
                     // Ensure value is treated as an array of strings
-                    if (value.isArray()) {
-                        for (`val` in value) {
-                            if (`val`.isTextual()) {
-                                uaParserMap[key]!!.add(`val`.asText())
+                    value?.let {
+                        if (it.isArray) {
+                            for (`val` in it) {
+                                if (`val`.isTextual) {
+                                    uaParserMap[key]!!.add(`val`.asText())
+                                }
                             }
+                        } else if (it.isTextual) {
+                            uaParserMap[key]!!.add(it.asText())
                         }
-                    } else if (value.isTextual()) {
-                        uaParserMap[key]!!.add(value.asText())
                     }
 
                     keyCount++ // Increment count of keys encountered
@@ -128,11 +131,11 @@ class SegmentEvaluator {
 
                 // Check for feature toggle based on feature ID
                 if (keyEnum == SegmentOperatorValueEnum.FEATURE_ID) {
-                    val featureIdObject: JsonNode = dsl.get(key)
-                    val featureIdKeys: Iterator<String> = featureIdObject.fieldNames()
+                    val featureIdObject: JsonNode? = dsl.get(key)
+                    val featureIdKeys: Iterator<String> = featureIdObject?.fieldNames() ?: emptyList<String>().iterator()
                     if (featureIdKeys.hasNext()) {
                         val featureIdKey = featureIdKeys.next()
-                        val featureIdValue: String = featureIdObject.get(featureIdKey).asText()
+                        val featureIdValue: String = featureIdObject?.get(featureIdKey)?.asText() ?: ""
 
                         if (featureIdValue == "on" || featureIdValue == "off") {
                             val features: List<Feature?>? = settings?.features
@@ -224,13 +227,13 @@ class SegmentEvaluator {
         val keyEnum: SegmentOperatorValueEnum =
             SegmentOperatorValueEnum.fromValue(dsl.fieldNames().next())
         if (keyEnum == SegmentOperatorValueEnum.COUNTRY) {
-            locationMap[keyEnum.value] = dsl.get(keyEnum.value).asText()
+            dsl.get(keyEnum.value)?.asText()?.let { locationMap[keyEnum.value] = it }
         }
         if (keyEnum == SegmentOperatorValueEnum.REGION) {
-            locationMap[keyEnum.value] = dsl.get(keyEnum.value).asText()
+            dsl.get(keyEnum.value)?.asText()?.let { locationMap[keyEnum.value] = it }
         }
         if (keyEnum == SegmentOperatorValueEnum.CITY) {
-            locationMap[keyEnum.value] = dsl.get(keyEnum.value).asText()
+            dsl.get(keyEnum.value)?.asText()?.let { locationMap[keyEnum.value] = it }
         }
     }
 
@@ -286,7 +289,7 @@ class SegmentEvaluator {
         val storedDataMap: Map<String, Any>? = StorageDecorator().getFeatureFromStorage(featureKey, context, storageService)
         try {
             val storageMapAsString: String =
-                VWOClient.objectMapper.writeValueAsString(storedDataMap)
+                VWOClient.objectMapper.writeValueAsString(storedDataMap ?: emptyMap<String, Any>())
             val storedData: Storage? =
                 VWOClient.objectMapper.readValue(storageMapAsString, Storage::class.java)
 
