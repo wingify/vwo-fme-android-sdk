@@ -3,6 +3,19 @@ plugins {
     id 'org.jetbrains.kotlin.android'
     id 'maven-publish'
     id 'signing'
+    id 'com.gradleup.nmcp'
+}
+
+// Set project version
+version = VERSION_NAME
+
+// Load properties from local.properties
+def localProperties = new Properties()
+def localPropertiesFile = rootProject.file('local.properties')
+if (localPropertiesFile.exists()) {
+    localPropertiesFile.withReader('UTF-8') { reader ->
+        localProperties.load(reader)
+    }
 }
 
 android {
@@ -68,11 +81,7 @@ android {
     }
 }
 
-signing {
-    publishing.publications.all { publication ->
-        sign publication
-    }
-}
+
 
 afterEvaluate {
     publishing {
@@ -100,9 +109,9 @@ afterEvaluate {
                     }
                     developers {
                         developer {
-                            id = POM_DEVELOPER_ID
-                            name = POM_DEVELOPER_NAME
-                            email = POM_DEVELOPER_EMAIL
+                            id = localProperties.getProperty('POM_DEVELOPER_ID') ?: 'vwo-team'
+                            name = localProperties.getProperty('POM_DEVELOPER_NAME') ?: 'VWO Team'
+                            email = localProperties.getProperty('POM_DEVELOPER_EMAIL') ?: 'integration@vwo.com'
                         }
                     }
                     scm {
@@ -115,19 +124,40 @@ afterEvaluate {
         }
         repositories {
             maven {
-                //New url https://s01.soss.sonatype.org/service/local/staging/deploy/maven2/
-                def releasesRepoUrl = "https://oss.sonatype.org/service/local/staging/deploy/maven2/"
-                def snapshotsRepoUrl = "https://oss.sonatype.org/content/repositories/snapshots/"
-                url = version.endsWith('SNAPSHOT') ? snapshotsRepoUrl : releasesRepoUrl
-                credentials {
-                    username NEXUS_USERNAME
-                    password NEXUS_PASSWORD
-                }
-                authentication {
-                    basic(BasicAuthentication)
-                }
+                name = 'localDeploy'
+                url = layout.buildDirectory.dir('staging-deploy')
             }
         }
+    }
+    
+    // Configure signing after publishing is set up
+    signing {
+        // Only sign if required properties are available in local.properties
+        required {
+            localProperties.getProperty('signing.keyId') != null
+        }
+        
+        // Set signing properties from local.properties
+        if (localProperties.getProperty('signing.keyId')) {
+            project.ext.'signing.keyId' = localProperties.getProperty('signing.keyId')
+            project.ext.'signing.password' = localProperties.getProperty('signing.password')
+            project.ext.'signing.secretKeyRingFile' = localProperties.getProperty('signing.secretKeyRingFile')
+        }
+        
+        sign publishing.publications.release
+    }
+}
+
+// Configure Maven Central Portal Publishing (NMCP)
+nmcp {
+    centralPortal {
+        // Get credentials from local.properties
+        username = localProperties.getProperty('mavenCentralUsername')
+        password = localProperties.getProperty('mavenCentralPassword')
+        
+        // USER_MANAGED means upload to staging without auto-release
+        // You control when to publish manually from the portal
+        publishingType = "USER_MANAGED"
     }
 }
 

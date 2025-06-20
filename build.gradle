@@ -10,11 +10,49 @@ buildscript {
     dependencies {
         classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlin_version"
     }
+    configurations.classpath {
+        resolutionStrategy {
+            force 'com.fasterxml.jackson.core:jackson-core:2.10.3'
+            force 'com.fasterxml.jackson.core:jackson-annotations:2.10.3'
+            force 'com.fasterxml.jackson.core:jackson-databind:2.10.3'
+        }
+    }
 }
 plugins {
     id 'com.android.application' version '7.2.0' apply false
     id 'com.android.library' version '7.2.0' apply false
     id 'org.jetbrains.kotlin.android' version '1.5.31' apply false
+    id 'com.gradleup.nmcp' version '0.1.5' apply false
+}
+
+version = findProperty("VERSION_NAME") ?: "unspecified"
+
+// Load properties from local.properties
+def localProperties = new Properties()
+def localPropertiesFile = rootProject.file('local.properties')
+if (localPropertiesFile.exists()) {
+    localPropertiesFile.withReader('UTF-8') { reader ->
+        localProperties.load(reader)
+    }
+}
+
+// Add task to verify artifacts locally before uploading
+task verifyArtifacts {
+    dependsOn ':fme-android:publish'
+    doLast {
+        println "✅ Artifacts generated in: fme-android/build/staging-deploy"
+        println "📋 Verify the following files before uploading:"
+        fileTree("fme-android/build/staging-deploy").visit { element ->
+            if (element.file.name.endsWith('.aar') || 
+                element.file.name.endsWith('.pom') || 
+                element.file.name.endsWith('.jar') ||
+                element.file.name.endsWith('.asc')) {
+                println "   📄 ${element.relativePath}"
+            }
+        }
+        println "🚀 Run './gradlew :fme-android:publishReleasePublicationToCentralPortal' to upload to Maven Central Portal"
+        println "📋 Then go to https://central.sonatype.com/publishing/deployments to manually publish"
+    }
 }
 
 task clean(type: Delete) {
