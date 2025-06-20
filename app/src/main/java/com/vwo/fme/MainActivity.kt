@@ -61,7 +61,7 @@ class MainActivity : AppCompatActivity() {
             // Set SDK Key and Account ID
             vwoInitOptions.sdkKey = SDK_KEY
             vwoInitOptions.accountId = ACCOUNT_ID
-            vwoInitOptions.context = this@MainActivity.applicationContext
+            //vwoInitOptions.context = this@MainActivity.applicationContext
 
             vwoInitOptions.logger = mutableMapOf<String, Any>().apply { put("level", "TRACE") }
             /*val logger: MutableList<Map<String, Any>> = mutableListOf()

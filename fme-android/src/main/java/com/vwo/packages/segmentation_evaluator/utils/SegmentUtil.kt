@@ -15,7 +15,8 @@
  */
 package com.vwo.packages.segmentation_evaluator.utils
 
-import com.fasterxml.jackson.databind.JsonNode
+import com.vwo.utils.JsonNode
+import com.vwo.utils.*
 import java.util.Locale
 import java.util.regex.Pattern
 

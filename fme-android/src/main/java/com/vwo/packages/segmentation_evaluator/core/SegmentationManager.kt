@@ -15,7 +15,8 @@
  */
 package com.vwo.packages.segmentation_evaluator.core
 
-import com.fasterxml.jackson.databind.JsonNode
+import com.vwo.utils.JsonNode
+import com.vwo.utils.*
 import com.vwo.VWOClient
 import com.vwo.constants.Constants
 import com.vwo.enums.UrlEnum
@@ -80,11 +81,11 @@ object SegmentationManager {
             settings.accountId?.toString()?.let { queryParams["accountId"] = it }
 
             try {
-                val params = GatewayServiceUtil.getQueryParams(queryParams)
-                val vwo = getGatewayServiceResponse(params)
+                val vwo = getGatewayServiceResponse(queryParams)
 
-                val gatewayServiceModel =
-                    VWOClient.objectMapper.readValue(vwo, GatewayService::class.java)
+                val gatewayServiceModel = vwo?.let {
+                    VWOClient.objectMapper.readValue(it, GatewayService::class.java)
+                }
 
                 context.vwo = gatewayServiceModel
             } catch (err: Exception) {
@@ -130,7 +131,7 @@ object SegmentationManager {
     fun validateSegmentation(dsl: Any, properties: Map<String, Any>): Boolean {
         try {
             val dslNodes: JsonNode = if (dsl is String)
-                VWOClient.objectMapper.readValue(dsl.toString(), JsonNode::class.java)
+                VWOClient.objectMapper.readTree(dsl.toString())
             else
                 VWOClient.objectMapper.valueToTree(dsl)
             return evaluator?.isSegmentationValid(dslNodes, properties)?:false

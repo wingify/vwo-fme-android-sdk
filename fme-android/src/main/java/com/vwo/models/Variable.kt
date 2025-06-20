@@ -15,28 +15,26 @@
  */
 package com.vwo.models
 
-import com.fasterxml.jackson.annotation.JsonInclude
-import com.fasterxml.jackson.annotation.JsonProperty
+import com.google.gson.annotations.SerializedName
 
 /**
  * Represents a variable in VWO.
  *
  * This class encapsulates information about a VWO variable, including its value,type, key, and ID.
  */
-@JsonInclude(JsonInclude.Include.NON_NULL)
 class Variable {
-    @JsonProperty("value")
+    @SerializedName("value")
     var value: Any? = null
 
-    @JsonProperty("type")
+    @SerializedName("type")
     var type: String? = null
 
-    @JsonProperty("key")
+    @SerializedName("key")
     var key: String? = null
 
-    @JsonProperty("id")
+    @SerializedName("id")
     var id: Int? = null
 
-    @JsonProperty("displayConfiguration")
+    @SerializedName("displayConfiguration")
     var displayConfiguration: Any? = null
 }

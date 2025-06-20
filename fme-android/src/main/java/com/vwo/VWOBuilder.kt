@@ -16,8 +16,8 @@
 package com.vwo
 
 import SdkDataManager
-import com.fasterxml.jackson.databind.JsonNode
-import com.vwo.packages.storage.MobileDefaultStorage
+import com.vwo.utils.JsonNode
+import com.vwo.utils.*
 import com.vwo.providers.StorageProvider
 import com.vwo.models.user.VWOInitOptions
 import com.vwo.packages.logger.enums.LogLevelEnum
@@ -26,6 +26,7 @@ import com.vwo.packages.network_layer.manager.NetworkManager
 import com.vwo.packages.network_layer.manager.OnlineBatchUploadManager
 import com.vwo.packages.segmentation_evaluator.core.SegmentationManager
 import com.vwo.packages.storage.GatewayResponseStore
+import com.vwo.packages.storage.MobileDefaultStorage
 import com.vwo.packages.storage.Storage
 import com.vwo.services.LoggerService
 import com.vwo.services.SettingsManager
@@ -257,11 +258,12 @@ open class VWOBuilder(private val options: VWOInitOptions?) {
                 Thread.sleep(pollingInterval.toLong())
 
                 val latestSettings = getSettings(true)
-                if (originalSettings != null && latestSettings != null) {
+                val originalSettingsValue = originalSettings // Store in local variable for smart cast
+                if (originalSettingsValue != null && latestSettings != null) {
                     val latestSettingJsonNode: JsonNode =
                         VWOClient.objectMapper.readTree(latestSettings)
                     val originalSettingsJsonNode: JsonNode =
-                        VWOClient.objectMapper.readTree(originalSettings)
+                        VWOClient.objectMapper.readTree(originalSettingsValue)
                     if (!latestSettingJsonNode.equals(originalSettingsJsonNode)) {
                         setNewSettings(latestSettings)
                     } else {

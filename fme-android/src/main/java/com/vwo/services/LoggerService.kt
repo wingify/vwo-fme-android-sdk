@@ -48,7 +48,8 @@ class LoggerService(config: Map<String, Any>) {
     private fun readLogFiles(fileName: String): Map<String, String> {
         try {
             val inputStream = this.javaClass.classLoader?.getResourceAsStream(fileName)
-            val values = VWOClient.objectMapper.readValue(inputStream, MutableMap::class.java)
+            val jsonString = inputStream?.bufferedReader().use { it?.readText() }?:"{}"
+            val values = VWOClient.objectMapper.readValue(jsonString, MutableMap::class.java)
             return filterStringMap(values)
         } catch (ex: Exception) {
             ex.printStackTrace()

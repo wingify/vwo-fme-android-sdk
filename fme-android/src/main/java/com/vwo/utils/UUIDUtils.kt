@@ -15,8 +15,8 @@
  */
 package com.vwo.utils
 
-import com.google.common.hash.Hashing
 import java.nio.charset.StandardCharsets
+import java.security.MessageDigest
 import java.util.Locale
 import java.util.UUID
 
@@ -86,7 +86,8 @@ object UUIDUtils {
         System.arraycopy(namespaceBytes, 0, combined, 0, namespaceBytes.size)
         System.arraycopy(nameBytes, 0, combined, namespaceBytes.size, nameBytes.size)
 
-        val hash = Hashing.sha1().hashBytes(combined).asBytes()
+        val digest = MessageDigest.getInstance("SHA-1")
+        val hash =digest.digest(combined)
 
         // Set version to 5 (name-based using SHA-1)
         hash[6] = (hash[6].toInt() and 0x0f).toByte() // Clear version

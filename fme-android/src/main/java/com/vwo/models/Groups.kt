@@ -15,39 +15,28 @@
  */
 package com.vwo.models
 
-import com.fasterxml.jackson.annotation.JsonInclude
-import com.fasterxml.jackson.annotation.JsonProperty
-
+import com.google.gson.annotations.SerializedName
 
 /**
  * Represents a group of campaigns in VWO.
  *
  * This class encapsulates information about a group of VWO campaigns,including its name, associated campaigns, and settings for experiment type, priority, and weight.
  */
-@JsonInclude(JsonInclude.Include.NON_NULL)
 class Groups {
-    @get:JsonProperty("name")
-    @set:JsonProperty("name")
-    @JsonProperty("name")
+    @SerializedName("name")
     var name: String? = null
 
-    @get:JsonProperty("campaigns")
-    @set:JsonProperty("campaigns")
-    @JsonProperty("campaigns")
+    @SerializedName("campaigns")
     var campaigns: List<String>? = null
 
     // this is where algo, priority, weight go
-    @JsonProperty("et")
+    @SerializedName("et")
     private var et: Int? = null
 
-    @get:JsonProperty("p")
-    @set:JsonProperty("p")
-    @JsonProperty("p")
+    @SerializedName("p")
     var p: MutableList<String>? = ArrayList()
 
-    @get:JsonProperty("wt")
-    @set:JsonProperty("wt")
-    @JsonProperty("wt")
+    @SerializedName("wt")
     var wt: Map<String, Double>? = mutableMapOf()
 
     /**
@@ -56,7 +45,6 @@ class Groups {
      * @param et The experiment type.
      */
     // getters and setters
-    @JsonProperty("et")
     fun setEt(et: Int) {
         this.et = et
     }
@@ -66,7 +54,6 @@ class Groups {
      *
      * @return The experiment type. Defaults to 1 (random) if not set.
      */
-    @JsonProperty("et")
     fun getEt(): Int? {
         // set default to random
         et = if (et == null || et.toString().isEmpty()) 1 else et

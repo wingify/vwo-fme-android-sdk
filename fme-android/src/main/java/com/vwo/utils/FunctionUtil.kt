@@ -36,12 +36,9 @@ object FunctionUtil {
      * @param obj  The object to clone.
      * @return   The cloned object.
      */
-    fun cloneObject(obj: Any?): Any? {
-        if (obj == null) {
-            return null
-        }
+    fun cloneObject(obj: Any): Any {
         // Use JSON serialization and deserialization to perform a deep clone
-        return Gson().fromJson(Gson().toJson(obj), obj.javaClass)
+        return GsonUtil.gson.fromJson(GsonUtil.gson.toJson(obj), obj.javaClass)
     }
 
     val currentUnixTimestamp: Long

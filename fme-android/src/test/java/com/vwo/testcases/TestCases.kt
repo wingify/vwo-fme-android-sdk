@@ -15,24 +15,24 @@
  */
 package com.vwo.testcases
 
-import com.fasterxml.jackson.annotation.JsonProperty
+import com.google.gson.annotations.SerializedName
 
 class TestCases {
-    @JsonProperty("GETFLAG_WITHOUT_STORAGE")
+    @SerializedName("GETFLAG_WITHOUT_STORAGE")
     var getFlagWithoutStorage: List<TestData>? = null
 
-    @JsonProperty("GETFLAG_MEG_RANDOM")
+    @SerializedName("GETFLAG_MEG_RANDOM")
     var getFlagMegRandom: List<TestData>? = null
 
-    @JsonProperty("GETFLAG_MEG_ADVANCE")
+    @SerializedName("GETFLAG_MEG_ADVANCE")
     var getFlagMegAdvance: List<TestData>? = null
 
-    @JsonProperty("GETFLAG_WITH_STORAGE")
+    @SerializedName("GETFLAG_WITH_STORAGE")
     var getFlagWithStorage: List<TestData>? = null
 
-    @JsonProperty("GETFLAG_WITH_SALT")
+    @SerializedName("GETFLAG_WITH_SALT")
     var GETFLAG_WITH_SALT: List<TestData>? = null
 
-    @JsonProperty("SETTINGS_WITH_DIFFERENT_SALT")
+    @SerializedName("SETTINGS_WITH_DIFFERENT_SALT")
     var settingsWithDifferentSalt: List<TestData>? = null
 }

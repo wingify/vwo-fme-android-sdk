@@ -83,7 +83,7 @@ object GetFlagAPI {
          */
         try {
             val storageMapAsString: String =
-                VWOClient.objectMapper.writeValueAsString(storedDataMap)
+                VWOClient.objectMapper.writeValueAsString(storedDataMap ?: emptyMap<String, Any>())
             val storedData: Storage? =
                 VWOClient.objectMapper.readValue(storageMapAsString, Storage::class.java)
             if (storedData?.experimentVariationId?.toString()?.isNotEmpty() == true) {

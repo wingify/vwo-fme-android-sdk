@@ -16,29 +16,27 @@
 package com.vwo.models
 
 import androidx.annotation.VisibleForTesting
-import com.fasterxml.jackson.annotation.JsonInclude
-import com.fasterxml.jackson.annotation.JsonProperty
+import com.google.gson.annotations.SerializedName
 
 /**
  * Represents a rule in VWO.
  *
- * This class encapsulates information about a VWO rule, including its rule key,variation ID,
+ * This class encapsulates information about a VWO rule, including its rule key, variation ID,
  * campaign ID, and type.
  */
-@JsonInclude(JsonInclude.Include.NON_NULL)
 class Rule {
-    @JsonProperty("ruleKey")
+    @SerializedName("ruleKey")
     var ruleKey: String? = null
         @VisibleForTesting(otherwise = VisibleForTesting.PRIVATE)
         internal set
 
-    @JsonProperty("variationId")
+    @SerializedName("variationId")
     var variationId: Int? = null
 
-    @JsonProperty("campaignId")
+    @SerializedName("campaignId")
     var campaignId: Int? = null
 
-    @JsonProperty("type")
+    @SerializedName("type")
     var type: String? = null
 
     /**

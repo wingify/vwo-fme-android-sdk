@@ -15,43 +15,41 @@
  */
 package com.vwo.models
 
-import com.fasterxml.jackson.annotation.JsonInclude
-import com.fasterxml.jackson.annotation.JsonProperty
+import com.google.gson.annotations.SerializedName
 
 /**
  * Represents VWO settings.
  *
  * This class serves as a container for various settings and configurations used by the VWO SDK.
  */
-@JsonInclude(JsonInclude.Include.NON_NULL)
 class Settings {
-    @JsonProperty("features")
-    var features: List<Feature> =emptyList()
+    @SerializedName("features")
+    var features: List<Feature> = emptyList()
 
-    @JsonProperty("accountId")
+    @SerializedName("accountId")
     var accountId: Int? = null
 
-    @JsonProperty("groups")
+    @SerializedName("groups")
     var groups: Map<String, Groups>? = null
 
-    @JsonProperty("campaignGroups")
+    @SerializedName("campaignGroups")
     var campaignGroups: Map<String, Int>? = null
 
-    @JsonProperty("isNBv2")
+    @SerializedName("isNBv2")
     var isNBv2: Boolean = false
 
-    @JsonProperty("campaigns")
+    @SerializedName("campaigns")
     var campaigns: List<Campaign>? = null
 
-    @JsonProperty("isNB")
+    @SerializedName("isNB")
     var isNB: Boolean = false
 
-    @JsonProperty("sdkKey")
+    @SerializedName("sdkKey")
     var sdkKey: String? = null
 
-    @JsonProperty("version")
+    @SerializedName("version")
     var version: Int? = null
 
-    @JsonProperty("collectionPrefix")
+    @SerializedName("collectionPrefix")
     var collectionPrefix: String? = null
 }

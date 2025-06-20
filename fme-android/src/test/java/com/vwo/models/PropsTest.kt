@@ -15,9 +15,10 @@
  */
 package com.vwo.models
 
-import com.fasterxml.jackson.annotation.JsonInclude
-import com.fasterxml.jackson.databind.ObjectMapper
+import com.google.gson.Gson
+import com.google.gson.GsonBuilder
 import com.vwo.models.request.Props
+import com.vwo.models.request.PropsSerializer
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
@@ -27,9 +28,9 @@ import org.junit.Test
 
 class PropsTest {
 
-    private val objectMapper = ObjectMapper().apply {
-        setSerializationInclusion(JsonInclude.Include.NON_NULL)
-    }
+    private val gson = GsonBuilder()
+        .registerTypeAdapter(Props::class.java, PropsSerializer())
+        .create()
 
     @Test
     fun testPropsSerialization() {
@@ -39,16 +40,16 @@ class PropsTest {
             setEnvKey("test_env_key")
             variation = "control"
             id = 123
-            setIsFirst(1)
-            setIsMii(true)
-            setIsCustomEvent(false)
+            setFirst(1)
+            setIsMII(true)
+            setCustomEvent(false)
             setProduct("sdk")
             setData(mapOf("custom_data_key" to "custom_data_value"))
-            setUsageStats(mapOf("stats_key" to 456))
+            setVwoMeta(mapOf("stats_key" to 456))
             setAdditionalProperties(mapOf("extra_key" to "extra_value"))
         }
 
-        val json = objectMapper.writeValueAsString(props)
+        val json = gson.toJson(props)
 
         assertNotNull(json)
         assertTrue(json.contains("\"vwo_sdkName\":\"android\""))
@@ -88,7 +89,7 @@ class PropsTest {
             }
         """.trimIndent()
 
-        val props: Props = objectMapper.readValue(json, Props::class.java)
+        val props: Props = gson.fromJson(json, Props::class.java)
 
         assertNotNull(props)
         // Note: We can't directly access private properties like vwo_sdkName
@@ -112,16 +113,16 @@ class PropsTest {
             setSdkVersion("1.0.0")
             // variation is null by default
             id = null
-            setIsFirst(null)
-            setIsMii(false) // Set to false
-            setIsCustomEvent(null)
+            setFirst(null)
+            setIsMII(false) // Set to false
+            setCustomEvent(null)
             setProduct(null)
             setData(null)
-            setUsageStats(emptyMap()) // Set to empty map
+            setVwoMeta(emptyMap()) // Set to empty map
             setAdditionalProperties(emptyMap()) // Set to empty map
         }
 
-        val json = objectMapper.writeValueAsString(props)
+        val json = gson.toJson(props)
 
         assertNotNull(json)
         assertFalse(json.contains("vwo_sdkName")) // Should be excluded because it's null
@@ -146,7 +147,7 @@ class PropsTest {
             }
         """.trimIndent()
 
-        val props: Props = objectMapper.readValue(json, Props::class.java)
+        val props: Props = gson.fromJson(json, Props::class.java)
 
         assertNotNull(props)
         // Note: We can't directly access private properties like vwo_sdkName

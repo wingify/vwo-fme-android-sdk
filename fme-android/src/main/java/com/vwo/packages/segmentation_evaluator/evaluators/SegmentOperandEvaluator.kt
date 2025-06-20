@@ -15,7 +15,8 @@
  */
 package com.vwo.packages.segmentation_evaluator.evaluators
 
-import com.fasterxml.jackson.databind.JsonNode
+import com.vwo.utils.JsonNode
+import com.vwo.utils.*
 import com.vwo.constants.Constants
 import com.vwo.enums.UrlEnum
 import com.vwo.models.Feature

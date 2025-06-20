@@ -213,16 +213,16 @@ class NetworkUtil {
                 )
             properties.d!!.event!!.props!!.id = campaignId
             properties.d!!.event!!.props!!.variation = variationId.toString()
-            properties.d!!.event!!.props!!.setIsFirst(1)
+            properties.d!!.event!!.props!!.setFirst(1)
             // Send usageStats once per init
             val usageStats = UsageStats.getStats()
 
             if (usageStats.isNotEmpty()) {
-                properties.d!!.event!!.props!!.setUsageStats(usageStats)
+                properties.d!!.event!!.props!!.setVwoMeta(usageStats)
             }
 
             if (eventName == EventEnum.VWO_VARIATION_SHOWN.value) {
-                properties.d?.event?.props?.setIsMii(FMEConfig.isMISdkLinked)
+                properties.d?.event?.props?.setIsMII(FMEConfig.isMISdkLinked)
             }
 
             log(
@@ -264,7 +264,7 @@ class NetworkUtil {
                 StorageProvider.userAgent,
                 StorageProvider.ipAddress
             )
-            properties.d!!.event!!.props!!.setIsCustomEvent(true)
+            properties.d?.event?.props?.setCustomEvent(true)
             addCustomEventProperties(properties, eventProperties)
             log(
                 LogLevelEnum.DEBUG,
@@ -311,7 +311,7 @@ class NetworkUtil {
             attributeMap: Map<String, Any>
         ): Map<String, Any> {
             val properties = getEventBasePayload(settings, context, userId, eventName, null, null)
-            properties.d?.event?.props?.setIsCustomEvent(true)
+            properties.d?.event?.props?.setCustomEvent(true)
             properties.d?.visitor?.props?.putAll(attributeMap)
             log(
                 LogLevelEnum.DEBUG,

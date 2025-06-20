@@ -16,6 +16,7 @@
 package com.vwo.packages.network_layer.manager
 
 import com.google.gson.Gson
+import com.vwo.utils.GsonUtil
 import com.vwo.interfaces.networking.NetworkClientInterface
 import com.vwo.models.Settings
 import com.vwo.packages.logger.enums.LogLevelEnum
@@ -161,7 +162,7 @@ object NetworkManager {
     private fun addToBatch(
         request: RequestModel
     ) {
-        val requestString = Gson().toJson(request.body).toString()
+        val requestString = GsonUtil.gson.toJson(request.body).toString()
         StorageProvider.sdkDataManager?.saveSdkData(
             sdkKey = SettingsManager.instance?.sdkKey,
             accountId = SettingsManager.instance?.accountId,
