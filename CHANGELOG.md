@@ -5,20 +5,20 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-[1.6.2] - 2025-06-20
+## [1.6.2] - 2025-06-20
 
 ### Changed
 
 - Optimized application size by 61% via dependency minimization
 - Gradle updated for Maven Central publishing
 
-[1.6.1] - 2025-05-28
+## [1.6.1] - 2025-05-28
 
 ### Changed
 
 - Refactored code to enhance testability
 
-[1.6.0] - 2025-05-07
+## [1.6.0] - 2025-05-07
 
 ### Added
 
@@ -34,7 +34,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Resolved an issue where error logs were generated when no flags were present in settings.
 - Corrected an error that occurred when retrieving flag values during polling.
 
-[1.4.1] - 2025-04-02
+## [1.4.1] - 2025-04-02
 
 ### Changed
 
@@ -44,20 +44,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - ProGuard configuration updated for storage connector
 
-[1.4.0] - 2025-03-11
+## [1.4.0] - 2025-03-11
 
 ### Added
 
 - Added support to use DACDN as Gateway substitute
 - Added delay while retrying failed API calls
 
-[1.3.1] - 2025-03-06
+## [1.3.1] - 2025-03-06
 
 ### Added
 
 - Added support for error message uploading
 
-[1.3.0] - 2025-02-14
+## [1.3.0] - 2025-02-14
 
 ### Added
 
