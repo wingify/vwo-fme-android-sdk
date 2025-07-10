@@ -192,6 +192,7 @@ The following table explains all the parameters in the `context` object:
 | ----------------- | -------------------------------------------------------------------------- | ------------ | -------- | -------------------------------- |
 | `id`              | Unique identifier for the user.                                            | Yes          | String   | `'unique_user_id'`               |
 | `customVariables` | Custom attributes for targeting.                                           | No           | Object   | `mutableMapOf("age" to 25))`     |
+| `enableDeviceId`  | Enable device ID generation when user ID is not provided.                  | No           | Boolean  | `true`                           |
 
 #### Example
 
@@ -203,6 +204,64 @@ context.customVariables = mutableMapOf(
     "location" to "US"
 )
 ```
+
+Based on the changes made to the Android SDK, here's a concise description for the README.md about device ID usage:
+
+#### Device ID Configuration
+
+The SDK supports automatic device ID generation when a user ID is not provided. This feature helps maintain consistent user identification across app sessions.
+
+##### Enable Device ID
+
+To enable device ID generation, set the `enableDeviceId` property in your `VWOUserContext`:
+
+```kotlin
+// Kotlin
+val userContext = VWOUserContext()
+userContext.id = "" // Empty ID to trigger device ID fallback
+userContext.enableDeviceId = true // Enable device ID generation
+```
+
+```java
+// Java
+VWOUserContext context = new VWOUserContext();
+context.setId(""); // Empty ID to trigger device ID fallback
+context.setEnableDeviceId(true); // Enable device ID generation
+```
+
+##### How It Works
+
+- User ID Priority: If a user ID is provided, it takes precedence over device ID
+- Device ID Fallback: When no user ID is available and `enableDeviceId` is enabled, the SDK generates a persistent device ID
+- Privacy-Friendly: Device IDs are hashed using SHA-256 for enhanced privacy protection
+- Persistent: Device IDs remain consistent across app uninstalls/reinstalls but may change on factory resets
+
+##### Usage Example
+
+```kotlin
+// Create user context with device ID enabled
+val userContext = VWOUserContext()
+userContext.enableDeviceId = true
+// Leave userContext.id empty or null to use device ID
+
+// Use the context for feature flags
+vwoClient.getFlag("feature_key", userContext, object : IVwoListener {
+    override fun onSuccess(data: Any) {
+        val featureFlag = data as? GetFlag
+        // Device ID will be automatically generated and used
+    }
+    
+    override fun onFailure(message: String) {
+        // Handle error
+    }
+})
+```
+
+##### Error Handling
+
+If neither a user ID is provided nor device ID is enabled, the SDK will log an error.
+
+This feature is particularly useful for anonymous users or scenarios where explicit user identification is not available.
 
 ### Basic Feature Flagging
 

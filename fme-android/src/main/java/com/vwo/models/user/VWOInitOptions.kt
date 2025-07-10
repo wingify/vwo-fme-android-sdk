@@ -51,6 +51,8 @@ class VWOInitOptions {
     /** Optional: If this value is provided, SDK will keep using cached settings till this interval is valid.*/
     var cachedSettingsExpiryTime: Int = 0
 
+
+
     /**
      * The name of the SDK.
      *
@@ -75,7 +77,7 @@ class VWOInitOptions {
     /** Optional: Batch upload time interval in milliseconds. Please specify at least few minutes*/
     var batchUploadTimeInterval: Long = -1L
 
-    /**Optional: Usage stats should always be collected, don’t collect if `isUsageStatsDisabled` flag is true*/
+    /**Optional: Usage stats should always be collected, don't collect if `isUsageStatsDisabled` flag is true*/
     var isUsageStatsDisabled = false
 
     /**Internal meta data for VWO use.*/

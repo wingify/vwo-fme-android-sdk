@@ -32,10 +32,10 @@ private val ACCOUNT_ID = server.accountId
 
 class MainActivity : AppCompatActivity() {
 
-    private val USER_ID = ""
+    private val USER_ID: String? = null
     private var vwoClient: VWO? = null
     private var featureFlag: GetFlag? = null
-    private lateinit var context: VWOUserContext
+    private lateinit var userContext: VWOUserContext
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -61,7 +61,9 @@ class MainActivity : AppCompatActivity() {
             // Set SDK Key and Account ID
             vwoInitOptions.sdkKey = SDK_KEY
             vwoInitOptions.accountId = ACCOUNT_ID
-            //vwoInitOptions.context = this@MainActivity.applicationContext
+            
+            // Context is required for device ID generation
+            vwoInitOptions.context = this@MainActivity.applicationContext
 
             vwoInitOptions.logger = mutableMapOf<String, Any>().apply { put("level", "TRACE") }
             /*val logger: MutableList<Map<String, Any>> = mutableListOf()
@@ -119,11 +121,16 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun getFlag(vwo: VWO) {
-        context = VWOUserContext()
-        context.id = USER_ID
+        userContext = VWOUserContext()
+        userContext.id = USER_ID
+        
+        // Enable device ID generation when userId is not provided
+        // This will use Android ID to generate a persistent device ID
+        userContext.enableDeviceId = false
+        
         //userContext.ipAddress = "0.0.0.0"
         //userContext.userAgent = "AppName/1.0 (Linux; Android 12; Pixel 5) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/93.0.4577.82 Mobile Safari/537.36"
-        context.customVariables = mutableMapOf(
+        userContext.customVariables = mutableMapOf(
             "name1" to 21,
             "name2" to 0,
             "name3" to 5,
@@ -131,7 +138,7 @@ class MainActivity : AppCompatActivity() {
         )
 
         // Get feature flag object
-        vwo.getFlag(server.flagName, context, object : IVwoListener {
+        vwo.getFlag(server.flagName, userContext, object : IVwoListener {
             override fun onSuccess(data: Any) {
                 featureFlag = data as? GetFlag
                 val isFeatureFlagEnabled = featureFlag?.isEnabled()
@@ -168,7 +175,7 @@ class MainActivity : AppCompatActivity() {
 
         if (recommendationWrapper is Recommendation) {
             val options = mapOf<String, Any>(
-                "userId" to USER_ID,
+                "userId" to (USER_ID ?: ""),
                 "productIds" to "1,2,3,4",
                 "pageType" to "shopping-cart-page-view"
             )
@@ -204,7 +211,7 @@ class MainActivity : AppCompatActivity() {
 
     private fun track() {
 
-        if (!::context.isInitialized) return
+        if (!::userContext.isInitialized) return
 
         val properties = mutableMapOf<String, Any>("cartvalue" to 10)
         // Track the event for the given event name and user context
@@ -213,18 +220,18 @@ class MainActivity : AppCompatActivity() {
         map["isWishlisted"] = false
         map["price"] = 21
         map["productId"] = 1
-        val trackResponse = vwoClient?.trackEvent(server.eventName, context, map)
+        val trackResponse = vwoClient?.trackEvent(server.eventName, userContext, map)
         //val trackResponse = vwo?.trackEvent(server.eventName, userContext)
     }
 
     private fun sendAttribute() {
-        if (!::context.isInitialized) return
+        if (!::userContext.isInitialized) return
 
         val attributes = mapOf(
             server.attributeName to "paid",
             "price" to 99,
             "isEnterpriseCustomer" to false
         )
-        vwoClient?.setAttribute(attributes, context)
+        vwoClient?.setAttribute(attributes, userContext)
     }
 }

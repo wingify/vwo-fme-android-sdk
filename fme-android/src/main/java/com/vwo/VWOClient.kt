@@ -35,6 +35,7 @@ import com.vwo.utils.DataTypeUtil.isBoolean
 import com.vwo.utils.DataTypeUtil.isNumber
 import com.vwo.utils.DataTypeUtil.isString
 import com.vwo.utils.SettingsUtil
+import com.vwo.utils.UserIdUtil
 
 /**
  * Client class for interacting with the VWO SDK.
@@ -110,9 +111,17 @@ class VWOClient(settings: String?, options: VWOInitOptions?) {
                     }
                 })
             val hooksManager: HooksManager = HooksManager(options?.integrations)
-            if (context.id?.isEmpty() == true) {
+            
+            // Use effective user ID (either provided userId or generated deviceId)
+            val effectiveUserId = UserIdUtil.getEffectiveUserId(context, options)
+            if (effectiveUserId.isNullOrEmpty()) {
                 getFlag.setIsEnabled(false)
-                throw IllegalArgumentException("User ID is required")
+                throw IllegalArgumentException("User ID is required. Please provide a user ID or enable device ID in VWOUserContext.")
+            }
+            
+            // Update context with effective user ID if it was generated
+            if (context.id != effectiveUserId) {
+                context.id = effectiveUserId
             }
 
             if (featureKey.isNullOrEmpty()) {
@@ -178,7 +187,14 @@ class VWOClient(settings: String?, options: VWOInitOptions?) {
                 throw IllegalArgumentException("TypeError: Event-name should be a string")
             }
 
-            require(!(context?.id == null || context.id?.isEmpty()==true)) { "User ID is required" }
+            // Use effective user ID (either provided userId or generated deviceId)
+            val effectiveUserId = UserIdUtil.getEffectiveUserId(context, options)
+            require(!effectiveUserId.isNullOrEmpty()) { "User ID is required. Please provide a user ID or enable device ID in VWOUserContext." }
+            
+            // Update context with effective user ID if it was generated
+            if (context != null && context.id != effectiveUserId) {
+                context.id = effectiveUserId
+            }
 
             val pSettings = this.processedSettings
             if (pSettings == null || !SettingsSchema().isSettingsValid(this.processedSettings)) {
@@ -267,7 +283,14 @@ class VWOClient(settings: String?, options: VWOInitOptions?) {
             }
             removedUnsupportedValues(attributes, apiName)
 
-            require(!(context.id == null || context.id?.isEmpty() == true)) { "User ID is required" }
+            // Use effective user ID (either provided userId or generated deviceId)
+            val effectiveUserId = UserIdUtil.getEffectiveUserId(context, options)
+            require(!effectiveUserId.isNullOrEmpty()) { "User ID is required. Please provide a user ID or enable device ID in VWOUserContext." }
+            
+            // Update context with effective user ID if it was generated
+            if (context.id != effectiveUserId) {
+                context.id = effectiveUserId
+            }
 
             if (this.processedSettings == null || !SettingsSchema().isSettingsValid(this.processedSettings)) {
                 return

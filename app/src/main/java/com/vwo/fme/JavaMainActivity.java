@@ -33,6 +33,7 @@ import com.vwo.interfaces.logger.LogTransport;
 import com.vwo.models.user.GetFlag;
 import com.vwo.models.user.VWOUserContext;
 import com.vwo.models.user.VWOInitOptions;
+import com.vwo.utils.DeviceIdUtil;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -128,12 +129,20 @@ public class JavaMainActivity extends AppCompatActivity {
 
     private void getFlag(@NonNull VWO vwoClient) {
         context = new VWOUserContext();
-        context.setId("unique_user_id");
+        // Set user ID to empty to trigger device ID fallback
+        context.setId("");
+        // Enable device ID fallback
+        context.setEnableDeviceId(true);
 
         Map<String, Object> customVariables = new HashMap<>();
         customVariables.put("Username", "Swapnil");
         customVariables.put("userType", "trial");
         context.setCustomVariables(customVariables);
+
+        // Log the device ID for demonstration
+        DeviceIdUtil deviceIdUtil = new DeviceIdUtil();
+        String deviceId = deviceIdUtil.getDeviceId(getApplicationContext());
+        Log.d(TAG, "Generated Device ID: " + deviceId);
 
         vwoClient.getFlag("feature-key", context, new IVwoListener() {
             public void onSuccess(Object data) {

@@ -27,4 +27,11 @@ class VWOUserContext {
     var variationTargetingVariables: MutableMap<String, Any> = HashMap()
 
     var vwo: GatewayService? = null
+    
+    /**
+     * Enable device ID generation when user ID is not provided.
+     * When enabled, the SDK will generate a persistent device ID.
+     * This option is useful when explicit user identification is not available.
+     */
+    var enableDeviceId: Boolean = false
 }
