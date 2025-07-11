@@ -131,8 +131,8 @@ public class JavaMainActivity extends AppCompatActivity {
         context = new VWOUserContext();
         // Set user ID to empty to trigger device ID fallback
         context.setId("");
-        // Enable device ID fallback
-        context.setEnableDeviceId(true);
+        // Use device ID as user ID fallback
+        context.setShouldUseDeviceIdAsUserId(true);
 
         Map<String, Object> customVariables = new HashMap<>();
         customVariables.put("Username", "Swapnil");

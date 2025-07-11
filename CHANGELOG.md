@@ -5,10 +5,17 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-[1.6.3] - 2025-07-14
+[1.7.0] - 2025-07-14
 
 ### Added
-- Support to use Device ID if userId is not available
+- Support to use Device ID if `context.id` is not available
+
+```java
+// Java
+VWOUserContext context = new VWOUserContext();
+context.setId(""); // Empty ID to trigger device ID fallback
+context.setShouldUseDeviceIdAsUserId(true); // Use device ID as user ID
+```
 
 [1.6.2] - 2025-06-20
 

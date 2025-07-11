@@ -29,9 +29,9 @@ class VWOUserContext {
     var vwo: GatewayService? = null
     
     /**
-     * Enable device ID generation when user ID is not provided.
-     * When enabled, the SDK will generate a persistent device ID.
+     * Use device ID as user ID when user ID is not provided.
+     * When enabled, the SDK will generate a persistent device ID and use it as the user ID.
      * This option is useful when explicit user identification is not available.
      */
-    var enableDeviceId: Boolean = false
+    var shouldUseDeviceIdAsUserId: Boolean = false
 }

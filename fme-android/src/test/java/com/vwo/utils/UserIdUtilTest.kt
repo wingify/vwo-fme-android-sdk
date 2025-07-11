@@ -45,178 +45,178 @@ class UserIdUtilTest {
     }
 
     @Test
-    fun `getEffectiveUserId should return user ID when provided`() {
+    fun `getUserId should return user ID when provided`() {
         // Arrange
         val context = VWOUserContext()
         context.id = "user123"
-        context.enableDeviceId = true
+        context.shouldUseDeviceIdAsUserId = true
         val options = VWOInitOptions()
         options.context = mockContext
 
         // Act
-        val effectiveUserId = UserIdUtil.getEffectiveUserId(context, options)
+        val userId = UserIdUtil.getUserId(context, options)
 
         // Assert
-        assertEquals("user123", effectiveUserId)
+        assertEquals("user123", userId)
     }
 
     @Test
-    fun `getEffectiveUserId should return device ID when user ID is null and device ID is enabled`() {
+    fun `getUserId should return device ID when user ID is null and device ID is enabled`() {
         // Arrange
         val context = VWOUserContext()
         context.id = null
-        context.enableDeviceId = true
+        context.shouldUseDeviceIdAsUserId = true
         val options = VWOInitOptions()
         options.context = mockContext
         
         whenever(mockDeviceIdUtil.getDeviceId(mockContext)).thenReturn("device_123456")
 
         // Act
-        val effectiveUserId = UserIdUtil.getEffectiveUserId(context, options, mockDeviceIdUtil)
+        val userId = UserIdUtil.getUserId(context, options, mockDeviceIdUtil)
 
         // Assert
-        assertEquals("device_123456", effectiveUserId)
+        assertEquals("device_123456", userId)
     }
 
     @Test
-    fun `getEffectiveUserId should return device ID when user ID is empty and device ID is enabled`() {
+    fun `getUserId should return device ID when user ID is empty and device ID is enabled`() {
         // Arrange
         val context = VWOUserContext()
         context.id = ""
-        context.enableDeviceId = true
+        context.shouldUseDeviceIdAsUserId = true
         val options = VWOInitOptions()
         options.context = mockContext
         
         whenever(mockDeviceIdUtil.getDeviceId(mockContext)).thenReturn("device_789012")
 
         // Act
-        val effectiveUserId = UserIdUtil.getEffectiveUserId(context, options, mockDeviceIdUtil)
+        val userId = UserIdUtil.getUserId(context, options, mockDeviceIdUtil)
 
         // Assert
-        assertEquals("device_789012", effectiveUserId)
+        assertEquals("device_789012", userId)
     }
 
     @Test
-    fun `getEffectiveUserId should return null when user ID is null and device ID is disabled`() {
+    fun `getUserId should return null when user ID is null and device ID is disabled`() {
         // Arrange
         val context = VWOUserContext()
         context.id = null
-        context.enableDeviceId = false
+        context.shouldUseDeviceIdAsUserId = false
         val options = VWOInitOptions()
         options.context = mockContext
 
         // Act
-        val effectiveUserId = UserIdUtil.getEffectiveUserId(context, options)
+        val userId = UserIdUtil.getUserId(context, options)
 
         // Assert
-        assertNull(effectiveUserId)
+        assertNull(userId)
     }
 
     @Test
-    fun `getEffectiveUserId should return null when user ID is empty and device ID is disabled`() {
+    fun `getUserId should return null when user ID is empty and device ID is disabled`() {
         // Arrange
         val context = VWOUserContext()
         context.id = ""
-        context.enableDeviceId = false
+        context.shouldUseDeviceIdAsUserId = false
         val options = VWOInitOptions()
         options.context = mockContext
 
         // Act
-        val effectiveUserId = UserIdUtil.getEffectiveUserId(context, options)
+        val userId = UserIdUtil.getUserId(context, options)
 
         // Assert
-        assertNull(effectiveUserId)
+        assertNull(userId)
     }
 
     @Test
-    fun `getEffectiveUserId should return null when context is null`() {
+    fun `getUserId should return null when context is null`() {
         // Arrange
         val options = VWOInitOptions()
         options.context = mockContext
 
         // Act
-        val effectiveUserId = UserIdUtil.getEffectiveUserId(null, options)
+        val userId = UserIdUtil.getUserId(null, options)
 
         // Assert
-        assertNull(effectiveUserId)
+        assertNull(userId)
     }
 
     @Test
-    fun `getEffectiveUserId should return null when options is null`() {
+    fun `getUserId should return null when options is null`() {
         // Arrange
         val context = VWOUserContext()
         context.id = ""
 
         // Act
-        val effectiveUserId = UserIdUtil.getEffectiveUserId(context, null)
+        val userId = UserIdUtil.getUserId(context, null)
 
         // Assert
-        assertNull(effectiveUserId)
+        assertNull(userId)
     }
 
     @Test
-    fun `getEffectiveUserId should return null when device ID generation fails`() {
+    fun `getUserId should return null when device ID generation fails`() {
         // Arrange
         val context = VWOUserContext()
         context.id = ""
-        context.enableDeviceId = true
+        context.shouldUseDeviceIdAsUserId = true
         val options = VWOInitOptions()
         options.context = mockContext
         
         whenever(mockDeviceIdUtil.getDeviceId(mockContext)).thenReturn(null)
 
         // Act
-        val effectiveUserId = UserIdUtil.getEffectiveUserId(context, options, mockDeviceIdUtil)
+        val userId = UserIdUtil.getUserId(context, options, mockDeviceIdUtil)
 
         // Assert
-        assertNull(effectiveUserId)
+        assertNull(userId)
     }
 
     @Test
-    fun `isEffectiveUserIdAvailable should return true when user ID is provided`() {
+    fun `isUserIdAvailable should return true when user ID is provided`() {
         // Arrange
         val context = VWOUserContext()
         context.id = "user123"
-        context.enableDeviceId = false
+        context.shouldUseDeviceIdAsUserId = false
         val options = VWOInitOptions()
         options.context = mockContext
 
         // Act
-        val isAvailable = UserIdUtil.isEffectiveUserIdAvailable(context, options)
+        val isAvailable = UserIdUtil.isUserIdAvailable(context, options)
 
         // Assert
         assertTrue(isAvailable)
     }
 
     @Test
-    fun `isEffectiveUserIdAvailable should return true when device ID is available`() {
+    fun `isUserIdAvailable should return true when device ID is available`() {
         // Arrange
         val context = VWOUserContext()
         context.id = ""
-        context.enableDeviceId = true
+        context.shouldUseDeviceIdAsUserId = true
         val options = VWOInitOptions()
         options.context = mockContext
         
         whenever(mockDeviceIdUtil.getDeviceId(mockContext)).thenReturn("device_123456")
 
         // Act
-        val isAvailable = UserIdUtil.isEffectiveUserIdAvailable(context, options, mockDeviceIdUtil)
+        val isAvailable = UserIdUtil.isUserIdAvailable(context, options, mockDeviceIdUtil)
 
         // Assert
         assertTrue(isAvailable)
     }
 
     @Test
-    fun `isEffectiveUserIdAvailable should return false when no user ID is available`() {
+    fun `isUserIdAvailable should return false when no user ID is available`() {
         // Arrange
         val context = VWOUserContext()
         context.id = ""
-        context.enableDeviceId = false
+        context.shouldUseDeviceIdAsUserId = false
         val options = VWOInitOptions()
         options.context = mockContext
 
         // Act
-        val isAvailable = UserIdUtil.isEffectiveUserIdAvailable(context, options)
+        val isAvailable = UserIdUtil.isUserIdAvailable(context, options)
 
         // Assert
         assertFalse(isAvailable)

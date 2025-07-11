@@ -124,9 +124,9 @@ class MainActivity : AppCompatActivity() {
         userContext = VWOUserContext()
         userContext.id = USER_ID
         
-        // Enable device ID generation when userId is not provided
+        // Use device ID as user ID when userId is not provided
         // This will use Android ID to generate a persistent device ID
-        userContext.enableDeviceId = false
+        userContext.shouldUseDeviceIdAsUserId = false
         
         //userContext.ipAddress = "0.0.0.0"
         //userContext.userAgent = "AppName/1.0 (Linux; Android 12; Pixel 5) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/93.0.4577.82 Mobile Safari/537.36"

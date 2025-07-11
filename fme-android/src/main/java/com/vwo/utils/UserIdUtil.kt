@@ -39,21 +39,21 @@ object UserIdUtil {
      * @param deviceIdUtil Optional DeviceIdUtil instance for testing
      * @return The effective user ID (either provided userId or generated deviceId), or null if neither is available
      */
-    fun getEffectiveUserId(
+    fun getUserId(
         userContext: VWOUserContext?, 
         options: VWOInitOptions?,
         deviceIdUtil: DeviceIdUtil = this.deviceIdUtil
     ): String? {
         // First, try to use the provided user ID
         if (!userContext?.id.isNullOrEmpty()) {
-            LoggerService.log(LogLevelEnum.INFO, "USER_ID_DEVICEID", mapOf("id" to userContext?.id))
+            LoggerService.log(LogLevelEnum.INFO, "USER_ID_INFO", mapOf("id" to userContext?.id))
             return userContext?.id
         }
         
         // If no user ID is provided and device ID is enabled in context, generate device ID
-        if (userContext?.enableDeviceId == true && options?.context != null) {
+        if (userContext?.shouldUseDeviceIdAsUserId == true && options?.context != null) {
             val deviceId = deviceIdUtil.getDeviceId(options.context!!)
-            LoggerService.log(LogLevelEnum.INFO, "USER_ID_DEVICEID", mapOf("id" to deviceId))
+            LoggerService.log(LogLevelEnum.INFO, "USER_ID_INFO", mapOf("id" to deviceId))
             return deviceId
         }
         
@@ -70,11 +70,11 @@ object UserIdUtil {
      * @param deviceIdUtil Optional DeviceIdUtil instance for testing
      * @return True if an effective user ID is available, false otherwise
      */
-    fun isEffectiveUserIdAvailable(
+    fun isUserIdAvailable(
         userContext: VWOUserContext?, 
         options: VWOInitOptions?,
         deviceIdUtil: DeviceIdUtil = this.deviceIdUtil
     ): Boolean {
-        return getEffectiveUserId(userContext, options, deviceIdUtil) != null
+        return getUserId(userContext, options, deviceIdUtil) != null
     }
 } 

@@ -34,6 +34,6 @@
   "CACHED_EVALUATION_RESPONSE": "Found evaluation result of list attribute in cache: {value}",
   "ONLINE_BATCH_PROCESSING_STATUS": "Batch: Events batching is {status} when device is online.",
 
-  "USER_ID_NULL": "EffectiveUserId: No user ID is available and device ID is not enabled, returning null.",
-  "USER_ID_DEVICEID": "EffectiveUserId: Using {id} as user ID"
+  "USER_ID_NULL": "UserId: No user ID was provided, and using the device ID as a fallback is currently disabled. Operations requiring a user ID may not function as expected.",
+  "USER_ID_INFO": "UserId: Using '{id}' as user identifier."
 }
