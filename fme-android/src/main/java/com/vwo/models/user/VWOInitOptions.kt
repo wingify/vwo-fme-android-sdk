@@ -45,10 +45,15 @@ class VWOInitOptions {
 
     var gatewayService: Map<String, Any> = HashMap()
 
-    /** Optional: Even though context is optional, it is required if you want to use features like cached settings, offline batch upload, etc.*/
+    /**
+     * Optional: Even though context is optional, it is required if you want to use features like
+     * cached settings, offline batch upload, device ID generation, storage.*/
     var context: Context? = null
 
-    /** Optional: If this value is provided, SDK will keep using cached settings till this interval is valid.*/
+    /**
+     * Optional: If this value is provided, SDK will keep using cached settings till this interval
+     * is valid.
+     */
     var cachedSettingsExpiryTime: Int = 0
 
 

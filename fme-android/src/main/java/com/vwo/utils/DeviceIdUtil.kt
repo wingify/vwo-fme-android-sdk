@@ -18,8 +18,6 @@ package com.vwo.utils
 import android.content.Context
 import android.provider.Settings
 import com.vwo.providers.StorageProvider
-import java.security.MessageDigest
-import java.nio.charset.StandardCharsets
 
 /**
  * Utility class for generating and managing device IDs.
@@ -49,8 +47,7 @@ class DeviceIdUtil {
             )
             
             return if (androidId != null && androidId.isNotEmpty()) {
-                // Hash the Android ID to create a more privacy-friendly identifier
-                "device_${hashString(androidId)}"
+                androidId
             } else {
                 null
             }
@@ -68,18 +65,5 @@ class DeviceIdUtil {
     fun getDeviceId(): String? {
         val context = StorageProvider.contextRef.get()
         return getDeviceId(context)
-    }
-    
-    /**
-     * Hashes a string using SHA-256 to create a more privacy-friendly identifier.
-     * 
-     * @param input The input string to hash
-     * @return A hexadecimal string representation of the hash
-     */
-    private fun hashString(input: String): String {
-        val digest = MessageDigest.getInstance("SHA-256")
-        val hash = digest.digest(input.toByteArray(StandardCharsets.UTF_8))
-        //Convert a ByteArray into its hexadecimal string representation.
-        return hash.joinToString("") { "%02x".format(it) }.substring(0, 16)
     }
 } 

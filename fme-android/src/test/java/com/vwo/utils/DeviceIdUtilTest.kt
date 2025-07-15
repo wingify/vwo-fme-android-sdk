@@ -60,8 +60,8 @@ class DeviceIdUtilTest {
 
             // Assert
             assertNotNull(deviceId)
-            assertTrue(deviceId!!.startsWith("device_"))
-            assertEquals(23, deviceId.length) // "device_" + 16 chars hash
+            assertTrue(deviceId?.isNotBlank() == true)
+            assertEquals(androidId, deviceId)
         }
     }
 
