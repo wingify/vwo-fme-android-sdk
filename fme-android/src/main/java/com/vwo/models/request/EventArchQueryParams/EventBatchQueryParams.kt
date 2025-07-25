@@ -15,6 +15,8 @@
  */
 package com.vwo.models.request.EventArchQueryParams
 
+import com.vwo.utils.SDKMetaUtil
+
 /**
  * Represents query parameters for event batch requests.*
  * This class encapsulates the query parameters required for making event batch requests.
@@ -39,5 +41,7 @@ class EventBatchQueryParams(private val sdkKey: String, private val accountId: S
         this["i"] = sdkKey
         this["env"] = sdkKey
         this["a"] = accountId
+        this["sn"] = SDKMetaUtil.sdkName
+        this["sv"] = SDKMetaUtil.sdkVersion
     }
 }
