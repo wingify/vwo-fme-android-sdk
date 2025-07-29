@@ -159,6 +159,8 @@ class SettingsManager(internal val options: VWOInitOptions) {
         if (NetworkManager.config?.developmentMode != true) {
             options["s"] = "prod"
         }
+        options["sn"] = SDKMetaUtil.sdkName
+        options["sv"] = SDKMetaUtil.sdkVersion
 
         try {
             val request = RequestModel(

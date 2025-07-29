@@ -61,7 +61,7 @@ class MainActivity : AppCompatActivity() {
             // Set SDK Key and Account ID
             vwoInitOptions.sdkKey = SDK_KEY
             vwoInitOptions.accountId = ACCOUNT_ID
-            
+
             // Context is required for device ID generation, storage, batching
             vwoInitOptions.context = this@MainActivity.applicationContext
 
@@ -123,11 +123,11 @@ class MainActivity : AppCompatActivity() {
     private fun getFlag(vwo: VWO) {
         context = VWOUserContext()
         context.id = USER_ID
-        
+
         // Use device ID as user ID when userId is not provided
         // This will use Android ID to generate a persistent device ID
         context.shouldUseDeviceIdAsUserId = false
-        
+
         //context.ipAddress = "0.0.0.0"
         //context.userAgent = "AppName/1.0 (Linux; Android 12; Pixel 5) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/93.0.4577.82 Mobile Safari/537.36"
         context.customVariables = mutableMapOf(

@@ -82,6 +82,8 @@ class NetworkUtil {
                 ipAddress,
                 generateEventUrl()
             )
+            requestQueryParams.queryParams["sn"] = SDKMetaUtil.sdkName
+            requestQueryParams.queryParams["sv"] = SDKMetaUtil.sdkVersion
             return requestQueryParams.queryParams
         }
 
