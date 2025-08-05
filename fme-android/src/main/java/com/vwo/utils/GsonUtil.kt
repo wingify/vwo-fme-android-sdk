@@ -17,6 +17,7 @@ package com.vwo.utils
 
 import com.google.gson.Gson
 import com.google.gson.GsonBuilder
+import com.google.gson.ToNumberPolicy
 import com.vwo.models.request.Props
 import com.vwo.models.request.PropsSerializer
 
@@ -38,5 +39,6 @@ object GsonUtil {
      */
     val gson: Gson = GsonBuilder()
         .registerTypeAdapter(Props::class.java, PropsSerializer())
+        .setObjectToNumberStrategy(ToNumberPolicy.LONG_OR_DOUBLE)
         .create()
 } 

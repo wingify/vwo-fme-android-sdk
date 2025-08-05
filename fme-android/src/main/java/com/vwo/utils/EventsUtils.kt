@@ -17,6 +17,7 @@
 
 package com.vwo.utils
 
+import com.vwo.enums.EventEnum
 import com.vwo.enums.UrlEnum
 import com.vwo.models.user.VWOUserContext
 import com.vwo.packages.network_layer.manager.NetworkManager
@@ -26,13 +27,37 @@ import com.vwo.services.SettingsManager.Companion.instance
 import com.vwo.services.UrlService.baseUrl
 
 /**
- * Utility class for handling events related operations, such as pre-segmentation.
+ * Utility class for handling events related operations, such as pre-segmentation and SDK initialization.
  *
  * This class provides methods for evaluating DSLs against user context to determine if events
- * should be tracked before segmentation. It also includes helper functions for validating
- * event data and other related tasks.
+ * should be tracked before segmentation, and for sending SDK initialization events.
  */
 class EventsUtils {
+
+    /**
+     * Sends an init event to VWO.
+     * This event is triggered when the init function is called.
+     * @param settingsFetchTime Time taken to fetch settings in milliseconds.
+     * @param sdkInitTime Time taken to initialize the SDK in milliseconds.
+     */
+    fun sendSdkInitEvent(settingsFetchTime: Long? = null, sdkInitTime: Long? = null) {
+        // Create the query parameters
+        val queryParams = NetworkUtil.getEventsBaseProperties(
+            EventEnum.VWO_INIT_CALLED.value,
+            null,
+            null
+        )
+
+        // Create the payload with required fields
+        val payload = NetworkUtil.getSDKInitEventPayload(
+            EventEnum.VWO_INIT_CALLED.value,
+            settingsFetchTime,
+            sdkInitTime
+        )
+
+        // Send the constructed payload via POST request
+        NetworkUtil.sendGatewayEvent(queryParams, payload)
+    }
 
     /**
      * Evaluates the given DSL against the provided context to determine if the event
