@@ -52,4 +52,7 @@ class Settings {
 
     @SerializedName("collectionPrefix")
     var collectionPrefix: String? = null
+
+    @SerializedName("sdkMetaInfo")
+    var sdkMetaInfo: SdkMetaInfo? = null
 }

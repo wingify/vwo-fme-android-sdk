@@ -5,7 +5,7 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-[1.7.0] - 2025-07-30
+[1.8.0] - 2025-08-13
 
 ### Added
 - Support to use Device ID if `context.id` is not available
@@ -17,13 +17,21 @@ context.setId(""); // Empty ID to trigger device ID fallback
 context.setShouldUseDeviceIdAsUserId(true); // Use device ID as user ID
 ```
 
+
+[1.7.0] - 2025-08-05
+
+### Added
+
+- Added support for sending a one-time SDK initialization event to VWO server as part of health-check milestones.
+
+
 [1.6.4] - 2025-07-25
 
 ### Added
 
 - Send the SDK name and version in the events and batching call to VWO as query parameters.
 
-[1.6.3] - 2025-07-24
+## [1.6.3] - 2025-06-24
 
 ### Added
 

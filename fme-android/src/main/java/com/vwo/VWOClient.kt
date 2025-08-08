@@ -48,10 +48,12 @@ import com.vwo.utils.UserIdUtil
  * @param options The initialization options for the VWO client.
  */
 class VWOClient(settings: String?, options: VWOInitOptions?) {
-    private var processedSettings: Settings? = null
+    internal var processedSettings: Settings? = null
     var settings: String? = null
     private var options: VWOInitOptions? = null
     private var context: Context? = null
+    internal var isSettingsValid = false
+    internal var settingsFetchTime: Long = 0
 
     init {
         try {
