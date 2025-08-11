@@ -25,6 +25,7 @@ import com.vwo.utils.SDKMetaUtil
 import com.vwo.packages.network_layer.manager.BatchManager
 import com.vwo.providers.StorageProvider
 import com.vwo.sdk.fme.BuildConfig
+import com.vwo.utils.AliasIdentityManager
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -168,5 +169,10 @@ object VWO {
     fun setAttribute(attributes: Map<String, Any>, context: VWOUserContext) {
         vwoClient?.setAttribute(attributes, context)
     }
+
+    fun setAlias(tempId: String, loggedInUserId: String) {
+        AliasIdentityManager.setAlias(tempId, loggedInUserId)
+    }
+
 }
 

@@ -44,7 +44,13 @@ object UserIdUtil {
         options: VWOInitOptions?,
         deviceIdUtil: DeviceIdUtil = this.deviceIdUtil
     ): String? {
-        // First, try to use the provided user ID
+
+        val userId = AliasIdentityManager.getUserIdForFlag(userContext)
+        if (userContext != null && !userId.isNullOrEmpty()) {
+            // try to use the ID from gateway, if not found fallback to previous
+            return userId
+        }
+
         if (!userContext?.id.isNullOrEmpty()) {
             LoggerService.log(LogLevelEnum.INFO, "USER_ID_INFO", mapOf("id" to userContext?.id))
             return userContext?.id

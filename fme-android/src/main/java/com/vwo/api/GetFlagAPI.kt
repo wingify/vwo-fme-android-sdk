@@ -31,6 +31,7 @@ import com.vwo.packages.segmentation_evaluator.core.SegmentationManager
 import com.vwo.services.HooksManager
 import com.vwo.services.LoggerService
 import com.vwo.services.StorageService
+import com.vwo.utils.AliasIdentityManager
 import com.vwo.utils.CampaignUtil.getVariationFromCampaignKey
 import com.vwo.utils.DecisionUtil.evaluateTrafficAndGetVariation
 import com.vwo.utils.FunctionUtil.getAllExperimentRules
@@ -102,7 +103,7 @@ object GetFlagAPI {
                             object : HashMap<String?, String?>() {
                                 init {
                                     put("variationKey", variation.name)
-                                    put("userId", context.id)
+                                    put("userId", AliasIdentityManager.getUserIdForFlag(context))
                                     put("experimentType", "experiment")
                                     put("experimentKey", storedData.experimentKey)
                                 }

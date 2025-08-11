@@ -18,10 +18,10 @@ import com.vwo.models.user.VWOUserContext
 import com.vwo.models.user.VWOInitOptions
 
 val prod = TestApp(
-    accountId = 0,
-    sdkKey = "",
-    flagName = "",
-    variableName = "",
+    accountId = 1035100,
+    sdkKey = "38ec10ebb36a99db653042adb92a4499",
+    flagName = "testByNabin",
+    variableName = "variable1",
     eventName = "",
     attributeName = ""
 )
@@ -32,7 +32,7 @@ private val ACCOUNT_ID = server.accountId
 
 class MainActivity : AppCompatActivity() {
 
-    private val USER_ID: String? = null
+    private val USER_ID: String? = "vwousercontext.id_1"
     private var vwoClient: VWO? = null
     private var featureFlag: GetFlag? = null
     private lateinit var context: VWOUserContext
@@ -96,6 +96,12 @@ class MainActivity : AppCompatActivity() {
                 override fun vwoInitSuccess(vwoClient: VWO, message: String) {
                     // Success
                     this@MainActivity.vwoClient = vwoClient
+
+                    // Right now this cannot be called internally because there's
+                    // no specific VWOUserContext point.
+                    // DEV must call this right after setting everything inside the
+                    // VWOUserContext object.
+                    // VWOUserContext().apply { id = USER_ID }.connectToGatewayAndResolveId()
                 }
 
                 override fun vwoInitFailed(message: String) {
@@ -117,6 +123,34 @@ class MainActivity : AppCompatActivity() {
         }
         binding.btnJavaScreen.setOnClickListener {
             startActivity(Intent(this, JavaMainActivity::class.java))
+        }
+
+        binding.btnSetAlias.setOnClickListener {
+        }
+
+        with(binding) {
+
+            val loginLogoutCtx = VWOUserContext()
+            loginLogoutCtx.id = USER_ID ?: ""
+
+            btnEmulateFirstGatewayCall.setOnClickListener {
+                loginLogoutCtx.connectToGatewayAndResolveId()
+            }
+
+            doALogout.setOnClickListener {
+                loginLogoutCtx.id
+            }
+
+            btnS1.setOnClickListener {
+                VWO.setAlias(tempId = USER_ID ?: "", loggedInUserId = "Scenario_1_LOGIN_USER_ID_1")
+            }
+
+            btnS2.setOnClickListener {
+            }
+
+            btnS3.setOnClickListener {
+            }
+
         }
     }
 

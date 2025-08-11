@@ -15,6 +15,8 @@
  */
 package com.vwo.models.user
 
+import com.vwo.utils.AliasIdentityManager
+
 /**
  * Represents the context of a VWO user.
  *
@@ -34,4 +36,12 @@ class VWOUserContext {
      * This option is useful when explicit user identification is not available.
      */
     var shouldUseDeviceIdAsUserId: Boolean = false
+
+    fun connectToGatewayAndResolveId() {
+
+        // pass this object and get the canonical id from the server
+        // this should be called internally
+        AliasIdentityManager.requestFromGatewayIfNotFoundLocally(this)
+    }
+
 }
