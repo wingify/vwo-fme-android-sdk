@@ -21,10 +21,12 @@ import com.vwo.interfaces.IVwoInitCallback
 import com.vwo.interfaces.IVwoListener
 import com.vwo.models.user.VWOUserContext
 import com.vwo.models.user.VWOInitOptions
+import com.vwo.packages.logger.enums.LogLevelEnum
 import com.vwo.utils.SDKMetaUtil
 import com.vwo.packages.network_layer.manager.BatchManager
 import com.vwo.providers.StorageProvider
 import com.vwo.sdk.fme.BuildConfig
+import com.vwo.services.LoggerService
 import com.vwo.utils.AliasIdentityManager
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -170,8 +172,21 @@ object VWO {
         vwoClient?.setAttribute(attributes, context)
     }
 
-    fun setAlias(tempId: String, loggedInUserId: String) {
-        AliasIdentityManager.setAlias(tempId, loggedInUserId)
+    /**
+     * Set alias of [aliasId] to the qualified id in [context].
+     *
+     * @param context - Context that will be used for [getFlag]
+     * @param aliasId  - The actual user id, maybe after login
+     */
+    fun setAlias(context: VWOUserContext, aliasId: String) {
+
+        (context.maybeGetQualifyingId())?.let { sanitizedId ->
+
+            AliasIdentityManager.setAlias(idPassedOnInit = sanitizedId, userId = aliasId)
+        } ?: kotlin.run {
+
+            LoggerService.log(LogLevelEnum.ERROR, "Invalid VWOUserContext object passed for user $aliasId")
+        }
     }
 
 }

@@ -16,6 +16,7 @@
 package com.vwo.models.user
 
 import com.vwo.utils.AliasIdentityManager
+import com.vwo.utils.DeviceIdUtil
 
 /**
  * Represents the context of a VWO user.
@@ -23,13 +24,19 @@ import com.vwo.utils.AliasIdentityManager
  * This class encapsulates information about a user in the context of VWO, including their ID, user agent, IP address, custom variables, and variation targeting variables.
  */
 class VWOUserContext {
+
     var id: String? = null
+        set(value) {
+            field = value
+            connectToGatewayAndResolveId()
+        }
+
     var customVariables: MutableMap<String, Any> = HashMap()
 
     var variationTargetingVariables: MutableMap<String, Any> = HashMap()
 
     var vwo: GatewayService? = null
-    
+
     /**
      * Use device ID as user ID when user ID is not provided.
      * When enabled, the SDK will generate a persistent device ID and use it as the user ID.
@@ -37,11 +44,23 @@ class VWOUserContext {
      */
     var shouldUseDeviceIdAsUserId: Boolean = false
 
-    fun connectToGatewayAndResolveId() {
+    /**
+     * The user might want to use the device id instead of temp id.
+     *
+     * @return [String] - the qualified id picked from either [id] or [DeviceIdUtil]::getDeviceId()
+     */
+    fun maybeGetQualifyingId(): String? {
 
-        // pass this object and get the canonical id from the server
-        // this should be called internally
+        return if (shouldUseDeviceIdAsUserId) DeviceIdUtil().getDeviceId() else id
+    }
+
+    /**
+     * The gateway / backend will be requested for an userId if nothing is found locally.
+     * Do that after the id has been set.
+     */
+    private fun connectToGatewayAndResolveId() {
         AliasIdentityManager.requestFromGatewayIfNotFoundLocally(this)
     }
+
 
 }

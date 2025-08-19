@@ -103,7 +103,7 @@ object GetFlagAPI {
                             object : HashMap<String?, String?>() {
                                 init {
                                     put("variationKey", variation.name)
-                                    put("userId", AliasIdentityManager.getUserIdForFlag(context))
+                                    put("userId", context.id)
                                     put("experimentType", "experiment")
                                     put("experimentKey", storedData.experimentKey)
                                 }

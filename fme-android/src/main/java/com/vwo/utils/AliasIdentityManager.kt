@@ -1,13 +1,18 @@
 package com.vwo.utils
 
-import android.os.Environment
-import android.util.Log
 import com.vwo.models.user.VWOUserContext
+import com.vwo.packages.logger.enums.LogLevelEnum
 import com.vwo.packages.storage.LocalStorageController
 import com.vwo.providers.StorageProvider
+import com.vwo.services.LoggerService
+import kotlinx.coroutines.CoroutineExceptionHandler
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 import org.json.JSONArray
 import org.json.JSONObject
-import java.io.File
+
+private const val ERROR_INVALID_DATA_FROM_SERVER = "Got invalid data from server, statusCode."
 
 object AliasIdentityManager {
 
@@ -16,17 +21,37 @@ object AliasIdentityManager {
     private const val KEY_IDENTITY_STORE = "vwo_identity_store_final"
 
     init {
-        Log.e("FTR__", "NOTE: canonical (id = userId) used internally for getFlag()")
+        LoggerService.log(
+            LogLevelEnum.INFO, "NOTE: canonical (id = userId) used internally for getFlag()"
+        )
     }
 
-    private fun String?.log() = println("LOG_ROF_: $this")
+    private fun String?.log() = LoggerService.log(LogLevelEnum.INFO, this)
 
-    // the alias        -> is the actual user id after login ; or something that we might get at later stage
-    // idPassedOnInit   -> the id that was passed during the VWOUserContext init phase
+    // the alias is the userId    -> is the actual user id after login ; or something that we might get at later stage
+    // idPassedOnInit  is tempId  -> the id that was passed during the VWOUserContext init phase
     // the {alias} will be linked with the {idPassedOnInit}
-    fun setAlias(idPassedOnInit: String, alias: String) {
+    fun setAlias(idPassedOnInit: String, userId: String) {
 
-        "will associate $alias to $idPassedOnInit if found locally".log()
+        ioThreadAsync(callback = {
+            val response = NetworkUtil.AliasApiService.setAlias(idPassedOnInit, userId)
+            println("ERR_: idPassedOnInit: $idPassedOnInit and userId $userId")
+            if (response?.statusCode != 200) {
+                // the request was not successful.
+                println("ERR_IN_REQ: error:${response?.error}, statusCode:${response?.statusCode}, headers:${response?.headers}, data:${response?.data}")
+                return@ioThreadAsync
+            }
+
+            val data = response.data
+            println("ERR_IN_REQ: we got some data : $data")
+            println("DEMO_NVN: sent the data to server for mapping ...")
+        }, exceptionDuringProcessing = {
+            it.printStackTrace()
+            println("TEST ${it.message}")
+        })
+
+        "will associate $userId to $idPassedOnInit if found locally".log()
+        println("DEMO_FILTER: mapped and saved locally ...")
 
         val localArray = getLocalJsonArray() ?: return
 
@@ -42,17 +67,17 @@ object AliasIdentityManager {
 
                 // save the alias in the array of associated id list
 
-                if (associatesIds.contains(alias)) {
-                    "[DUPLICATE] the alias { $alias } already exists in this canonical id .. skipping insertion ...".log()
+                if (associatesIds.contains(userId)) {
+                    "[DUPLICATE] the alias { $userId } already exists in this canonical id .. skipping insertion ...".log()
                     return
                 }
 
                 val associatedIdArray = obj.getJSONArray(KEY_ASSOCIATED_IDS)
-                associatedIdArray.put(alias)
+                associatedIdArray.put(userId)
 
                 obj.put(KEY_ASSOCIATED_IDS, associatedIdArray)
 
-                "$alias has been mapped to ${obj.getString(KEY_CANONICAL_ID)} ...".log()
+                "$userId has been mapped to ${obj.getString(KEY_CANONICAL_ID)} ...".log()
                 "new association array for the canonical id -> $localArray".log()
 
 
@@ -68,7 +93,7 @@ object AliasIdentityManager {
             }
         }
 
-
+        LoggerService.log(LogLevelEnum.ERROR, "")
 
         // the idPassedOnInit was not found in local list or user id passed on init differs
         // from the user id one passed here
@@ -76,30 +101,42 @@ object AliasIdentityManager {
         "[NOT IMPLEMENTED] $idPassedOnInit was not found locally ... not sure what to do ...".log()
     }
 
-    // this will be called on init and internally only
     fun requestFromGatewayIfNotFoundLocally(vwoUserContext: VWOUserContext) {
 
-        val userIdFromContext = vwoUserContext.id ?: run {
-
+        val userIdFromContext = vwoUserContext.maybeGetQualifyingId() ?: run {
             "the passed user id is invalid ... will not fetch from GATEWAY ...".log()
             return
         }
 
+        println("DEMO_FILTER: checking local storage for $userIdFromContext's mapping ....")
         "trying to get the canonical id from local storage ...".log()
         val locallySavedCanonicalId = maybeGetCanonicalIdFromLocalStorage(userIdFromContext)
         if (locallySavedCanonicalId != null) {
+
+            println("DEMO_FILTER: mapping found; ${userIdFromContext} mapped to -> { $locallySavedCanonicalId }")
 
             "$userIdFromContext was mapped to $locallySavedCanonicalId".log()
             "Will not request anything from GATEWAY ...".log()
             return
         }
 
-        "did not find canonical id on local storage ... will send a request to GATEWAY next ...".log()
+        println("DEMO_FILTER: did not find anything stored locally ...")
+        println("DEMO_FILTER: requesting server the mapping for -> { $userIdFromContext }")
 
-        ">>> sending request for id from GATEWAY, initial user id -> '${userIdFromContext}' ...".log()
-        val canonicalIdFromServer = makeResolveIdentityCall(userIdFromContext)
-        "<<< got back response from the GATEWAY $canonicalIdFromServer, will save this id locally ...".log()
-        saveCanonicalIdLocally(userIdFromContext, canonicalIdFromServer)
+        "did not find canonical id on local storage ... >>>> will send GET request to GATEWAY/SERVER with | userId->${userIdFromContext}".log()
+        makeResolveIdentityCall(
+            userIdFromContext,
+            success = { json ->
+                // example response from server -> {"aliasId":"Scenario_1_LOGIN_USER_ID_1"}
+                val canonicalIdFromServer = JSONObject(json).getString("aliasId")
+                println("DEMO_FILTER: SERVER RESPONSE -> $userIdFromContext is mapped to -> { $canonicalIdFromServer }")
+                "<<< RESPONSE from SERVER/GATEWAY -> $canonicalIdFromServer, saving this locally for lookup ...".log()
+                saveCanonicalIdLocally(userIdFromContext, canonicalIdFromServer)
+            }, error = {
+                it.log()
+                println("DEMO_FILTER: error occurred $it")
+            }
+        )
     }
 
     private fun saveCanonicalIdLocally(userIdFromContext: String, canonicalIdFromServer: String) {
@@ -157,10 +194,9 @@ object AliasIdentityManager {
         return null // nothing found
     }
 
-    fun getUserIdForFlag(vwoUserContext: VWOUserContext?): String? {
+    fun maybeGetAliasAwareUserId(vwoUserContext: VWOUserContext?): String? {
 
-        val userContextId = vwoUserContext?.id ?: return run {
-
+        val userContextId = vwoUserContext?.maybeGetQualifyingId() ?: return run {
             "cannot find user id ".log()
             null
         }
@@ -180,7 +216,7 @@ object AliasIdentityManager {
             }
         }
 
-        "did not find any flag for $userContextId that is saved locally ...".log()
+        "did not find any flag for $userContextId that was saved locally ...".log()
 
         return null
     }
@@ -199,42 +235,40 @@ object AliasIdentityManager {
         return LocalStorageController(ctx)
     }
 
-    private val mockServerDatabase = HashMap<String, String>()
-    private fun makeResolveIdentityCall(userId: String): String {
-
-        val mockServerStateFile =
-            File(Environment.getExternalStorageDirectory().absolutePath, "GATEWAY_STATE.txt")
-
-        if (mockServerDatabase.isEmpty() && mockServerStateFile.exists()) {
-            "trying to restore state before uninstall ...".log()
-            val jA = JSONArray(mockServerStateFile.readText())
-            for (index in 0 until jA.length()) {
-                val str = jA.getString(index)
-                val aStr = str.split(":")
-                mockServerDatabase[aStr[0]] = aStr[1]
+    private fun makeResolveIdentityCall(
+        userId: String,
+        success: (String) -> Unit,
+        error: (String) -> Unit
+    ) {
+        ioThreadAsync(callback = {
+            val response = NetworkUtil.AliasApiService.getAlias(userId)
+            if (response?.statusCode == 200) {
+                response.data?.let { success(it) }
+                    ?: error("$ERROR_INVALID_DATA_FROM_SERVER ${response.statusCode}")
+            } else {
+                error("statusCode: ${response?.statusCode}; cannot get expected response from server: ${response?.error}")
             }
-            // restoring previous state
+        }, exceptionDuringProcessing = { ex ->
+            error("SDK error while getAlias() -> ${ex.message}")
+        })
+    }
+
+    private fun ioThreadAsync(
+        callback: () -> Unit,
+        exceptionDuringProcessing: (Throwable) -> Unit
+    ) {
+        val err = CoroutineExceptionHandler { coroutineContext, throwable ->
+            println("SOMETHING HAPPENED: ${throwable.message}")
+            exceptionDuringProcessing(throwable)
         }
-
-        "[IGNORE Fake] GATEWAY request for a canonical id associated with -> $userId".log()
-
-        val id = mockServerDatabase[userId] ?: run {
-            "[IGNORE Fake] GATEWAY: User '$userId' is new. Sending back the canonical id for the first time.".log()
-            mockServerDatabase[userId] = userId
-            userId
-        }
-
-        // SAVE GATEWAY STATE TO A FILE
-
-        val sA = JSONArray()
-        mockServerDatabase.forEach { eat ->
-            sA.apply {
-                put("${eat.key}:${eat.value}")
+        CoroutineScope(Dispatchers.IO + err).launch {
+            try {
+                callback()
+            } catch (exception: Exception) {
+                /*some processing error occurred*/
+                exceptionDuringProcessing(exception)
             }
         }
-        mockServerStateFile.writeText(sA.toString(4))
-
-        return id
     }
 
 }

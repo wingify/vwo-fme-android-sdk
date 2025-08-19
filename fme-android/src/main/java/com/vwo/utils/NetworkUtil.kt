@@ -34,6 +34,7 @@ import com.vwo.models.user.VWOUserContext
 import com.vwo.packages.logger.enums.LogLevelEnum
 import com.vwo.packages.network_layer.manager.NetworkManager
 import com.vwo.packages.network_layer.models.RequestModel
+import com.vwo.packages.network_layer.models.ResponseModel
 import com.vwo.providers.StorageProvider
 import com.vwo.services.LoggerService.Companion.log
 import com.vwo.services.SettingsManager
@@ -497,4 +498,59 @@ class NetworkUtil {
             return headers
         }
     }
+
+    object AliasApiService {
+        const val SCHEME = "http"
+
+        const val VERB_GET = "GET"
+        const val VERB_POST = "POST"
+
+        const val PORT = 8000
+        // HOST setting for emulator, if running on physical device please use mac's ip
+        // TODO remove once e2e done on PROD
+        const val HOST = "10.0.2.2"
+
+        const val KEY_USER_ID = "userId"
+        const val KEY_ALIAS_ID = "aliasId"
+
+        fun getAlias(userId: String): ResponseModel? {
+            NetworkManager.attachClient()
+            val headers = createHeaders(null, null)
+            val queryParams = mutableMapOf(KEY_USER_ID to userId)
+            val request = RequestModel(
+                url = HOST,
+                method = VERB_GET,
+                path = UrlEnum.GET_ALIAS.url,
+                query = queryParams,
+                body = null,
+                headers = headers,
+                scheme = SCHEME,
+                port = PORT
+            )
+            return NetworkManager.get(request)
+        }
+
+        fun setAlias(userId: String, aliasId: String): ResponseModel? {
+            NetworkManager.attachClient()
+            val headers = createHeaders(null, null)
+            val requestBody = mapOf(KEY_USER_ID to userId, KEY_ALIAS_ID to aliasId)
+            val accountId = SettingsManager.instance?.accountId.toString()
+            val sdkKey = SettingsManager.instance?.sdkKey.toString()
+            val queryParams = mutableMapOf("accountId" to accountId, "sdkKey" to sdkKey)
+            val request = RequestModel(
+                url = HOST,
+                method = VERB_POST,
+                path = UrlEnum.SET_ALIAS.url,
+                query = queryParams,
+                body = requestBody,
+                headers = headers,
+                scheme = SCHEME,
+                port = PORT
+            )
+            println("REQUMOD: ${request.url}:${request.port}${request.path}")
+            return NetworkManager.post(request)
+        }
+
+    }
+
 }

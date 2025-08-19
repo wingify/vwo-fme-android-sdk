@@ -61,7 +61,7 @@ class MainActivity : AppCompatActivity() {
             // Set SDK Key and Account ID
             vwoInitOptions.sdkKey = SDK_KEY
             vwoInitOptions.accountId = ACCOUNT_ID
-            
+
             // Context is required for device ID generation, storage, batching
             vwoInitOptions.context = this@MainActivity.applicationContext
 
@@ -97,6 +97,35 @@ class MainActivity : AppCompatActivity() {
                     // Success
                     this@MainActivity.vwoClient = vwoClient
 
+                    with(binding) {
+
+                        val loginLogoutCtx = VWOUserContext()
+                        loginLogoutCtx.id = "9842626329" // USER_ID ?: ""
+                        // loginLogoutCtx.connectToGatewayAndResolveId()
+
+                        btnEmulateFirstGatewayCall.setOnClickListener {
+                            // loginLogoutCtx.connectToGatewayAndResolveId()
+                        }
+
+                        doALogout.setOnClickListener {
+                            loginLogoutCtx.id
+                        }
+
+                        btnS1.setOnClickListener {
+                            val actualUserId = "9842626329"
+                            println("DEMO_FILTER: ")
+                            println("DEMO_FILTER: user login complete -> got actual user id -> { $actualUserId } -> needs mapping")
+                            VWO.setAlias(loginLogoutCtx, aliasId = actualUserId)
+                        }
+
+                        btnS2.setOnClickListener {
+                        }
+
+                        btnS3.setOnClickListener {
+                        }
+
+                    }
+
                     // Right now this cannot be called internally because there's
                     // no specific VWOUserContext point.
                     // DEV must call this right after setting everything inside the
@@ -128,40 +157,17 @@ class MainActivity : AppCompatActivity() {
         binding.btnSetAlias.setOnClickListener {
         }
 
-        with(binding) {
 
-            val loginLogoutCtx = VWOUserContext()
-            loginLogoutCtx.id = USER_ID ?: ""
-
-            btnEmulateFirstGatewayCall.setOnClickListener {
-                loginLogoutCtx.connectToGatewayAndResolveId()
-            }
-
-            doALogout.setOnClickListener {
-                loginLogoutCtx.id
-            }
-
-            btnS1.setOnClickListener {
-                VWO.setAlias(tempId = USER_ID ?: "", loggedInUserId = "Scenario_1_LOGIN_USER_ID_1")
-            }
-
-            btnS2.setOnClickListener {
-            }
-
-            btnS3.setOnClickListener {
-            }
-
-        }
     }
 
     private fun getFlag(vwo: VWO) {
         context = VWOUserContext()
         context.id = USER_ID
-        
+
         // Use device ID as user ID when userId is not provided
         // This will use Android ID to generate a persistent device ID
         context.shouldUseDeviceIdAsUserId = false
-        
+
         //context.ipAddress = "0.0.0.0"
         //context.userAgent = "AppName/1.0 (Linux; Android 12; Pixel 5) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/93.0.4577.82 Mobile Safari/537.36"
         context.customVariables = mutableMapOf(

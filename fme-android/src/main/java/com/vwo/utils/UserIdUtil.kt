@@ -45,9 +45,9 @@ object UserIdUtil {
         deviceIdUtil: DeviceIdUtil = this.deviceIdUtil
     ): String? {
 
-        val userId = AliasIdentityManager.getUserIdForFlag(userContext)
+        val userId = AliasIdentityManager.maybeGetAliasAwareUserId(userContext)
         if (userContext != null && !userId.isNullOrEmpty()) {
-            // try to use the ID from gateway, if not found fallback to previous
+            // try to use the ID from gateway, if not found fallback to existing logic
             return userId
         }
 
