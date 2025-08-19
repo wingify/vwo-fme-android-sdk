@@ -17,6 +17,7 @@ package com.vwo
 
 import android.os.Build
 import com.vwo.constants.Constants.PLATFORM
+import com.vwo.constants.Constants.SDK_NAME
 import com.vwo.interfaces.IVwoInitCallback
 import com.vwo.interfaces.IVwoListener
 import com.vwo.models.user.VWOUserContext
@@ -26,12 +27,14 @@ import com.vwo.utils.SDKMetaUtil
 import com.vwo.packages.network_layer.manager.BatchManager
 import com.vwo.providers.StorageProvider
 import com.vwo.sdk.fme.BuildConfig
+import com.vwo.utils.EventsUtils
 import com.vwo.services.LoggerService
 import com.vwo.utils.AliasIdentityManager
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlin.concurrent.thread
+import kotlin.system.measureTimeMillis
 
 /**
  *  VWO (Visual Website Optimizer) is a powerful A/B testing and experimentation platform.
@@ -70,6 +73,8 @@ object VWO {
         val settings = vwoBuilder.getSettings(false)
         val vwoInstance = this
         vwoClient = VWOClient(settings, options)
+        vwoClient?.isSettingsValid = vwoBuilder.isSettingsValid
+        vwoClient?.settingsFetchTime = vwoBuilder.settingsFetchTime
         vwoBuilder.setVWOClient(vwoClient)
         return vwoInstance
     }
@@ -100,9 +105,36 @@ object VWO {
                 return@launch
             }
 
-            instance = setInstance(options)
+            val sdkInitTime = measureTimeMillis {
+                instance = setInstance(options)
+            }
+            if (options.sdkName == SDK_NAME) // Don't call sendSdkInitEvent for hybrid SDKs
+                sendSdkInitEvent(sdkInitTime)
             instance?.let { initListener.vwoInitSuccess(it, "VWO initialized successfully") }
             BatchManager.start("SDK Initialization")
+        }
+    }
+
+    /**
+     * Sends an SDK initialization event.
+     *
+     * This function checks if the VWO instance is valid, if its settings have been processed,
+     * and critically, if the SDK has not been marked as initialized previously in the current
+     * session or from cached settings. If all conditions are true, it proceeds to send
+     * an "SDK initialized" tracking event, including the time it took for settings to be fetched
+     * and the time it took for the SDK to complete its initialization process.
+     *
+     * This helps in tracking the initial setup performance and ensuring that the
+     * initialization event is sent only once per effective SDK start.
+     *
+     * @param sdkInitTime The timestamp (in milliseconds) marking the completion of the SDK's initialization process.
+     */
+    fun sendSdkInitEvent(sdkInitTime: Long) {
+        val wasInitializedEarlier =
+            instance?.vwoClient?.processedSettings?.sdkMetaInfo?.wasInitializedEarlier
+
+        if (instance?.vwoClient?.isSettingsValid == true && wasInitializedEarlier != true) {
+            EventsUtils().sendSdkInitEvent(instance?.vwoClient?.settingsFetchTime, sdkInitTime)
         }
     }
 

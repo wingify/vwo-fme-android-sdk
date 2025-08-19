@@ -17,6 +17,7 @@ package com.vwo.utils
 
 import com.vwo.VWOClient
 import com.vwo.constants.Constants
+import com.vwo.constants.Constants.VWO_FS_ENVIRONMENT
 import com.vwo.constants.Constants.defaultString
 import com.vwo.enums.EventEnum
 import com.vwo.enums.HeadersEnum
@@ -83,6 +84,8 @@ class NetworkUtil {
                 ipAddress,
                 generateEventUrl()
             )
+            requestQueryParams.queryParams["sn"] = SDKMetaUtil.sdkName
+            requestQueryParams.queryParams["sv"] = SDKMetaUtil.sdkVersion
             return requestQueryParams.queryParams
         }
 
@@ -363,6 +366,50 @@ class NetworkUtil {
         }
 
         /**
+         * Returns the payload data for the SDK init event.
+         * @param eventName The name of the event.
+         * @param settingsFetchTime Time taken to fetch settings in milliseconds.
+         * @param sdkInitTime Time taken to initialize the SDK in milliseconds.
+         * @return Map containing the payload data.
+         */
+        fun getSDKInitEventPayload(
+            eventName: String,
+            settingsFetchTime: Long? = null,
+            sdkInitTime: Long? = null
+        ): Map<String, Any> {
+            val settingsManager = SettingsManager.instance
+            val accountId = settingsManager?.accountId
+            val sdkKey = settingsManager?.sdkKey
+            if(accountId==null || sdkKey==null)
+                return emptyMap()
+
+            val uniqueKey = accountId.toString() + "_" + sdkKey
+            val properties = getEventBasePayload(null, null, uniqueKey, eventName, null, null)
+
+            // Set the required fields as specified
+            properties.d?.event?.props?.let { props ->
+
+                val map = mapOf(VWO_FS_ENVIRONMENT to sdkKey)
+                props.setAdditionalProperties(map)
+                props.setProduct("fme")
+
+                val data = mutableMapOf<String, Any>(
+                    "isSDKInitialized" to true
+                )
+                settingsFetchTime?.let { data["settingsFetchTime"] = it }
+                sdkInitTime?.let { data["sdkInitTime"] = it }
+
+                props.setData(data)
+            }
+
+            val payload: Map<*, *> = VWOClient.objectMapper.convertValue(
+                properties,
+                MutableMap::class.java
+            )
+            return removeNullValues(payload)
+        }
+
+        /**
          * Sends a POST request to the VWO server.
          * @param properties The properties required for the request.
          * @param payload  The payload data for the request.
@@ -405,6 +452,34 @@ class NetworkUtil {
             }
         }
 
+        fun sendGatewayEvent(properties: MutableMap<String, String>?, payload: Map<String, Any?>?) {
+            try {
+                NetworkManager.attachClient()
+                val headers = createHeaders(null, null)
+                val request = RequestModel(
+                    baseUrl,
+                    "POST",
+                    UrlEnum.EVENTS.url,
+                    properties,
+                    payload,
+                    headers,
+                    SettingsManager.instance!!.protocol,
+                    SettingsManager.instance!!.port
+                )
+                NetworkManager.postAsync(request)
+            } catch (exception: Exception) {
+                log(
+                    LogLevelEnum.ERROR,
+                    "NETWORK_CALL_FAILED",
+                    object : HashMap<String?, String?>() {
+                        init {
+                            put("method", "POST")
+                            put("err", exception.toString())
+                        }
+                    })
+            }
+        }
+
         fun sendMessagingEvent(properties: MutableMap<String, String>?, payload: Map<String, Any?>?) {
             try {
                 NetworkManager.attachClient()
@@ -422,7 +497,7 @@ class NetworkUtil {
                 NetworkManager.postAsync(request)
             } catch (exception: Exception) {
                 log(
-                    LogLevelEnum.ERROR,
+                    LogLevelEnum.DEBUG,
                     "NETWORK_CALL_FAILED",
                     object : HashMap<String?, String?>() {
                         init {

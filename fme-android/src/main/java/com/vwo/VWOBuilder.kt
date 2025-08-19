@@ -49,6 +49,8 @@ open class VWOBuilder(private val options: VWOInitOptions?) {
     private val settings: String? = null
     private var originalSettings: String? = null
     private var isSettingsFetchInProgress = false
+    internal var isSettingsValid = false
+    internal var settingsFetchTime: Long = 0
 
     // Set VWOClient instance
     fun setVWOClient(vwoClient: VWOClient?) {
@@ -114,6 +116,8 @@ open class VWOBuilder(private val options: VWOInitOptions?) {
         try {
             // Retrieve the settings synchronously
             val settings = settingFileManager!!.getSettings(forceFetch)
+            this.isSettingsValid = this.settingFileManager?.isSettingsValid ?: false
+            this.settingsFetchTime = this.settingFileManager?.settingsFetchTime ?: 0
 
             if (!forceFetch) {
                 // Store the original settings

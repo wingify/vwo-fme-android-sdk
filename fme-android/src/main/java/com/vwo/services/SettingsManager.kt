@@ -44,6 +44,10 @@ class SettingsManager(internal val options: VWOInitOptions) {
     private val networkTimeout = Constants.SETTINGS_TIMEOUT.toInt()
     var hostname: String
 
+    internal var isSettingsValid = false
+
+    internal var settingsFetchTime: Long = 0
+
     @JvmField
     var port: Int = 0
 
@@ -159,8 +163,11 @@ class SettingsManager(internal val options: VWOInitOptions) {
         if (NetworkManager.config?.developmentMode != true) {
             options["s"] = "prod"
         }
+        options["sn"] = SDKMetaUtil.sdkName
+        options["sv"] = SDKMetaUtil.sdkVersion
 
         try {
+            val startTime = System.currentTimeMillis()
             val request = RequestModel(
                 hostname,
                 "GET",
@@ -186,6 +193,7 @@ class SettingsManager(internal val options: VWOInitOptions) {
                 return null
             }
 
+            settingsFetchTime = System.currentTimeMillis() - startTime
             // Handle object instead of jsonarray
             var responseData = response.data
             responseData = setFeaturesIfEmpty(responseData)
@@ -243,10 +251,10 @@ class SettingsManager(internal val options: VWOInitOptions) {
                     LoggerService.log(LogLevelEnum.ERROR, "SETTINGS_SCHEMA_INVALID", null)
                     return null
                 }
-                val settingsValid = SettingsSchema().isSettingsValid(
+                isSettingsValid = SettingsSchema().isSettingsValid(
                     VWOClient.objectMapper.readValue(settings, Settings::class.java)
                 )
-                if (settingsValid) {
+                if (isSettingsValid) {
                     return settings
                 } else {
                     LoggerService.log(LogLevelEnum.ERROR, "SETTINGS_SCHEMA_INVALID", null)
