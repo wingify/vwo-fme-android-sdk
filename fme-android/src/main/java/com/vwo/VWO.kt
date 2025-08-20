@@ -212,10 +212,16 @@ object VWO {
      */
     fun setAlias(context: VWOUserContext, aliasId: String) {
 
+        println("FINAL_NVN_CALL: trying to set alias aliasId: $aliasId ...")
+
         (context.maybeGetQualifyingId())?.let { sanitizedId ->
 
-            AliasIdentityManager.setAlias(idPassedOnInit = sanitizedId, userId = aliasId)
+            println("FINAL_NVN_CALL: mapping will be set to >>> ( userId ) $sanitizedId = $aliasId ( aliasId ) <<<")
+
+            AliasIdentityManager.setAlias(userId = sanitizedId, aliasId = aliasId)
         } ?: kotlin.run {
+
+            println("FINAL_NVN_CALL: error while setting id is null ...")
 
             LoggerService.log(LogLevelEnum.ERROR, "Invalid VWOUserContext object passed for user $aliasId")
         }

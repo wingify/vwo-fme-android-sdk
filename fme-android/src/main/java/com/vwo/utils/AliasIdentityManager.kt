@@ -9,12 +9,18 @@ import kotlinx.coroutines.CoroutineExceptionHandler
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
 import org.json.JSONArray
 import org.json.JSONObject
+import java.util.concurrent.TimeUnit
+import kotlin.coroutines.resume
+import kotlin.coroutines.suspendCoroutine
 
 private const val ERROR_INVALID_DATA_FROM_SERVER = "Got invalid data from server, statusCode."
 
 object AliasIdentityManager {
+
+    private val ID_NOT_FOUND = null
 
     private const val KEY_CANONICAL_ID = "canonical_id"
     private const val KEY_ASSOCIATED_IDS = "associated_ids"
@@ -26,139 +32,163 @@ object AliasIdentityManager {
         )
     }
 
-    private fun String?.log() = LoggerService.log(LogLevelEnum.INFO, this)
+    private fun String?.log() = LoggerService.log(LogLevelEnum.INFO, "FINAL_NVN_CALL: $this")
 
-    // the alias is the userId    -> is the actual user id after login ; or something that we might get at later stage
-    // idPassedOnInit  is tempId  -> the id that was passed during the VWOUserContext init phase
+    /**
+     * An alias can only be associated with one tempId.
+     *
+     * @return [Boolean] true if already associated, else false
+     */
+    private fun isAlreadyAssociated(aliasId: String): Boolean {
+        val locallySavedArray = getLocalJsonArray()
+        if (locallySavedArray != null) {
+            for (i in 0 until locallySavedArray.length()) {
+                val obj = locallySavedArray.getJSONObject(i)
+
+                if (obj.optString(KEY_ASSOCIATED_IDS, "").contains(aliasId)) {
+
+                    // count occurrence, if > 1, return true
+                    val associatedIds = obj.getJSONArray(KEY_ASSOCIATED_IDS)
+                    var occurrenceCounter = 0
+                    for (j in 0 until associatedIds.length()) {
+                        val id = associatedIds.getString(j)
+                        if (aliasId == id) occurrenceCounter++
+                    }
+
+                    if (occurrenceCounter > 1) {
+                        LoggerService.log(
+                            LogLevelEnum.ERROR,
+                            "Alias `$aliasId` has already been mapped to another userId."
+                        )
+                        return true
+                    }
+                }
+            }
+        }
+        return false
+    }
+
+    // the aliasId is the userId ( after logging in ) -> is the actual user id after login ; or something that we might get at later stage
+    // userId is tempId -> the id that was passed during the VWOUserContext init phase
     // the {alias} will be linked with the {idPassedOnInit}
-    fun setAlias(idPassedOnInit: String, userId: String) {
+    fun setAlias(userId: String, aliasId: String) {
+
+        // check if already aliased
+        if (isAlreadyAssociated(aliasId)) {
+            "cannot set the same alias twice $aliasId is already associated with a canonical id ...".log()
+            return
+        }
 
         ioThreadAsync(callback = {
-            val response = NetworkUtil.AliasApiService.setAlias(idPassedOnInit, userId)
-            println("ERR_: idPassedOnInit: $idPassedOnInit and userId $userId")
+            val response = NetworkUtil.AliasApiService.setAlias(userId, aliasId)
+            ("got response back after invoking >> setAlias($userId, $aliasId) <<").log()
+
             if (response?.statusCode != 200) {
                 // the request was not successful.
-                println("ERR_IN_REQ: error:${response?.error}, statusCode:${response?.statusCode}, headers:${response?.headers}, data:${response?.data}")
+                ("[ ERROR IN REQUEST ]: error:${response?.error}, statusCode:${response?.statusCode}, headers:${response?.headers}, data:${response?.data}")
                 return@ioThreadAsync
             }
 
-            val data = response.data
-            println("ERR_IN_REQ: we got some data : $data")
-            println("DEMO_NVN: sent the data to server for mapping ...")
+            ("[ SUCCESS ] got back response from server, but we do not need what's being received ...").log()
         }, exceptionDuringProcessing = {
             it.printStackTrace()
-            println("TEST ${it.message}")
+            ("could not send alias to server SDK side error -> ${it.message}")
         })
 
-        "will associate $userId to $idPassedOnInit if found locally".log()
-        println("DEMO_FILTER: mapped and saved locally ...")
-
-        val localArray = getLocalJsonArray() ?: return
-
-        for (index in 0 until localArray.length()) {
-
-            val obj = localArray.getJSONObject(index)
-
-            val associatesIds = obj.getString(KEY_ASSOCIATED_IDS)
-            val idPassedOnInitExist = associatesIds.contains(idPassedOnInit)
-            if (idPassedOnInitExist) {
-
-                // [{"canonical_id": "userId1", aliases: ["userId1", "Scenario_1_LOGIN_USER_ID_1"]]}]
-
-                // save the alias in the array of associated id list
-
-                if (associatesIds.contains(userId)) {
-                    "[DUPLICATE] the alias { $userId } already exists in this canonical id .. skipping insertion ...".log()
-                    return
-                }
-
-                val associatedIdArray = obj.getJSONArray(KEY_ASSOCIATED_IDS)
-                associatedIdArray.put(userId)
-
-                obj.put(KEY_ASSOCIATED_IDS, associatedIdArray)
-
-                "$userId has been mapped to ${obj.getString(KEY_CANONICAL_ID)} ...".log()
-                "new association array for the canonical id -> $localArray".log()
-
-
-                "[IMPPPP] before saving -> $localArray".log()
-                val ctx = StorageProvider.contextRef.get() ?: return // Uncomment in your project
-                val preferences = LocalStorageController(ctx) // Uncomment in your project
-                preferences.saveString(
-                    KEY_IDENTITY_STORE,
-                    localArray.toString()
-                ) // Uncomment in your project
-
-                return // there's no need to do anything , just exit the method
-            }
-        }
-
-        LoggerService.log(LogLevelEnum.ERROR, "")
-
-        // the idPassedOnInit was not found in local list or user id passed on init differs
-        // from the user id one passed here
-        // TODO discuss what must be done ?
-        "[NOT IMPLEMENTED] $idPassedOnInit was not found locally ... not sure what to do ...".log()
+        "alias won't be saved on local storage ... next call to get id example getFlag() will directly ask the server ...".log()
     }
 
-    fun requestFromGatewayIfNotFoundLocally(vwoUserContext: VWOUserContext) {
+    /**
+     *
+     * @param vwoUserContext - the user context object
+     * @param callback       - the optional callback that is invoked if required,
+     *                         true if call success, else false
+     */
+    fun requestFromGatewayIfNotFoundLocally(
+        vwoUserContext: VWOUserContext,
+        callback: ((Boolean) -> Unit)? = null
+    ) {
 
         val userIdFromContext = vwoUserContext.maybeGetQualifyingId() ?: run {
-            "the passed user id is invalid ... will not fetch from GATEWAY ...".log()
+            "[ STOP ] the passed user id is invalid ...".log()
             return
         }
 
-        println("DEMO_FILTER: checking local storage for $userIdFromContext's mapping ....")
-        "trying to get the canonical id from local storage ...".log()
+        ("[ SEARCH ] checking local storage for $userIdFromContext's mapping ....").log()
         val locallySavedCanonicalId = maybeGetCanonicalIdFromLocalStorage(userIdFromContext)
         if (locallySavedCanonicalId != null) {
 
-            println("DEMO_FILTER: mapping found; ${userIdFromContext} mapped to -> { $locallySavedCanonicalId }")
-
-            "$userIdFromContext was mapped to $locallySavedCanonicalId".log()
-            "Will not request anything from GATEWAY ...".log()
+            ("[ FOUND ] mapping $userIdFromContext mapped to -> $locallySavedCanonicalId ...").log()
             return
         }
 
-        println("DEMO_FILTER: did not find anything stored locally ...")
-        println("DEMO_FILTER: requesting server the mapping for -> { $userIdFromContext }")
+        ("did not find anything stored locally for $userIdFromContext; send request to server ...").log()
 
-        "did not find canonical id on local storage ... >>>> will send GET request to GATEWAY/SERVER with | userId->${userIdFromContext}".log()
         makeResolveIdentityCall(
             userIdFromContext,
             success = { json ->
+
                 // example response from server -> {"aliasId":"Scenario_1_LOGIN_USER_ID_1"}
                 val canonicalIdFromServer = JSONObject(json).getString("aliasId")
-                println("DEMO_FILTER: SERVER RESPONSE -> $userIdFromContext is mapped to -> { $canonicalIdFromServer }")
-                "<<< RESPONSE from SERVER/GATEWAY -> $canonicalIdFromServer, saving this locally for lookup ...".log()
-                saveCanonicalIdLocally(userIdFromContext, canonicalIdFromServer)
+                ("[ SERVER_RESPONSE ] -> $json").log()
+                ("[ USEFUL_INFO ] $userIdFromContext is mapped to -> { $canonicalIdFromServer }").log()
+
+                saveCanonicalIdLocallyAfterGetAlias(userIdFromContext, canonicalIdFromServer)
+
+                callback?.invoke(true)
             }, error = {
+                callback?.invoke(false)
+
                 it.log()
-                println("DEMO_FILTER: error occurred $it")
+                ("FINAL_NVN_CALL: error occurred $it").log()
             }
         )
     }
 
-    private fun saveCanonicalIdLocally(userIdFromContext: String, canonicalIdFromServer: String) {
-        val localStorage = getLocalStorageController() ?: return
-        val arrFromLocalStorage = getLocalJsonArray() ?: return
+    /**
+     * Save the [canonicalIdFromServer] but only after a response is received from server. Never use
+     * this to save anything from [setAlias] method.
+     *
+     * @param userIdFromContext     - the user id that was passed in [VWOUserContext]
+     * @param canonicalIdFromServer - the id received after successful API call.
+     */
+    private fun saveCanonicalIdLocallyAfterGetAlias(
+        userIdFromContext: String,
+        canonicalIdFromServer: String
+    ) {
+        val localStorage = getLocalStorageController() ?: kotlin.run {
+            "[ ERROR ] getLocalStorageController() returned null ...".log()
+            return
+        }
+        val arrFromLocalStorage = getLocalJsonArray() ?: kotlin.run {
+            "[ ERROR ] getLocalJsonArray() returned null ...".log()
+            return
+        }
 
-        "there are total ${arrFromLocalStorage.length()} items in locally saved array ...".log()
-        "we will check the GATEWAY sent canonical id ($canonicalIdFromServer) for duplicate ...".log()
+        "locally saved entries count ${arrFromLocalStorage.length()} ...".log()
+        "[ AVOID DUPLICATE ] making sure ($canonicalIdFromServer) is not already present in local entries ...".log()
 
         // check if we already have the same canonical id
         for (index in 0 until arrFromLocalStorage.length()) {
             val obj = arrFromLocalStorage.getJSONObject(index)
 
             if (obj.optString(KEY_CANONICAL_ID, "") == canonicalIdFromServer) {
-                "[SKIP] the canonical id is already found in the local storage".log()
-                // found the same key just don't save it
+                val ids = obj.getJSONArray(KEY_ASSOCIATED_IDS)
+
+                "[ SKIP ] found locally saved id $canonicalIdFromServer .. aborting operation ...".log()
+                // if there's already a canonical id just update the associated id
+                ids.put(userIdFromContext)
+
+                obj.put(KEY_ASSOCIATED_IDS, ids)
+
+                ("$userIdFromContext will be added to list $obj ::: final updated array -> $arrFromLocalStorage").log()
+
+                localStorage.saveString(KEY_IDENTITY_STORE, arrFromLocalStorage.toString())
+
                 return
             }
 
         }
-
-        "not a duplicate canonical id ... proceeding ...".log()
 
         // create a new entry because the old one doesn't exist
         val objCanonical = JSONObject().apply {
@@ -166,10 +196,9 @@ object AliasIdentityManager {
             put(KEY_ASSOCIATED_IDS, JSONArray().apply { put(userIdFromContext) })
         }
         arrFromLocalStorage.put(objCanonical)
-
-        "mapped canonical id from GATEWAY ($canonicalIdFromServer) to user id from vwo user context ($userIdFromContext)".log()
-        "final saved JSON -> $arrFromLocalStorage".log()
         localStorage.saveString(KEY_IDENTITY_STORE, arrFromLocalStorage.toString())
+
+        "[ LOCAL JSON ] updated local values -> ${getLocalJsonArray()}".log()
     }
 
     // we get canonical id by comparing the alias / user id from context to associated ids
@@ -177,7 +206,7 @@ object AliasIdentityManager {
         val localJsonArray = getLocalJsonArray() ?: return null // cannot get any entries
         if (localJsonArray.length() == 0) return null // there is no entry
 
-        "there are ${localJsonArray.length()} item(s) locally ...".log()
+        "[ SEARCH ] maybeGetCanonicalIdFromLocalStorage() -> localJsonArray size = ${localJsonArray.length()}".log()
 
         for (index in 0 until localJsonArray.length()) {
 
@@ -185,22 +214,22 @@ object AliasIdentityManager {
 
             val associatedIds = objMapping.getString(KEY_ASSOCIATED_IDS)
 
-            if (associatedIds.contains(userIdFromContext))
-            // found the id associated with the passed key
+            if (associatedIds.contains(userIdFromContext)) {
+                // found the id associated with the passed key
+                "[ FOUND ] local storage has mapping for $userIdFromContext -> ${
+                    objMapping.getString(
+                        KEY_CANONICAL_ID
+                    )
+                }".log()
                 return objMapping.getString(KEY_CANONICAL_ID)
+            }
         }
 
-        "x did not find anything for user id : $userIdFromContext".log()
+        "[ OOOPS ] did not find anything for : $userIdFromContext".log()
         return null // nothing found
     }
 
-    fun maybeGetAliasAwareUserId(vwoUserContext: VWOUserContext?): String? {
-
-        val userContextId = vwoUserContext?.maybeGetQualifyingId() ?: return run {
-            "cannot find user id ".log()
-            null
-        }
-
+    private fun getCanonicalIdFor(userContextId: String): String? {
         val jsonArray = getLocalJsonArray() ?: return null
 
         for (i in 0 until jsonArray.length()) {
@@ -210,15 +239,93 @@ object AliasIdentityManager {
 
             val associatedIds = obj.optString(KEY_ASSOCIATED_IDS, "")
             if (associatedIds.isNotBlank() && associatedIds.contains(userContextId)) {
-
-                "found canonical id saved locally for $userContextId".log()
                 return obj.getString(KEY_CANONICAL_ID)
             }
         }
 
-        "did not find any flag for $userContextId that was saved locally ...".log()
-
         return null
+    }
+
+    /**
+     * Blocks the { Thread } on which this method is being invoked until the processing is complete.
+     *
+     * @param vwoUserContext the context
+     */
+    fun maybeGetAliasAwareUserIdSync(
+        vwoUserContext: VWOUserContext?,
+    ): String? {
+        val start = System.nanoTime()
+        val result = runBlocking {
+            maybeGetAliasAwareUserIdSuspend(vwoUserContext = vwoUserContext)
+        }
+        val end = System.nanoTime()
+        val actualTime = TimeUnit.NANOSECONDS.toMillis((end - start))
+        ("NVN: time taken for alias retrieval -> $actualTime").log()
+        return result
+    }
+
+    /**
+     * Get the id based on the passed [vwoUserContext]'s values. This call is an Async call, will
+     * not block the { Thread } which invoked this.
+     *
+     * @param vwoUserContext - the context
+     * @param callback       - the callback where invokee will get the id
+     */
+    fun maybeGetAliasAwareUserIdAsync(
+        vwoUserContext: VWOUserContext?,
+        callback: ((String?) -> Unit)? = null
+    ) {
+
+        "[ ASYNC ] init :: maybeGetAliasAwareUserIdAsync()".log()
+
+        val userContextId = vwoUserContext?.maybeGetQualifyingId() ?: run {
+            "[ ERROR ] cannot find user id ".log()
+            callback?.invoke(ID_NOT_FOUND)
+            return
+        }
+
+        // if found locally SKIP network call
+        val id = getCanonicalIdFor(userContextId)
+        if (ID_NOT_FOUND != id) {
+            "[ SAVE API CALL ] found the user id in local storage $id".log()
+            callback?.invoke(id)
+            return
+        }
+
+        // check if server has the updated values; fetch then store it
+        "[ SEARCH COMPLETE ] did not find any flag for $userContextId locally ... trying to get from server ...".log()
+        requestFromGatewayIfNotFoundLocally(vwoUserContext) { isSuccess ->
+            when (isSuccess) {
+                // query the local storage once again after we get the response from server
+                true -> {
+                    val id = getCanonicalIdFor(userContextId)
+                    "[ YES ] found id ...".log()
+                    callback?.invoke(id)
+                }
+
+                else -> {
+                    "[ NOPE ] could not find anything even on server ...".log()
+                    callback?.invoke(ID_NOT_FOUND)
+                }
+            }
+
+            "[ AFTER ] search locally :: if not found request server >> send request to server :: store it locally >> search locally :: return result ".log()
+        }
+
+    }
+
+    /**
+     * This method acts as the bridge between blocking call and the async call with the same
+     * method name.
+     *
+     * @param vwoUserContext - the context
+     */
+    private suspend fun maybeGetAliasAwareUserIdSuspend(
+        vwoUserContext: VWOUserContext?,
+    ) = suspendCoroutine<String?> { continuation ->
+        maybeGetAliasAwareUserIdAsync(vwoUserContext = vwoUserContext, callback = { id ->
+            continuation.resume(id)
+        })
     }
 
     private fun getLocalJsonArray(): JSONArray? {
@@ -258,7 +365,7 @@ object AliasIdentityManager {
         exceptionDuringProcessing: (Throwable) -> Unit
     ) {
         val err = CoroutineExceptionHandler { coroutineContext, throwable ->
-            println("SOMETHING HAPPENED: ${throwable.message}")
+            ("SOMETHING HAPPENED: ${throwable.message}")
             exceptionDuringProcessing(throwable)
         }
         CoroutineScope(Dispatchers.IO + err).launch {
