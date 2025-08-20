@@ -79,7 +79,7 @@ class NetworkUtil {
             val requestQueryParams = RequestQueryParams(
                 eventName,
                 SettingsManager.instance?.accountId.toString(),
-                SettingsManager.instance?.sdkKey?:"",
+                SettingsManager.instance?.sdkKey ?: "",
                 visitorUserAgent,
                 ipAddress,
                 generateEventUrl()
@@ -180,7 +180,8 @@ class NetworkUtil {
         private fun createVisitor(): Visitor {
             val visitor = Visitor()
             val visitorProps: MutableMap<String, Any> = HashMap()
-            visitorProps[Constants.VWO_FS_ENVIRONMENT] = SettingsManager.instance?.sdkKey ?: defaultString
+            visitorProps[Constants.VWO_FS_ENVIRONMENT] =
+                SettingsManager.instance?.sdkKey ?: defaultString
             visitor.setProps(visitorProps)
             return visitor
         }
@@ -380,7 +381,7 @@ class NetworkUtil {
             val settingsManager = SettingsManager.instance
             val accountId = settingsManager?.accountId
             val sdkKey = settingsManager?.sdkKey
-            if(accountId==null || sdkKey==null)
+            if (accountId == null || sdkKey == null)
                 return emptyMap()
 
             val uniqueKey = accountId.toString() + "_" + sdkKey
@@ -480,7 +481,10 @@ class NetworkUtil {
             }
         }
 
-        fun sendMessagingEvent(properties: MutableMap<String, String>?, payload: Map<String, Any?>?) {
+        fun sendMessagingEvent(
+            properties: MutableMap<String, String>?,
+            payload: Map<String, Any?>?
+        ) {
             try {
                 NetworkManager.attachClient()
                 val headers = createHeaders(null, null)
@@ -575,32 +579,23 @@ class NetworkUtil {
     }
 
     object AliasApiService {
-        const val SCHEME = "http"
-
-        const val VERB_GET = "GET"
-        const val VERB_POST = "POST"
-
-        const val PORT = 8000
-        // HOST setting for emulator, if running on physical device please use mac's ip
-        // TODO remove once e2e done on PROD
-        const val HOST = "10.0.2.2"
 
         const val KEY_USER_ID = "userId"
         const val KEY_ALIAS_ID = "aliasId"
 
         fun getAlias(userId: String): ResponseModel? {
-            NetworkManager.attachClient()
+
             val headers = createHeaders(null, null)
-            val queryParams = mutableMapOf(KEY_USER_ID to userId)
+            val queryParams = getQueryParams(mutableMapOf(KEY_USER_ID to userId))
             val request = RequestModel(
-                url = HOST,
-                method = VERB_GET,
+                url = SettingsManager.instance?.hostname,
+                method = "GET",
                 path = UrlEnum.GET_ALIAS.url,
                 query = queryParams,
                 body = null,
                 headers = headers,
-                scheme = SCHEME,
-                port = PORT
+                scheme = SettingsManager.instance?.protocol,
+                port = SettingsManager.instance?.port ?: 0
             )
             return NetworkManager.get(request)
         }
@@ -609,21 +604,26 @@ class NetworkUtil {
             NetworkManager.attachClient()
             val headers = createHeaders(null, null)
             val requestBody = mapOf(KEY_USER_ID to userId, KEY_ALIAS_ID to aliasId)
-            val accountId = SettingsManager.instance?.accountId.toString()
-            val sdkKey = SettingsManager.instance?.sdkKey.toString()
-            val queryParams = mutableMapOf("accountId" to accountId, "sdkKey" to sdkKey)
             val request = RequestModel(
-                url = HOST,
-                method = VERB_POST,
+                url = SettingsManager.instance?.hostname,
+                method = "POST",
                 path = UrlEnum.SET_ALIAS.url,
-                query = queryParams,
+                query = getQueryParams(),
                 body = requestBody,
                 headers = headers,
-                scheme = SCHEME,
-                port = PORT
+                scheme = SettingsManager.instance?.protocol,
+                port = SettingsManager.instance?.port ?: 0
             )
-            println("REQUMOD: ${request.url}:${request.port}${request.path}")
             return NetworkManager.post(request)
+        }
+
+        private fun getQueryParams(map: Map<String, String> = mapOf()): MutableMap<String, String> {
+            val accountId = SettingsManager.instance?.accountId.toString()
+            val sdkKey = SettingsManager.instance?.sdkKey.toString()
+
+            val result = mutableMapOf("accountId" to accountId, "sdkKey" to sdkKey)
+            map.forEach { result[it.key] = it.value }
+            return map.toMutableMap()
         }
 
     }

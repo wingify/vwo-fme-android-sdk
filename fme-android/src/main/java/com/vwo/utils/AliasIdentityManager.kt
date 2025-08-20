@@ -140,7 +140,7 @@ object AliasIdentityManager {
                 callback?.invoke(false)
 
                 it.log()
-                ("FINAL_NVN_CALL: error occurred $it").log()
+                ("error occurred $it").log()
             }
         )
     }
@@ -260,7 +260,7 @@ object AliasIdentityManager {
         }
         val end = System.nanoTime()
         val actualTime = TimeUnit.NANOSECONDS.toMillis((end - start))
-        ("NVN: time taken for alias retrieval -> $actualTime").log()
+        ("time taken for alias retrieval -> $actualTime").log()
         return result
     }
 
