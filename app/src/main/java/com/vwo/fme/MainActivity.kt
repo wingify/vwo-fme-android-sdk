@@ -18,10 +18,10 @@ import com.vwo.models.user.VWOUserContext
 import com.vwo.models.user.VWOInitOptions
 
 val prod = TestApp(
-    accountId = 1035100,
-    sdkKey = "38ec10ebb36a99db653042adb92a4499",
-    flagName = "testByNabin",
-    variableName = "variable1",
+    accountId = 0,
+    sdkKey = "",
+    flagName = "",
+    variableName = "",
     eventName = "",
     attributeName = ""
 )
@@ -32,7 +32,7 @@ private val ACCOUNT_ID = server.accountId
 
 class MainActivity : AppCompatActivity() {
 
-    private val USER_ID: String? = "vwousercontext.id_1"
+    private val USER_ID = ""
     private var vwoClient: VWO? = null
     private var featureFlag: GetFlag? = null
     private lateinit var context: VWOUserContext
@@ -61,7 +61,6 @@ class MainActivity : AppCompatActivity() {
             // Set SDK Key and Account ID
             vwoInitOptions.sdkKey = SDK_KEY
             vwoInitOptions.accountId = ACCOUNT_ID
-
             // Context is required for device ID generation, storage, batching
             vwoInitOptions.context = this@MainActivity.applicationContext
 
@@ -100,7 +99,7 @@ class MainActivity : AppCompatActivity() {
                     with(binding) {
 
                         val loginLogoutCtx = VWOUserContext()
-                        loginLogoutCtx.id = "9842626329" // USER_ID ?: ""
+                        loginLogoutCtx.id = USER_ID ?: ""
                         // loginLogoutCtx.connectToGatewayAndResolveId()
 
                         btnEmulateFirstGatewayCall.setOnClickListener {
@@ -112,7 +111,7 @@ class MainActivity : AppCompatActivity() {
                         }
 
                         btnS1.setOnClickListener {
-                            val actualUserId = "9842626329"
+                            val actualUserId = "lid_001"
                             println("DEMO_FILTER: ")
                             println("DEMO_FILTER: user login complete -> got actual user id -> { $actualUserId } -> needs mapping")
                             VWO.setAlias(loginLogoutCtx, aliasId = actualUserId)
@@ -163,13 +162,8 @@ class MainActivity : AppCompatActivity() {
     private fun getFlag(vwo: VWO) {
         context = VWOUserContext()
         context.id = USER_ID
-
-        // Use device ID as user ID when userId is not provided
-        // This will use Android ID to generate a persistent device ID
-        context.shouldUseDeviceIdAsUserId = false
-
-        //context.ipAddress = "0.0.0.0"
-        //context.userAgent = "AppName/1.0 (Linux; Android 12; Pixel 5) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/93.0.4577.82 Mobile Safari/537.36"
+        //userContext.ipAddress = "0.0.0.0"
+        //userContext.userAgent = "AppName/1.0 (Linux; Android 12; Pixel 5) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/93.0.4577.82 Mobile Safari/537.36"
         context.customVariables = mutableMapOf(
             "name1" to 21,
             "name2" to 0,
@@ -215,7 +209,7 @@ class MainActivity : AppCompatActivity() {
 
         if (recommendationWrapper is Recommendation) {
             val options = mapOf<String, Any>(
-                "userId" to (USER_ID ?: ""),
+                "userId" to USER_ID,
                 "productIds" to "1,2,3,4",
                 "pageType" to "shopping-cart-page-view"
             )
@@ -261,7 +255,7 @@ class MainActivity : AppCompatActivity() {
         map["price"] = 21
         map["productId"] = 1
         val trackResponse = vwoClient?.trackEvent(server.eventName, context, map)
-        //val trackResponse = vwo?.trackEvent(server.eventName, context)
+        //val trackResponse = vwo?.trackEvent(server.eventName, userContext)
     }
 
     private fun sendAttribute() {
