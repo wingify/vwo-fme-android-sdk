@@ -40,5 +40,5 @@ enum class UrlEnum(val url: String) {
     EVALUATE_DSL("/evaluate-event-dsl"),
 
     SET_ALIAS("/user-alias/setUserAlias"),
-    GET_ALIAS("/user-alias/getUserAlias")
+    GET_ALIAS("/user-alias/getAliasUserId")
 }

@@ -53,7 +53,7 @@ object AliasIdentityManager {
             // GET for all alias
 
             maybeGetAllMappedIdAliasFromServer(
-                userIdFromContext = getAllSavedAliasAsJsonArray()
+                userIdFromContext = getAllSavedAliasAsJsonArray(aliasId)
             ) {
 
             }
@@ -93,7 +93,7 @@ object AliasIdentityManager {
 
         ("did not find anything stored locally for $userIdFromContext; send request to server ...").log()
         maybeGetAllMappedIdAliasFromServer(
-            userIdFromContext = userIdFromContext,
+            userIdFromContext = "[\"$userIdFromContext\"]",
             callback = callback
         )
 
@@ -121,15 +121,6 @@ object AliasIdentityManager {
                     }
 
                     saveMutableMapToLocalStorage(mapped)
-                } else {
-
-                    // TODO remove this code because final code will be [{}] and not {} :D
-                    // example response from server -> {"aliasId":"Scenario_1_LOGIN_USER_ID_1"}
-                    val canonicalIdFromServer = JSONObject(json).getString(KEY_ALIAS_ID)
-                    ("[ SERVER_RESPONSE ] -> $json").log()
-                    ("[ USEFUL_INFO ] $userIdFromContext is mapped to -> { $canonicalIdFromServer }").log()
-
-                    saveCanonicalIdLocallyAfterGetAlias(userIdFromContext, canonicalIdFromServer)
                 }
 
                 callback?.invoke(true)
@@ -177,32 +168,6 @@ object AliasIdentityManager {
             keyValueMap[obj.getString(KEY_ALIAS_ID)] = obj.getString(KEY_USER_ID)
         }
         return keyValueMap
-    }
-
-    /**
-     * Save the [canonicalIdFromServer] but only after a response is received from server. Never use
-     * this to save anything from [setAlias] method.
-     *
-     * @param userIdFromContext     - the user id that was passed in [VWOUserContext]
-     * @param canonicalIdFromServer - the id received after successful API call.
-     */
-    private fun saveCanonicalIdLocallyAfterGetAlias(
-        userIdFromContext: String,
-        canonicalIdFromServer: String
-    ) {
-
-        val mappedValues = getLocallyStoredValuesAsMutableMap()
-
-        if (mappedValues.contains(userIdFromContext)) {
-            "[ DUPLICATE ] key `$userIdFromContext` already exist and it is mapped to ${mappedValues[userIdFromContext]}".log()
-            return
-        }
-
-        mappedValues[userIdFromContext] = canonicalIdFromServer
-
-        saveMutableMapToLocalStorage(mappedValues)
-
-        "[ LOCAL JSON ] updated local values -> ${getLocallyStoredValuesAsMutableMap()}".log()
     }
 
     // we get canonical id by comparing the alias / user id from context to associated ids
@@ -330,9 +295,10 @@ object AliasIdentityManager {
         })
     }
 
-    private fun getAllSavedAliasAsJsonArray(): String {
+    private fun getAllSavedAliasAsJsonArray(aliasId: String? = null): String {
         val arr = JSONArray()
         getLocallyStoredValuesAsMutableMap().forEach { arr.put(it.key) }
+        aliasId?.let { arr.put(it) }
         return arr.toString()
     }
 

@@ -15,7 +15,6 @@
  */
 package com.vwo.models.user
 
-import com.vwo.utils.AliasIdentityManager
 import com.vwo.utils.DeviceIdUtil
 
 /**
@@ -26,10 +25,6 @@ import com.vwo.utils.DeviceIdUtil
 class VWOUserContext {
 
     var id: String? = null
-        set(value) {
-            field = value
-            connectToGatewayAndResolveId()
-        }
 
     var customVariables: MutableMap<String, Any> = HashMap()
 
@@ -53,14 +48,5 @@ class VWOUserContext {
 
         return if (shouldUseDeviceIdAsUserId) DeviceIdUtil().getDeviceId() else id
     }
-
-    /**
-     * The gateway / backend will be requested for an userId if nothing is found locally.
-     * Do that after the id has been set.
-     */
-    private fun connectToGatewayAndResolveId() {
-        AliasIdentityManager.requestFromGatewayIfNotFoundLocally(this)
-    }
-
 
 }
