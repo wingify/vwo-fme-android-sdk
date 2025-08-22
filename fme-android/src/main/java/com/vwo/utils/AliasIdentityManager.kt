@@ -16,11 +16,11 @@ import org.json.JSONObject
 import kotlin.coroutines.resume
 import kotlin.coroutines.suspendCoroutine
 
-private const val ERROR_INVALID_DATA_FROM_SERVER = "Got invalid data from server, statusCode."
-
 class AliasIdentityManager {
 
     private val ID_NOT_FOUND = null
+
+    private val JSON_PREFIX = "[{"
 
     private val KEY_USER_ID = "userId"
     private val KEY_ALIAS_ID = "aliasId"
@@ -29,14 +29,6 @@ class AliasIdentityManager {
 
     private val aliasApiService by lazy { AliasApiService() }
 
-    init {
-        LoggerService.log(
-            LogLevelEnum.INFO, "NOTE: canonical (id = userId) used internally for getFlag()"
-        )
-    }
-
-    private fun String?.log() = LoggerService.log(LogLevelEnum.INFO, "FINAL_NVN_CALL: $this")
-
     // the aliasId is the userId ( after logging in ) -> is the actual user id after login ; or something that we might get at later stage
     // userId is tempId -> the id that was passed during the VWOUserContext init phase
     // the {alias} will be linked with the {idPassedOnInit}
@@ -44,11 +36,13 @@ class AliasIdentityManager {
 
         ioThreadAsync(callback = {
             val response = aliasApiService.setAlias(userId, aliasId)
-            ("got response back after invoking >> setAlias($userId, $aliasId) <<").log()
 
             if (response?.statusCode != 200) {
                 // the request was not successful.
-                ("[ ERROR IN REQUEST ]: error:${response?.error}, statusCode:${response?.statusCode}, headers:${response?.headers}, data:${response?.data}")
+                LoggerService.log(
+                    LogLevelEnum.ERROR,
+                    "Could not set alias server sent statusCode: ${response?.statusCode}"
+                )
                 return@ioThreadAsync
             }
 
@@ -59,10 +53,12 @@ class AliasIdentityManager {
 
         }, exceptionDuringProcessing = {
 
-            ("[ ERROR ] could not send alias to server SDK side error -> ${it.message}")
+            LoggerService.log(
+                LogLevelEnum.ERROR,
+                "Could not send setAlias request to server, error: ${it.message}"
+            )
         })
 
-        "alias won't be saved on local storage ... next call to get id example getFlag() will directly ask the server ...".log()
     }
 
     /**
@@ -84,39 +80,24 @@ class AliasIdentityManager {
         vwoUserContext: VWOUserContext?
     ): String? {
 
-        "[ ASYNC ] init :: maybeGetAliasAwareUserIdAsync()".log()
-
-        val userContextId = vwoUserContext?.getIdBasedOnSpecificCondition() ?: run {
-            "[ ERROR ] cannot find user id ".log()
-            return ID_NOT_FOUND
-        }
+        val userContextId = vwoUserContext?.getIdBasedOnSpecificCondition() ?: return ID_NOT_FOUND
 
         // if found locally SKIP network call
         val id = getCanonicalIdFor(userContextId)
-        if (ID_NOT_FOUND != id) {
-            "[ SAVE API CALL ] found the user id in local storage $id".log()
-            return id
-        }
+        if (ID_NOT_FOUND != id) return id
 
         // check if server has the updated values; fetch then store it
-        "[ SEARCH COMPLETE ] did not find any flag for $userContextId locally ... trying to get from server ...".log()
         val isSuccess = requestFromGatewayIfNotFoundLocally(vwoUserContext)
         val canonicalId = when (isSuccess) {
             true -> getCanonicalIdFor(userContextId) // query the local storage once again after we get the response from server
             else -> ID_NOT_FOUND
         }
-
-        "[ AFTER ] search locally :: if not found request server >> send request to server :: store it locally >> search locally :: return result ".log()
-
         return canonicalId
     }
 
     private fun saveMutableMapToLocalStorage(map: MutableMap<String, String>) {
 
-        val localStorage = getLocalStorageController() ?: kotlin.run {
-            "[ ERROR ] getLocalStorageController() returned null ...".log()
-            return
-        }
+        val localStorage = getLocalStorageController() ?: return
 
         val finalJsonArray = JSONArray()
         map.forEach {
@@ -127,19 +108,11 @@ class AliasIdentityManager {
             finalJsonArray.put(item)
         }
 
-
-        println("[ SAVE ] to be saved $finalJsonArray")
         localStorage.saveString(KEY_IDENTITY_STORE, finalJsonArray.toString())
-
     }
 
     private fun getLocallyStoredValuesAsMutableMap(): MutableMap<String, String> {
-        val arrFromLocalStorage = getLocalJsonArray() ?: kotlin.run {
-            "[ ERROR ] getLocalJsonArray() returned null ...".log()
-            return mutableMapOf()
-        }
-
-        "locally saved entries count ${arrFromLocalStorage.length()} ...".log()
+        val arrFromLocalStorage = getLocalJsonArray() ?: return mutableMapOf()
         val keyValueMap = mutableMapOf<String, String>()
         for (index in 0 until arrFromLocalStorage.length()) {
             val obj = arrFromLocalStorage.getJSONObject(index)
@@ -169,24 +142,20 @@ class AliasIdentityManager {
         callback: suspend () -> Unit,
         exceptionDuringProcessing: (Throwable) -> Unit
     ) {
-        val err = CoroutineExceptionHandler { coroutineContext, throwable ->
+        val err = CoroutineExceptionHandler { _, throwable ->
             exceptionDuringProcessing(throwable)
         }
         CoroutineScope(Dispatchers.IO + err).launch {
             try {
                 callback()
             } catch (exception: Exception) {
-                /*some processing error occurred*/
                 exceptionDuringProcessing(exception)
             }
         }
     }
 
     private fun getLocalStorageController(): LocalStorageController? {
-        val ctx = StorageProvider.contextRef.get() ?: run {
-            "[ ERROR ] StorageProvider.contextRef is null ...".log()
-            return null
-        }
+        val ctx = StorageProvider.contextRef.get() ?: return null
         return LocalStorageController(ctx)
     }
 
@@ -195,14 +164,16 @@ class AliasIdentityManager {
 
             ioThreadAsync(callback = {
                 val response = aliasApiService.getAlias(userId)
-                if (response?.statusCode == 200) {
-                    response.data?.let { cont.resume(Pair(true, it)) } ?: kotlin.run {
-                        val msg = "$ERROR_INVALID_DATA_FROM_SERVER ${response.statusCode}"
-                        cont.resume(Pair(false, msg))
-                    }
-                } else {
+
+                if (response?.statusCode != 200) {
                     val msg =
                         ("statusCode: ${response?.statusCode}; cannot get expected response from server: ${response?.error}")
+                    cont.resume(Pair(false, msg))
+                    return@ioThreadAsync
+                }
+
+                response.data?.let { cont.resume(Pair(true, it)) } ?: kotlin.run {
+                    val msg = "The data received is invalid."
                     cont.resume(Pair(false, msg))
                 }
             }, exceptionDuringProcessing = { ex ->
@@ -216,13 +187,10 @@ class AliasIdentityManager {
 
         val result = getAliasMappingFromServer(userIdFromContext)
 
-        if (!result.first) {
-            ("error occurred ${result.second}").log()
-            return false
-        }
+        if (!result.first) return false
 
         val json = result.second
-        if (json.startsWith("[{")) {
+        if (json.startsWith(JSON_PREFIX)) {
 
             val mapped = getLocallyStoredValuesAsMutableMap()
 
@@ -241,7 +209,6 @@ class AliasIdentityManager {
         }
 
         return false // because the data was not JSON
-
     }
 
     /**
@@ -252,20 +219,11 @@ class AliasIdentityManager {
      */
     private suspend fun requestFromGatewayIfNotFoundLocally(vwoUserContext: VWOUserContext): Boolean {
 
-        val userIdFromContext = vwoUserContext.getIdBasedOnSpecificCondition() ?: run {
-            "[ STOP ] the passed user id is invalid ...".log()
-            return false
-        }
+        val userIdFromContext = vwoUserContext.getIdBasedOnSpecificCondition() ?: return false
 
-        ("[ SEARCH ] checking local storage for $userIdFromContext's mapping ....").log()
         val locallySavedCanonicalId = getCanonicalIdFor(userIdFromContext)
-        if (locallySavedCanonicalId != null) {
+        if (locallySavedCanonicalId != null) return false
 
-            ("[ FOUND ] mapping $userIdFromContext mapped to -> $locallySavedCanonicalId ...").log()
-            return false
-        }
-
-        ("did not find anything stored locally for $userIdFromContext; send request to server ...").log()
         return maybeGetAllMappedIdAliasFromServer(userIdFromContext = "[\"$userIdFromContext\"]")
     }
 
