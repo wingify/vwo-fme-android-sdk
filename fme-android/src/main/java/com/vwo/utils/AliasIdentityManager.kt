@@ -71,7 +71,7 @@ class AliasIdentityManager {
      * @param vwoUserContext the context
      */
     fun maybeGetAliasAwareUserIdSync(vwoUserContext: VWOUserContext?): String? {
-        return runBlocking { maybeGetAliasAwareUserIdAsync(vwoUserContext = vwoUserContext) }
+        return runBlocking { getAliasLinkedUserId(vwoUserContext = vwoUserContext) }
     }
 
     /**
@@ -80,7 +80,7 @@ class AliasIdentityManager {
      *
      * @param vwoUserContext - the context
      */
-    private suspend fun maybeGetAliasAwareUserIdAsync(
+    private suspend fun getAliasLinkedUserId(
         vwoUserContext: VWOUserContext?
     ): String? {
 
