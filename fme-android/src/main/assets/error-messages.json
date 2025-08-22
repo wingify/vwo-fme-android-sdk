@@ -28,5 +28,9 @@
 
   "RECOMMENDATION_ERROR": "Error occurred while fetching recommendations. Error: {err}",
 
-  "PARSING_ERROR": "Error while parsing request data, it is not in the expected format. Error: {err}"
+  "PARSING_ERROR": "Error while parsing request data, it is not in the expected format. Error: {err}",
+
+  "SET_ALIAS_ERROR": "The call to set alias did not succeed. Error: {err}",
+  "GET_ALIAS_ERROR": "The call to get alias did not succeed. Error: {err}",
+  "ALIAS_NETWORK_SDK_ERROR": "Could not send request to server the server. Error: {err}"
 }

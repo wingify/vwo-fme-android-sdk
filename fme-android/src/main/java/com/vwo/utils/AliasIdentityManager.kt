@@ -39,10 +39,9 @@ class AliasIdentityManager {
 
             if (response?.statusCode != 200) {
                 // the request was not successful.
-                LoggerService.log(
-                    LogLevelEnum.ERROR,
-                    "Could not set alias server sent statusCode: ${response?.statusCode}"
-                )
+                val errorMap =
+                    mapOf<String?, String?>("err" to "Status CODE: ${response?.statusCode}")
+                LoggerService.log(LogLevelEnum.ERROR, "SET_ALIAS_ERROR", errorMap)
                 return@ioThreadAsync
             }
 
@@ -53,10 +52,8 @@ class AliasIdentityManager {
 
         }, exceptionDuringProcessing = {
 
-            LoggerService.log(
-                LogLevelEnum.ERROR,
-                "Could not send setAlias request to server, error: ${it.message}"
-            )
+            val errorMap = mapOf<String?, String?>("err" to it.message)
+            LoggerService.log(LogLevelEnum.ERROR, "ALIAS_NETWORK_SDK_ERROR", errorMap)
         })
 
     }
@@ -166,20 +163,26 @@ class AliasIdentityManager {
                 val response = aliasApiService.getAlias(userId)
 
                 if (response?.statusCode != 200) {
-                    val msg =
-                        ("statusCode: ${response?.statusCode}; cannot get expected response from server: ${response?.error}")
-                    cont.resume(Pair(false, msg))
+
+                    val errorMap =
+                        mapOf<String?, String?>("err" to "Status code: ${response?.statusCode}")
+                    LoggerService.log(LogLevelEnum.ERROR, "GET_ALIAS_ERROR", errorMap)
+                    cont.resume(Pair(false, errorMap["err"] ?: ""))
                     return@ioThreadAsync
                 }
 
                 response.data?.let { cont.resume(Pair(true, it)) } ?: kotlin.run {
-                    val msg = "The data received is invalid."
-                    cont.resume(Pair(false, msg))
+
+                    val errorMap = mapOf<String?, String?>("err" to "Invalid data error.")
+                    LoggerService.log(LogLevelEnum.ERROR, "GET_ALIAS_ERROR", errorMap)
+                    cont.resume(Pair(false, errorMap["err"] ?: ""))
                 }
             }, exceptionDuringProcessing = { ex ->
 
-                val msg = ("SDK error while getAlias() -> ${ex.message}")
-                cont.resume(Pair(false, msg))
+                val errorMap = mapOf<String?, String?>("err" to "${ex.message}")
+                LoggerService.log(LogLevelEnum.ERROR, "ALIAS_NETWORK_SDK_ERROR", errorMap)
+
+                cont.resume(Pair(false, ("Exception: ${ex.message}")))
             })
         }
 
