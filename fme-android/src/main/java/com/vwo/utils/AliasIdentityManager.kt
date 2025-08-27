@@ -18,6 +18,12 @@ import kotlin.coroutines.suspendCoroutine
 
 class AliasIdentityManager {
 
+    object Options {
+
+        var isAliasingEnabled: Boolean = false
+
+    }
+
     private val ID_NOT_FOUND = null
 
     private val JSON_PREFIX = "[{"

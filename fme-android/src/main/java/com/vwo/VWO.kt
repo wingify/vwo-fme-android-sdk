@@ -211,6 +211,14 @@ object VWO {
      * @param aliasId  - The actual user id, maybe after login
      */
     fun setAlias(context: VWOUserContext, aliasId: String) {
+
+        if(!AliasIdentityManager.Options.isAliasingEnabled) {
+
+            val msgMap = mapOf<String?, String?>("key" to "VWOInitOptions.isAliasingEnabled to true.")
+            LoggerService.log(LogLevelEnum.ERROR, "ALIAS_NOT_ENABLED", msgMap)
+            return
+        }
+
         (context.getIdBasedOnSpecificCondition())?.let { sanitizedId ->
 
             AliasIdentityManager().setAlias(userId = sanitizedId, aliasId = aliasId)

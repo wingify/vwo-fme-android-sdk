@@ -24,6 +24,7 @@ import com.vwo.packages.storage.Connector
 import com.vwo.interfaces.integration.IntegrationCallback
 import com.vwo.packages.storage.MobileDefaultStorage
 import com.vwo.sdk.fme.BuildConfig
+import com.vwo.utils.AliasIdentityManager
 
 /**
  * Represents initialization options for the VWO SDK.
@@ -42,6 +43,11 @@ class VWOInitOptions {
     var storage: Connector = MobileDefaultStorage()
     var pollInterval: Int? = null
     var vwoBuilder: VWOBuilder? = null
+    var isAliasingEnabled: Boolean = false
+        set(value) {
+            field = value
+            AliasIdentityManager.Options.isAliasingEnabled = value
+        }
 
     var gatewayService: Map<String, Any> = HashMap()
 
