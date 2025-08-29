@@ -22,6 +22,8 @@ class AliasIdentityManager {
 
         var isAliasingEnabled: Boolean = false
 
+        var isGatewaySet: Boolean = false
+
     }
 
     private val ID_NOT_FOUND = null

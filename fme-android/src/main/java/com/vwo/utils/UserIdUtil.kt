@@ -46,10 +46,17 @@ object UserIdUtil {
     ): String? {
 
         if (AliasIdentityManager.Options.isAliasingEnabled) {
-            val userId = AliasIdentityManager().maybeGetAliasAwareUserIdSync(userContext)
-            if (userContext != null && !userId.isNullOrEmpty()) {
-                // try to use the ID from gateway, if not found fallback to existing logic
-                return userId
+
+            if(AliasIdentityManager.Options.isGatewaySet) {
+
+                val userId = AliasIdentityManager().maybeGetAliasAwareUserIdSync(userContext)
+                if (userContext != null && !userId.isNullOrEmpty()) {
+                    // try to use the ID from gateway, if not found fallback to existing logic
+                    return userId
+                }
+            } else {
+
+                LoggerService.log(LogLevelEnum.ERROR, "GATEWAY_URL_ERROR", null)
             }
         }
 
