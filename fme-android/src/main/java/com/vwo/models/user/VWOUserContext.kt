@@ -24,6 +24,8 @@ class VWOUserContext {
     var id: String? = null
     var customVariables: MutableMap<String, Any> = HashMap()
 
+    var postSegmentationVariables: List<String>? = null
+
     var variationTargetingVariables: MutableMap<String, Any> = HashMap()
 
     var vwo: GatewayService? = null

@@ -107,7 +107,7 @@ class PropsSerializer : JsonSerializer<Props>, JsonDeserializer<Props> {
                 props.setVwoMeta(context.deserialize(it, mapType))
             }
         }
-        
+
         // Collect unknown properties into additionalProperties
         val knownKeys = setOf("vwo_sdkName", "vwo_sdkVersion", "vwo_envKey", "variation", "id", 
                              "isFirst", "isMII", "isCustomEvent", "product", "data", "vwoMeta")

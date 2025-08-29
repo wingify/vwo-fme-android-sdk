@@ -53,4 +53,10 @@ object Constants {
 
     const val GATEWAY_USER_DATA_CACHE_DURATION = 60 * 60 * 1000L //1 hour in milliseconds
     const val GATEWAY_LIST_EVALUATION_CACHE_DURATION = 60 * 60 * 1000L //1 hour in milliseconds
+
+    const val APP_VERSION = "vwo_av"
+    const val OS_VERSION = "vwo_osv"
+    const val MANUFACTURER = "vwo_mfr"
+    const val DEVICE_MODEL = "vwo_dm"
+    const val LOCALE = "vwo_loc"
 }

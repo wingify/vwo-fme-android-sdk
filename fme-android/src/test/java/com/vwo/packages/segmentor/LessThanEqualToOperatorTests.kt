@@ -66,7 +66,7 @@ class LessThanEqualToOperatorTests {
         val dsl = "{\"or\":[{\"custom_variable\":{\"eq\":\"lte(150)\"}}]}"
         val customVariables: Map<String?, Any?> = object : HashMap<String?, Any?>() {
             init {
-                put("eq", "abc")
+                put("eq", "190")
                 put("expectation", false)
             }
         }

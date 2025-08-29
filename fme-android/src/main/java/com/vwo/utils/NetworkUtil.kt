@@ -185,6 +185,51 @@ class NetworkUtil {
         }
 
         /**
+         * Adds custom variables to visitor props based on postSegmentationVariables.
+         * @param properties The payload data for the event.
+         * @param context The user context containing customVariables and postSegmentationVariables.
+         */
+        private fun addCustomVariablesToVisitorProps(
+            properties: EventArchPayload,
+            context: VWOUserContext?
+        ) {
+            // A temporary map to hold all custom variables and device info to be added.
+            val variablesToAdd = mutableMapOf<String, Any>()
+
+            // Check if the context has both post-segmentation keys and custom variables.
+            if (context?.postSegmentationVariables != null && context.customVariables.isNotEmpty()) {
+                // Iterate through the keys specified for post-segmentation.
+                for (key in context.postSegmentationVariables!!) {
+                    // If a post-segmentation key exists in the custom variables map,
+                    // add it to our temporary map.
+                    if (context.customVariables.containsKey(key)) {
+                        variablesToAdd[key] = context.customVariables[key]!!
+                    }
+                }
+            }
+
+            // Get the Android application context from the singleton StorageProvider.
+            // Use .let to safely execute the block only if the context reference is not null.
+            StorageProvider.contextRef.get()?.let {
+                // Retrieve all device details using the application context.
+                val deviceInfo = DeviceInfo().getAllDeviceDetails(it)
+                // Add all gathered device info to our temporary map.
+                variablesToAdd.putAll(deviceInfo)
+            }
+
+            // Check if there are any variables to add to prevent unnecessary operations.
+            if (variablesToAdd.isNotEmpty()) {
+                val existingProps = properties.d?.visitor?.props ?: mutableMapOf()
+
+                // Merge the new variables (custom variables + device info) into the existing properties.
+                existingProps.putAll(variablesToAdd)
+
+                // Set the updated properties map back into the event payload's visitor object.
+                properties.d?.visitor?.setProps(existingProps)
+            }
+        }
+
+        /**
          * Returns the payload data for the track user API.
          * @param settings  The settings model containing configuration.
          * @param userId  The ID of the user.
@@ -226,6 +271,8 @@ class NetworkUtil {
 
             if (eventName == EventEnum.VWO_VARIATION_SHOWN.value) {
                 properties.d?.event?.props?.setIsMII(FMEConfig.isMISdkLinked)
+                // Add custom variables to visitor props for VWO_VARIATION_SHOWN events
+                addCustomVariablesToVisitorProps(properties, context)
             }
 
             log(
