@@ -55,4 +55,7 @@ class Settings {
 
     @SerializedName("sdkMetaInfo")
     var sdkMetaInfo: SdkMetaInfo? = null
+
+    @SerializedName("usageStatsAccountId")
+    var usageStatsAccountId: Int? = null
 }

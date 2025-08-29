@@ -38,5 +38,8 @@ enum class EventEnum(val value: String) {
     /** FME sdk init event*/
     VWO_INIT_CALLED("vwo_fmeSdkInit"),
 
+    /** FME sdk usage stat event*/
+    VWO_USAGE_STATS("vwo_sdkUsageStats"),
+
     VWO_RECOMMENDATION_SHOWN("vwo_recommendation_block_shown");
 }

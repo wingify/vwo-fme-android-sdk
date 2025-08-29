@@ -17,6 +17,7 @@ package com.vwo.utils
 
 import com.vwo.VWOClient
 import com.vwo.constants.Constants
+import com.vwo.constants.Constants.PRODUCT_NAME
 import com.vwo.constants.Constants.VWO_FS_ENVIRONMENT
 import com.vwo.constants.Constants.defaultString
 import com.vwo.enums.EventEnum
@@ -73,7 +74,9 @@ class NetworkUtil {
         fun getEventsBaseProperties(
             eventName: String,
             visitorUserAgent: String?,
-            ipAddress: String?
+            ipAddress: String?,
+            isUsageStatsEvent: Boolean = false,
+            usageStatsAccountId: Int = 0,
         ): MutableMap<String, String> {
             val requestQueryParams = RequestQueryParams(
                 eventName,
@@ -83,6 +86,11 @@ class NetworkUtil {
                 ipAddress,
                 generateEventUrl()
             )
+            if (isUsageStatsEvent) {
+                requestQueryParams.env = null
+                requestQueryParams.a = usageStatsAccountId.toString()
+            }
+
             requestQueryParams.queryParams["sn"] = SDKMetaUtil.sdkName
             requestQueryParams.queryParams["sv"] = SDKMetaUtil.sdkVersion
             return requestQueryParams.queryParams
@@ -103,19 +111,31 @@ class NetworkUtil {
             userId: String?,
             eventName: String,
             visitorUserAgent: String?,
-            ipAddress: String?
+            ipAddress: String?,
+            isUsageStatsEvent: Boolean = false,
+            usageStatsAccountId: Int = 0,
         ): EventArchPayload {
-            val uuid = UUIDUtils.getUUID(userId, SettingsManager.instance?.accountId.toString())
+
+            val accountId = if (isUsageStatsEvent) {
+                usageStatsAccountId
+            } else {
+                SettingsManager.instance?.accountId
+            }
+
+            val uuid = UUIDUtils.getUUID(userId, accountId.toString())
             val eventArchData = EventArchData()
             eventArchData.msgId = generateMsgId(uuid)
             eventArchData.visId = uuid
             eventArchData.sessionId = FMEConfig.generateSessionId()
             setOptionalVisitorData(eventArchData, visitorUserAgent, ipAddress)
 
-            val event = createEvent(eventName)
+            val event = createEvent(eventName, isUsageStatsEvent)
             eventArchData.event = event
-
-            val visitor = createVisitor()
+            val visitor = if (isUsageStatsEvent) {
+                null
+            } else {
+                createVisitor(isUsageStatsEvent)
+            }
             eventArchData.visitor = visitor
 
             val eventArchPayload = EventArchPayload()
@@ -149,9 +169,9 @@ class NetworkUtil {
          * @param settings The settings model containing configuration.
          * @return The event model.
          */
-        private fun createEvent(eventName: String): Event {
+        private fun createEvent(eventName: String, isUsageStatsEvent: Boolean = false): Event {
             val event = Event()
-            val props = createProps()
+            val props = createProps(isUsageStatsEvent)
             event.props = props
             event.name = eventName
             event.time = System.currentTimeMillis()
@@ -163,11 +183,13 @@ class NetworkUtil {
          * @param settings The settings model containing configuration.
          * @return The visitor model.
          */
-        private fun createProps(): Props {
+        private fun createProps(isUsageStatsEvent: Boolean = false): Props {
             val props = Props()
             props.setSdkName(SDKMetaUtil.sdkName)
             props.setSdkVersion(SDKMetaUtil.sdkVersion)
-            props.setEnvKey(SettingsManager.instance?.sdkKey)
+            if (!isUsageStatsEvent) {
+                props.setEnvKey(SettingsManager.instance?.sdkKey)
+            }
             return props
         }
 
@@ -176,10 +198,12 @@ class NetworkUtil {
          * @param settings The settings model containing configuration.
          * @return The visitor model.
          */
-        private fun createVisitor(): Visitor {
+        private fun createVisitor(isUsageStatsEvent: Boolean = false): Visitor {
             val visitor = Visitor()
             val visitorProps: MutableMap<String, Any> = HashMap()
-            visitorProps[Constants.VWO_FS_ENVIRONMENT] = SettingsManager.instance?.sdkKey ?: defaultString
+            if (!isUsageStatsEvent) {
+                visitorProps[VWO_FS_ENVIRONMENT] = SettingsManager.instance?.sdkKey ?: defaultString
+            }
             visitor.setProps(visitorProps)
             return visitor
         }
@@ -262,12 +286,6 @@ class NetworkUtil {
             properties.d!!.event!!.props!!.id = campaignId
             properties.d!!.event!!.props!!.variation = variationId.toString()
             properties.d!!.event!!.props!!.setFirst(1)
-            // Send usageStats once per init
-            val usageStats = UsageStats.getStats()
-
-            if (usageStats.isNotEmpty()) {
-                properties.d!!.event!!.props!!.setVwoMeta(usageStats)
-            }
 
             if (eventName == EventEnum.VWO_VARIATION_SHOWN.value) {
                 properties.d?.event?.props?.setIsMII(FMEConfig.isMISdkLinked)
@@ -393,7 +411,7 @@ class NetworkUtil {
             val settingsManager = SettingsManager.instance
             val userId = settingsManager?.accountId.toString() + "_" + settingsManager?.sdkKey
             val properties = getEventBasePayload(null, null, userId, eventName, null, null)
-            properties.d?.event?.props?.setProduct("fme")
+            properties.d?.event?.props?.setProduct(PRODUCT_NAME)
             val data: MutableMap<String, Any> = HashMap()
             data["type"] = messageType
 
@@ -437,7 +455,7 @@ class NetworkUtil {
 
                 val map = mapOf(VWO_FS_ENVIRONMENT to sdkKey)
                 props.setAdditionalProperties(map)
-                props.setProduct("fme")
+                props.setProduct(PRODUCT_NAME)
 
                 val data = mutableMapOf<String, Any>(
                     "isSDKInitialized" to true
@@ -498,7 +516,7 @@ class NetworkUtil {
             }
         }
 
-        fun sendGatewayEvent(properties: MutableMap<String, String>?, payload: Map<String, Any?>?) {
+        fun sendGatewayEvent(queryParams: MutableMap<String, String>?, payload: Map<String, Any?>?) {
             try {
                 NetworkManager.attachClient()
                 val headers = createHeaders(null, null)
@@ -506,7 +524,7 @@ class NetworkUtil {
                     baseUrl,
                     "POST",
                     UrlEnum.EVENTS.url,
-                    properties,
+                    queryParams,
                     payload,
                     headers,
                     SettingsManager.instance!!.protocol,
@@ -552,6 +570,52 @@ class NetworkUtil {
                         }
                     })
             }
+        }
+
+        /**
+         * Constructs the payload for an SDK usage statistics event.
+         *
+         * This function generates a map representing the data payload that will be sent
+         * to track SDK usage. It incorporates essential information such as the
+         * event type, account identifiers, and collected usage statistics.
+         *
+         * @param event The type of SDK usage event being tracked.
+         *              This is an enum value from `EventEnum`.
+         * @param usageStatsAccountId The account ID specifically designated for tracking usage statistics.
+         *                            This might be different from the main VWO account ID.
+         * @return A map containing the non-null key-value pairs representing the payload
+         *         for the SDK usage statistics event. This map is ready to be serialized
+         *         (e.g., to JSON) and sent to the server.
+         */
+        fun getSDKUsageStatsEventPayload(event: EventEnum, usageStatsAccountId: Int): Map<String, Any> {
+            val settingsManager = SettingsManager.instance
+            val accountId = settingsManager?.accountId
+            val sdkKey = settingsManager?.sdkKey
+            val userId = "${accountId}_$sdkKey"
+
+            val properties = getEventBasePayload(
+                null,
+                null,
+                userId,
+                event.value,
+                null,
+                null,
+                true,
+                usageStatsAccountId
+            )
+
+            // Set the required fields
+            properties.d?.event?.props?.setProduct(PRODUCT_NAME)
+
+            val usageStats = UsageStats.getStats()
+            if (usageStats.isNotEmpty()) {
+                properties.d?.event?.props?.setVwoMeta(usageStats)
+            }
+            val payload: Map<*, *> = VWOClient.objectMapper.convertValue(
+                properties,
+                MutableMap::class.java
+            )
+            return removeNullValues(payload)
         }
 
         /**

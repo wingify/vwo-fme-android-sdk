@@ -28,6 +28,7 @@ object Constants {
     const val DEFAULT_REQUEST_TIME_INTERVAL: Long = 600 // 10 * 60(secs) = 600 secs i.e. 10 minutes
     const val DEFAULT_EVENTS_PER_REQUEST: Int = 100
     const val SDK_NAME: String = "vwo-fme-android-sdk"
+    const val PRODUCT_NAME: String = "fme"
     const val SETTINGS_TIMEOUT: Long = 50000
 
     const val HOST_NAME: String = "dev.visualwebsiteoptimizer.com"

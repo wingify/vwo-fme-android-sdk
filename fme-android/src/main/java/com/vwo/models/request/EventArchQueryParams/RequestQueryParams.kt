@@ -31,8 +31,8 @@ import java.util.Calendar
  */
 class RequestQueryParams(
     private val en: String,
-    private val a: String,
-    private val env: String,
+    var a: String,
+    var env: String?,
     private val visitor_ua: String?,
     private val visitor_ip: String?,
     private val url: String
@@ -49,7 +49,7 @@ class RequestQueryParams(
         val path = mutableMapOf<String, String>()
         path["en"] = en
         path["a"] = a
-        path["env"] = env
+        env?.let { path["env"] = it }
         path["eTime"] = eTime.toString()
         path["random"] = random.toString()
         path["p"] = p
