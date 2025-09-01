@@ -45,6 +45,7 @@ class VWOUserContext {
      * @return [String] - the qualified id picked from either [id] or [DeviceIdUtil]::getDeviceId()
      */
     fun getIdBasedOnSpecificCondition(): String? {
+        if (id != null) return id
         return if (shouldUseDeviceIdAsUserId) DeviceIdUtil().getDeviceId() else id
     }
 
