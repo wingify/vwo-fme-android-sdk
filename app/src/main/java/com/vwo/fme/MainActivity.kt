@@ -112,8 +112,6 @@ class MainActivity : AppCompatActivity() {
 
                         btnS1.setOnClickListener {
                             val actualUserId = "lid_001"
-                            println("DEMO_FILTER: ")
-                            println("DEMO_FILTER: user login complete -> got actual user id -> { $actualUserId } -> needs mapping")
                             VWO.setAlias(loginLogoutCtx, aliasId = actualUserId)
                         }
 

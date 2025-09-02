@@ -231,7 +231,7 @@ object VWO {
             AliasIdentityManager().setAlias(userId = sanitizedId, aliasId = aliasId)
         } ?: kotlin.run {
 
-            LoggerService.log(LogLevelEnum.ERROR, "Invalid VWOUserContext object passed for user $aliasId")
+            LoggerService.log(LogLevelEnum.ERROR, "API_CONTEXT_INVALID")
         }
     }
 
