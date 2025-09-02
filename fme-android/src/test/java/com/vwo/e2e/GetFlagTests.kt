@@ -141,7 +141,7 @@ class GetFlagTests {
             val variable = featureFlag?.getVariable("int", 1)
             assertEquals(
                 testData.expectation?.intVariable,
-                (variable as? Int) ?: (variable as? Double)?.toInt() ?: 1
+                getVariableAsInt(variable)
             )
             assertEquals(
                 testData.expectation?.stringVariable,
@@ -155,9 +155,9 @@ class GetFlagTests {
                 testData.expectation?.booleanVariable,
                 featureFlag?.getVariable("boolean", false)
             )
-            assertEquals(
+            settingsReader.assertMapsEqual(
                 testData.expectation?.jsonVariable,
-                featureFlag?.getVariable("json", HashMap<Any, Any>())
+                featureFlag?.getVariable("json", HashMap<Any, Any>()) as? Map<String, Any>
             )
 
             if (storage != null) {
@@ -181,6 +181,16 @@ class GetFlagTests {
                     testData.expectation!!.storageData?.experimentVariationId
                 )
             }
+        }
+    }
+
+    private fun getVariableAsInt(variable: Any?): Int {
+
+        return when (variable) {
+            is Int -> variable
+            is Long -> variable.toInt()
+            is Double -> variable.toInt()
+            else -> 1
         }
     }
 

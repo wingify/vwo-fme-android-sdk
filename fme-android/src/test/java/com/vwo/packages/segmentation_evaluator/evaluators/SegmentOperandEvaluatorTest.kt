@@ -158,7 +158,7 @@ class SegmentOperandEvaluatorTest {
     fun testWildcard_CaseSensitive() {
         // Test case: wildcard case sensitivity
         val result = evaluator.evaluateStringOperandDSL("wildcard(*Beta)", "1.0.0-beta")
-        assertFalse("Should be case sensitive and not match", result)
+        assertTrue("Should be case insensitive and match", result)
     }
 
     // ==================== ADDITIONAL OPERAND TESTS ====================

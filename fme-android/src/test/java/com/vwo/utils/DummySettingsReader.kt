@@ -15,6 +15,9 @@
  */
 package com.vwo.utils
 
+import org.junit.Assert
+import org.junit.ComparisonFailure
+
 class DummySettingsReader {
     var settingsMap: MutableMap<String, String> = mutableMapOf()
 
@@ -54,5 +57,43 @@ class DummySettingsReader {
         }
 
         return null
+    }
+
+    fun assertMapsEqual(expected: Map<String, Any>?, actual: Map<String, Any>?) {
+        when {
+            expected == null && actual == null -> {
+                // Both are null, so they are considered equal in this context.
+                return
+            }
+            expected == null -> {
+                // Only expected is null, so fail.
+                throw ComparisonFailure("Expected map was null, but actual map was not.", "null", actual.toString())
+            }
+            actual == null -> {
+                // Only actual is null, so fail.
+                throw ComparisonFailure("Expected map was not null, but actual map was null.", expected.toString(), "null")
+            }
+        }
+        Assert.assertEquals("Maps have different sizes", expected!!.size, actual!!.size)
+        for ((key, expectedValue) in expected) {
+            Assert.assertTrue("Map 'actual' is missing key '$key'", actual.containsKey(key))
+            val actualValue = actual[key]
+
+            when {
+                expectedValue is Number && actualValue is Number -> {
+                    // Compare their double values for numerical equality
+                    // Add a delta for floating point comparisons if needed
+                    Assert.assertEquals(
+                        "Values for key '$key' are not numerically equal",
+                        expectedValue.toDouble(),
+                        actualValue.toDouble(),
+                        0.00001 // Optional delta for floating point precision
+                    )
+                }
+                else -> {
+                    Assert.assertEquals("Values for key '$key' are not equal", expectedValue, actualValue)
+                }
+            }
+        }
     }
 }

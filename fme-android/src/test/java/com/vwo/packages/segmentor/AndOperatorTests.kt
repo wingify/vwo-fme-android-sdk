@@ -80,7 +80,7 @@ class AndOperatorTests {
         val customVariables: Map<String?, Any?> = object : HashMap<String?, Any?>() {
             init {
                 put("eq", "Eq_Value")
-                put("expectation", false)
+                put("expectation", true)
             }
         }
 

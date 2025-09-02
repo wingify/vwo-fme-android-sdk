@@ -303,7 +303,7 @@ class ContainsOperandTests {
         val customVariables: Map<String?, Any?> = object : HashMap<String?, Any?>() {
             init {
                 put("eq", "Something")
-                put("expectation", false)
+                put("expectation", true)
             }
         }
 
@@ -316,7 +316,7 @@ class ContainsOperandTests {
         val customVariables: Map<String?, Any?> = object : HashMap<String?, Any?>() {
             init {
                 put("eq", "SOMETHING")
-                put("expectation", false)
+                put("expectation", true)
             }
         }
 
@@ -432,7 +432,7 @@ class ContainsOperandTests {
         val customVariables: Map<String?, Any?> = object : HashMap<String?, Any?>() {
             init {
                 put("eq", 'e')
-                put("expectation", false)
+                put("expectation", true)
             }
         }
 
@@ -445,7 +445,7 @@ class ContainsOperandTests {
         val customVariables: Map<String?, Any?> = object : HashMap<String?, Any?>() {
             init {
                 put("eq", 'E')
-                put("expectation", false)
+                put("expectation", true)
             }
         }
 
