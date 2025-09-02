@@ -1,6 +1,22 @@
+/**
+ * Copyright (c) 2024-2025 Wingify Software Pvt. Ltd.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package com.vwo.services
 
 import com.vwo.enums.UrlEnum
+import com.vwo.interfaces.networking.HTTPVerb
 import com.vwo.packages.network_layer.manager.NetworkManager
 import com.vwo.packages.network_layer.models.RequestModel
 import com.vwo.packages.network_layer.models.ResponseModel
@@ -20,7 +36,7 @@ class AliasApiService {
         val queryParams = getQueryParams(mutableMapOf(KEY_USER_ID to userId))
         val request = RequestModel(
             url = SettingsManager.instance?.hostname,
-            method = "GET",
+            method = "${HTTPVerb.GET}",
             path = UrlEnum.GET_ALIAS.url,
             query = queryParams,
             body = null,
@@ -37,7 +53,7 @@ class AliasApiService {
         val requestBody = mapOf(KEY_USER_ID to userId, KEY_ALIAS_ID to aliasId)
         val request = RequestModel(
             url = SettingsManager.instance?.hostname,
-            method = "POST",
+            method = "${HTTPVerb.POST}",
             path = UrlEnum.SET_ALIAS.url,
             query = getQueryParams(),
             body = requestBody,
