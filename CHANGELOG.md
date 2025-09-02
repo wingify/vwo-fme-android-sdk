@@ -9,8 +9,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 - Support to use Device ID if `context.id` is not available
-- User aliasing support ( with gateway )
-
 ```java
 // Java
 VWOUserContext context = new VWOUserContext();
@@ -18,6 +16,16 @@ context.setId(""); // Empty ID to trigger device ID fallback
 context.setShouldUseDeviceIdAsUserId(true); // Use device ID as user ID
 ```
 
+- Add support for user aliasing (will work after gateway has been setup)
+```java
+// Java
+VWOInitOptions options = new VWOInitOptions();
+options.isAliasingEnabled = true;
+
+VWOUserContext context = new VWOUserContext();
+context.id = "temp_id";
+VWO.setAlias(context, "user_alias");
+```
 
 [1.7.0] - 2025-08-05
 
