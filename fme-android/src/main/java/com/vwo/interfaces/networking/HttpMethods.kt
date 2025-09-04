@@ -25,18 +25,14 @@ package com.vwo.interfaces.networking
  * 
  * @property value The string representation of the HTTP method
  */
-enum class HTTPVerb(val value: String) {
+enum class HttpMethods(val value: String) {
     /**
      * HTTP GET method.
      * 
      * Used for retrieving data from the server. GET requests should be idempotent
      * and safe, meaning they should not have side effects on the server state.
      */
-    GET("GET") {
-        override fun toString(): String {
-            return value
-        }
-    },
+    GET("GET"),
     
     /**
      * HTTP POST method.
@@ -44,9 +40,5 @@ enum class HTTPVerb(val value: String) {
      * Used for submitting data to the server. POST requests are typically used
      * for creating new resources or submitting form data that may change server state.
      */
-    POST("POST") {
-        override fun toString(): String {
-            return value
-        }
-    }
+    POST("POST")
 }

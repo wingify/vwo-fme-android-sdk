@@ -16,7 +16,7 @@
 package com.vwo.services
 
 import com.vwo.enums.UrlEnum
-import com.vwo.interfaces.networking.HTTPVerb
+import com.vwo.interfaces.networking.HttpMethods
 import com.vwo.packages.network_layer.manager.NetworkManager
 import com.vwo.packages.network_layer.models.RequestModel
 import com.vwo.packages.network_layer.models.ResponseModel
@@ -36,7 +36,7 @@ class AliasApiService {
         val queryParams = getQueryParams(mutableMapOf(KEY_USER_ID to userId))
         val request = RequestModel(
             url = SettingsManager.instance?.hostname,
-            method = "${HTTPVerb.GET}",
+            method = HttpMethods.GET.value,
             path = UrlEnum.GET_ALIAS.url,
             query = queryParams,
             body = null,
@@ -53,7 +53,7 @@ class AliasApiService {
         val requestBody = mapOf(KEY_USER_ID to userId, KEY_ALIAS_ID to aliasId)
         val request = RequestModel(
             url = SettingsManager.instance?.hostname,
-            method = "${HTTPVerb.POST}",
+            method = HttpMethods.POST.value,
             path = UrlEnum.SET_ALIAS.url,
             query = getQueryParams(),
             body = requestBody,
