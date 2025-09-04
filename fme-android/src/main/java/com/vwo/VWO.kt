@@ -64,7 +64,6 @@ object VWO {
             .setNetworkManager() // Configures network management for API communication.
             .setSegmentation() // Sets up segmentation for targeted functionality.
             .initPolling() // Initializes the polling mechanism for fetching settings.
-            .setAliasIdentityManager()
             .initBatchManager() // Initialize batch manager
 
         SDKMetaUtil.sdkName = options.sdkName
@@ -212,27 +211,7 @@ object VWO {
      * @param aliasId  - The actual user id, maybe after login
      */
     fun setAlias(context: VWOUserContext, aliasId: String) {
-
-        if(!AliasIdentityManager.Options.isAliasingEnabled) {
-
-            val msgMap = mapOf<String?, String?>("key" to "VWOInitOptions.isAliasingEnabled to true.")
-            LoggerService.log(LogLevelEnum.ERROR, "ALIAS_NOT_ENABLED", msgMap)
-            return
-        }
-
-        if (!AliasIdentityManager.Options.isGatewaySet) {
-
-            LoggerService.log(LogLevelEnum.ERROR, "GATEWAY_URL_ERROR", null)
-            return
-        }
-
-        (context.getIdBasedOnSpecificCondition())?.let { sanitizedId ->
-
-            AliasIdentityManager().setAlias(userId = sanitizedId, aliasId = aliasId)
-        } ?: kotlin.run {
-
-            LoggerService.log(LogLevelEnum.ERROR, "API_CONTEXT_INVALID")
-        }
+        vwoClient?.setAlias(context, aliasId)
     }
 
 }

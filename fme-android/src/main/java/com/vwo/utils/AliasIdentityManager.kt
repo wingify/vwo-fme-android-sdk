@@ -41,20 +41,6 @@ import kotlin.coroutines.suspendCoroutine
  */
 class AliasIdentityManager {
 
-    object Options {
-
-        /**
-         * Flag to enable/disable aliasing functionality.
-         */
-        var isAliasingEnabled: Boolean = false
-
-        /**
-         * Flag indicating if the gateway is configured.
-         */
-        var isGatewaySet: Boolean = false
-
-    }
-
     private val ID_NOT_FOUND = null
 
     private val JSON_PREFIX = "[{"

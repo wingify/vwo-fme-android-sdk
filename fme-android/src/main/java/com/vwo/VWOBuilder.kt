@@ -342,9 +342,4 @@ open class VWOBuilder(private val options: VWOInitOptions?) {
         )
     }
 
-    fun setAliasIdentityManager(): VWOBuilder {
-        AliasIdentityManager.Options.isAliasingEnabled = options?.isAliasingEnabled ?: false
-        AliasIdentityManager.Options.isGatewaySet = options?.gatewayService?.isNotEmpty() ?: false
-        return this
-    }
 }

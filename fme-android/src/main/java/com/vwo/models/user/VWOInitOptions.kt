@@ -44,10 +44,6 @@ class VWOInitOptions {
     var pollInterval: Int? = null
     var vwoBuilder: VWOBuilder? = null
     var isAliasingEnabled: Boolean = false
-        set(value) {
-            field = value
-            AliasIdentityManager.Options.isAliasingEnabled = value
-        }
 
     var gatewayService: Map<String, Any> = HashMap()
 
