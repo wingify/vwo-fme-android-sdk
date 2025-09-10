@@ -30,6 +30,15 @@ class AliasApiService {
     val KEY_ACCOUNT_ID = "accountId"
     val KEY_SDK_KEY = "sdkKey"
 
+    /**
+     * Fetches the alias-aware user ID mapping for a given user.
+     *
+     * Builds a GET request to the alias endpoint with required headers and query
+     * parameters, then returns the raw network response.
+     *
+     * @param userId The base user identifier whose alias mapping is requested.
+     * @return [ResponseModel] if the request was executed, or null on failure to dispatch.
+     */
     fun getAlias(userId: String): ResponseModel? {
 
         val headers = createHeaders(null, null)
@@ -47,6 +56,16 @@ class AliasApiService {
         return NetworkManager.get(request)
     }
 
+    /**
+     * Creates or updates an alias mapping for a user.
+     *
+     * Builds a POST request to set an association between `userId` and `aliasId` and
+     * returns the raw network response from the service.
+     *
+     * @param userId The original user identifier.
+     * @param aliasId The alias to associate with the given user identifier.
+     * @return [ResponseModel] if the request was executed, or null on failure to dispatch.
+     */
     fun setAlias(userId: String, aliasId: String): ResponseModel? {
         NetworkManager.attachClient()
         val headers = createHeaders(null, null)
@@ -64,6 +83,15 @@ class AliasApiService {
         return NetworkManager.post(request)
     }
 
+    /**
+     * Builds query parameters required for alias APIs.
+     *
+     * Merges mandatory parameters (`accountId`, `sdkKey`) with any provided
+     * additional entries and returns a mutable map to be used in requests.
+     *
+     * @param map Optional additional query parameters to merge.
+     * @return A mutable map containing merged query parameters.
+     */
     private fun getQueryParams(map: Map<String, String> = mapOf()): MutableMap<String, String> {
         val accountId = SettingsManager.instance?.accountId.toString()
         val sdkKey = SettingsManager.instance?.sdkKey.toString()

@@ -36,7 +36,6 @@ import com.vwo.models.user.VWOUserContext
 import com.vwo.packages.logger.enums.LogLevelEnum
 import com.vwo.packages.network_layer.manager.NetworkManager
 import com.vwo.packages.network_layer.models.RequestModel
-import com.vwo.packages.network_layer.models.ResponseModel
 import com.vwo.providers.StorageProvider
 import com.vwo.services.LoggerService.Companion.log
 import com.vwo.services.SettingsManager

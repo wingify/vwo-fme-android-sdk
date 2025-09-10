@@ -32,7 +32,6 @@
 
   "SET_ALIAS_ERROR": "The call to set alias did not succeed. Error: {err}",
   "GET_ALIAS_ERROR": "The call to get alias did not succeed. Error: {err}",
-  "ALIAS_NETWORK_SDK_ERROR": "Could not send request to server the server. Error: {err}",
-
+  "ALIAS_NETWORK_SDK_ERROR": "Could not send request to server. Error: {err}",
   "ALIAS_NOT_ENABLED": "Aliasing is not enabled, you can enable it by setting {key}"
 }

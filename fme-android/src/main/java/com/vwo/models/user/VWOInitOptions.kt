@@ -24,7 +24,6 @@ import com.vwo.packages.storage.Connector
 import com.vwo.interfaces.integration.IntegrationCallback
 import com.vwo.packages.storage.MobileDefaultStorage
 import com.vwo.sdk.fme.BuildConfig
-import com.vwo.utils.AliasIdentityManager
 
 /**
  * Represents initialization options for the VWO SDK.

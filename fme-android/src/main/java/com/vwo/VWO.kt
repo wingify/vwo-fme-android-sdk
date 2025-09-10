@@ -22,14 +22,11 @@ import com.vwo.interfaces.IVwoInitCallback
 import com.vwo.interfaces.IVwoListener
 import com.vwo.models.user.VWOUserContext
 import com.vwo.models.user.VWOInitOptions
-import com.vwo.packages.logger.enums.LogLevelEnum
 import com.vwo.utils.SDKMetaUtil
 import com.vwo.packages.network_layer.manager.BatchManager
 import com.vwo.providers.StorageProvider
 import com.vwo.sdk.fme.BuildConfig
 import com.vwo.utils.EventsUtils
-import com.vwo.services.LoggerService
-import com.vwo.utils.AliasIdentityManager
 import com.vwo.utils.UsageStats
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
