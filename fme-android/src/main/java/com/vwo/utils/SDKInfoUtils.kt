@@ -22,6 +22,7 @@ import android.os.Build
 private const val platformAndroid = "ad"
 private const val platformFlutter = "fl"
 private const val platformReact = "rn"
+const val valueUnknown = "Unknown"
 
 object SDKInfoUtils {
 
@@ -40,13 +41,13 @@ object SDKInfoUtils {
     fun getOSVersion(): String = Build.VERSION.RELEASE
     
     fun getOSDetails(): String = "$platformAndroid ${Build.VERSION.RELEASE}"//Android 12
-    
+
     fun getAppVersion(context: Context): String {
         return try {
             val pInfo: PackageInfo = context.packageManager.getPackageInfo(context.packageName, 0)
-            pInfo.versionName
+            pInfo.versionName ?: valueUnknown
         } catch (e: Exception) {
-            ""
+            valueUnknown
         }
     }
     

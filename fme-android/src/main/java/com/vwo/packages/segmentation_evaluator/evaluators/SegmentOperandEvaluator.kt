@@ -34,6 +34,12 @@ import java.net.URLDecoder
 import java.text.DecimalFormat
 import java.util.regex.Pattern
 
+private const val OPERAND_VALUE = "operandValue"
+
+private const val OPERAND_TYPE = "operandType"
+
+private const val TAG_VALUE = "tagValue"
+
 /**
  * Evaluates segment operands for user targeting.
  *
@@ -98,23 +104,23 @@ class SegmentOperandEvaluator {
             }
             tagValue = preProcessTagValue(tagValue.toString())
             val preProcessOperandValue = preProcessOperandValue(operandValue)
-            val processedValues = preProcessOperandValue["operandValue"]?.let {
+            val processedValues = preProcessOperandValue[OPERAND_VALUE]?.let {
                 processValues(it, tagValue as String)
             }
 
             // Convert numeric values to strings if processing wildcard pattern
-            val operandType = preProcessOperandValue["operandType"] as SegmentOperandValueEnum?
+            val operandType = preProcessOperandValue[OPERAND_TYPE] as SegmentOperandValueEnum?
             if (operandType == SegmentOperandValueEnum.STARTING_ENDING_STAR_VALUE ||
                 operandType == SegmentOperandValueEnum.STARTING_STAR_VALUE ||
                 operandType == SegmentOperandValueEnum.ENDING_STAR_VALUE ||
                 operandType == SegmentOperandValueEnum.REGEX_VALUE) {
-                processedValues?.set("tagValue", processedValues["tagValue"].toString())
+                processedValues?.set(TAG_VALUE, processedValues[TAG_VALUE].toString())
             }
 
-            tagValue = processedValues?.get("tagValue")
+            tagValue = processedValues?.get(TAG_VALUE)
             return extractResult(
                 operandType,
-                processedValues?.get("operandValue").toString()
+                processedValues?.get(OPERAND_VALUE).toString()
                     .trim { it <= ' ' }
                     .replace("\"", ""),
                 tagValue.toString())
@@ -201,8 +207,8 @@ class SegmentOperandEvaluator {
         }
 
         val result: MutableMap<String, Any?> = HashMap()
-        result["operandType"] = operandType
-        result["operandValue"] = operandValue
+        result[OPERAND_TYPE] = operandType
+        result[OPERAND_VALUE] = operandValue
         return result
     }
 
@@ -318,15 +324,51 @@ class SegmentOperandEvaluator {
         }
         var tagValue = URLDecoder.decode(StorageProvider.userAgent)
         val preProcessOperandValue = preProcessOperandValue(dslOperandValue)
-        val processedValues = preProcessOperandValue["operandValue"]?.let {
+        val processedValues = preProcessOperandValue[OPERAND_VALUE]?.let {
             processValues(it, tagValue)
         }?:return false
 
-        tagValue = processedValues["tagValue"] as String?
-        val operandType = preProcessOperandValue["operandType"] as SegmentOperandValueEnum?
+        tagValue = processedValues[TAG_VALUE] as String?
+        val operandType = preProcessOperandValue[OPERAND_TYPE] as SegmentOperandValueEnum?
         return extractResult(
             operandType,
-            processedValues["operandValue"].toString().trim { it <= ' ' }
+            processedValues[OPERAND_VALUE].toString().trim { it <= ' ' }
+                .replace("\"", ""),
+            tagValue)
+    }
+
+    /**
+     * Evaluates a given string tag value against a DSL operand value.
+     *
+     * This function parses a DSL operand string to extract an operand type and its associated value.
+     * It then compares this extracted value with the provided tag value to determine a boolean result.
+     *
+     * @param dslOperandValue The DSL operand string containing the operand type and value (e.g., "contains(\"value\")").
+     * @param value The string tag value to be evaluated against the DSL operand.
+     * @return `true` if the tag value matches the criteria defined by the DSL operand, `false` otherwise.
+     */
+    fun evaluateStringOperandDSL(dslOperandValue: String, value: String): Boolean {
+        val tagValue: String = value
+
+        // Pre-process the DSL operand string to extract its type and value.
+        // This function is assumed to return a Map where OPERAND_TYPE and OPERAND_VALUE are keys.
+        val preProcessOperandValue = preProcessOperandValue(dslOperandValue)
+
+        // It attempts to convert the operand value and store it in a map.
+        // If OPERAND_VALUE is not found, the function returns false immediately.
+        val processedValues = preProcessOperandValue[OPERAND_VALUE]?.let {
+            val result: MutableMap<String, Any> = HashMap()
+            result[OPERAND_VALUE] = convertValue(it)
+            result
+        } ?: return false
+
+        // Extract the operand type from the pre-processed map.
+        val operandType = preProcessOperandValue[OPERAND_TYPE] as SegmentOperandValueEnum?
+
+        // Perform the actual comparison based on the extracted operand type, operand and the tag value
+        return extractResult(
+            operandType,
+            preProcessOperandValue[OPERAND_VALUE].toString().trim { it <= ' ' }
                 .replace("\"", ""),
             tagValue)
     }
@@ -357,10 +399,10 @@ class SegmentOperandEvaluator {
     private fun processValues(operandValue: Any, tagValue: Any): MutableMap<String, Any> {
         val result: MutableMap<String, Any> = HashMap()
         // Process operandValue
-        result["operandValue"] = convertValue(operandValue)
+        result[OPERAND_VALUE] = convertValue(operandValue)
 
         // Process tagValue
-        result["tagValue"] = convertValue(tagValue)
+        result[TAG_VALUE] = convertValue(tagValue)
 
         return result
     }
@@ -412,13 +454,13 @@ class SegmentOperandEvaluator {
                 operandValue.toString().equals(tagValue, ignoreCase = true)
 
             SegmentOperandValueEnum.STARTING_ENDING_STAR_VALUE -> result =
-                tagValue.contains(operandValue.toString())
+                tagValue.contains(operandValue.toString(), ignoreCase = true)
 
             SegmentOperandValueEnum.STARTING_STAR_VALUE -> result =
-                tagValue.endsWith(operandValue.toString())
+                tagValue.endsWith(operandValue.toString(), ignoreCase = true)
 
             SegmentOperandValueEnum.ENDING_STAR_VALUE -> result =
-                tagValue.startsWith(operandValue.toString())
+                tagValue.startsWith(operandValue.toString(), ignoreCase = true)
 
             SegmentOperandValueEnum.REGEX_VALUE -> try {
                 val pattern = Pattern.compile(operandValue.toString())
@@ -429,20 +471,53 @@ class SegmentOperandEvaluator {
             }
 
             SegmentOperandValueEnum.GREATER_THAN_VALUE -> result =
-                tagValue.toFloat() > operandValue.toString().toFloat()
+                compareVersions(tagValue, operandValue.toString()) > 0
 
             SegmentOperandValueEnum.GREATER_THAN_EQUAL_TO_VALUE -> result =
-                tagValue.toFloat() >= operandValue.toString().toFloat()
+                compareVersions(tagValue, operandValue.toString()) >= 0
 
             SegmentOperandValueEnum.LESS_THAN_VALUE -> result =
-                tagValue.toFloat() < operandValue.toString().toFloat()
+                compareVersions(tagValue, operandValue.toString()) < 0
 
             SegmentOperandValueEnum.LESS_THAN_EQUAL_TO_VALUE -> result =
-                tagValue.toFloat() <= operandValue.toString().toFloat()
+                compareVersions(tagValue, operandValue.toString()) <= 0
 
-            else -> result = tagValue == operandValue.toString()
+            else -> result = tagValue.equals(operandValue.toString(), ignoreCase = true)
         }
         return result
+    }
+
+    /**
+     * Compares two version strings using semantic versioning rules.
+     * Supports formats like "1.2.3", "1.0", "2.1.4.5", etc.
+     *
+     * @param version1 First version string
+     * @param version2 Second version string
+     * @return -1 if version1 < version2, 0 if equal, 1 if version1 > version2
+     */
+    private fun compareVersions(version1: String, version2: String): Int {
+        try {
+            // Split versions by dots and convert to integers
+            val parts1 = version1.split(".").map { it.toIntOrNull() ?: 0 }
+            val parts2 = version2.split(".").map { it.toIntOrNull() ?: 0 }
+
+            // Find the maximum length to handle different version formats
+            val maxLength = maxOf(parts1.size, parts2.size)
+
+            for (i in 0 until maxLength) {
+                val part1 = if (i < parts1.size) parts1[i] else 0
+                val part2 = if (i < parts2.size) parts2[i] else 0
+
+                when {
+                    part1 < part2 -> return -1
+                    part1 > part2 -> return 1
+                }
+            }
+            return 0 // Versions are equal
+        } catch (e: Exception) {
+            // If version parsing fails, fall back to string comparison
+            return version1.compareTo(version2)
+        }
     }
 
     /**

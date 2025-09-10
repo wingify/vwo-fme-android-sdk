@@ -34,7 +34,12 @@ enum class SegmentOperatorValueEnum(val value: String) {
     BROWSER_AGENT("browser_string"),
     UA("ua"),
     DEVICE("device"),
-    FEATURE_ID("featureId");
+    FEATURE_ID("featureId"),
+    MANUFACTURER("manufacturer"),
+    DEVICE_MODEL("device_model"),
+    LOCALE("locale"),
+    APP_VERSION("app_version"),
+    OS_VERSION("os_version");
 
     companion object {
         /**

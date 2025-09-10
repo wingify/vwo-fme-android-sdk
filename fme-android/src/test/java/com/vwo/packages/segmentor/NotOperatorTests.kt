@@ -275,7 +275,7 @@ class NotOperatorTests {
         val customVariables: Map<String?, Any?> = object : HashMap<String?, Any?>() {
             init {
                 put("eq", "Something")
-                put("expectation", true)
+                put("expectation", false)
             }
         }
 
@@ -288,7 +288,7 @@ class NotOperatorTests {
         val customVariables: Map<String?, Any?> = object : HashMap<String?, Any?>() {
             init {
                 put("eq", "SOMETHING")
-                put("expectation", true)
+                put("expectation", false)
             }
         }
 
@@ -430,7 +430,7 @@ class NotOperatorTests {
         val customVariables: Map<String?, Any?> = object : HashMap<String?, Any?>() {
             init {
                 put("eq", 'e')
-                put("expectation", true)
+                put("expectation", false)
             }
         }
 
@@ -443,7 +443,7 @@ class NotOperatorTests {
         val customVariables: Map<String?, Any?> = object : HashMap<String?, Any?>() {
             init {
                 put("eq", 'E')
-                put("expectation", true)
+                put("expectation", false)
             }
         }
 
@@ -537,7 +537,7 @@ class NotOperatorTests {
     @Test
     fun multipleNotOperatorTest6() {
         val dsl =
-            "{\"not\":{\"or\":[{\"not\":{\"or\":[{\"not\":{\"or\":[{\"not\":{\"or\":[{\"not\":{\"or\":[{\"custom_variable\":{\"neq\":\"eq_value\"}}]}}]}}]}}]}}]}}"
+            "{\"not\":{\"or\":[{\"not\":{\"or\":[{\"not\":{\"or\":[{\"not\":{\"or\":[{\"not\":{\"or\":[{\"custom_variable\":{\"neq\":\"eq_value\"}}]}}]}}]}}]}}"
         val customVariables: Map<String?, Any?> = object : HashMap<String?, Any?>() {
             init {
                 put("neq", "eq_value")
@@ -551,11 +551,11 @@ class NotOperatorTests {
     @Test
     fun multipleNotOperatorTest7() {
         val dsl =
-            "{\"not\":{\"or\":[{\"not\":{\"or\":[{\"not\":{\"or\":[{\"not\":{\"or\":[{\"not\":{\"or\":[{\"custom_variable\":{\"neq\":\"neq_value\"}}]}}]}}]}}]}}]}}"
+            "{\"not\":{\"or\":[{\"not\":{\"or\":[{\"not\":{\"or\":[{\"not\":{\"or\":[{\"not\":{\"or\":[{\"custom_variable\":{\"neq\":\"neq_value\"}}]}}]}}]}}]}}"
         val customVariables: Map<String?, Any?> = object : HashMap<String?, Any?>() {
             init {
                 put("neq", "eq_value")
-                put("expectation", true)
+                put("expectation", false)
             }
         }
 

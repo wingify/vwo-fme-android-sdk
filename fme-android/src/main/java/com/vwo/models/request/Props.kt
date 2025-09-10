@@ -52,6 +52,9 @@ class Props {
     @SerializedName("vwoMeta")
     private var vwoMeta: Map<String, Any>? = null
 
+    @SerializedName("attrs")
+    private var attrs: Map<String, Any>? = null
+
     // Additional properties are handled by PropsSerializer
     // The custom serializer excludes this field and flattens its contents into the root JSON
     private var additionalProperties: Map<String, Any> = HashMap()
@@ -102,5 +105,9 @@ class Props {
 
     fun setVwoMeta(vwoMeta: Map<String, Any>?) {
         this.vwoMeta = vwoMeta
+    }
+
+    fun setAttr(attr: Map<String, Any>?) {
+        this.attrs = attr
     }
 }

@@ -22,6 +22,7 @@ import com.vwo.packages.logger.enums.LogLevelEnum
 import com.vwo.packages.storage.MobileDefaultStorage
 import com.vwo.providers.StorageProvider
 import com.vwo.services.LoggerService
+import com.vwo.services.SettingsManager
 import java.lang.ref.WeakReference
 
 private const val KEY_INTEGRATIONS = "ig"
@@ -39,6 +40,8 @@ private const val KEY_OS_VERSION = "osv"
 private const val KEY_PLATFORM = "p"
 private const val KEY_LANGUAGE_VERSION = "lv"
 private const val KEY_CACHED_SETTINGS_EXPIRY = "cse"
+private const val KEY_ACCOUNT_ID = "a"
+private const val KEY_ENVIRONMENT = "env"
 
 object UsageStats {
 
@@ -50,6 +53,10 @@ object UsageStats {
     private lateinit var initOptions: VWOInitOptions
 
     private fun collectStats() {
+
+        stats[KEY_ACCOUNT_ID] = SettingsManager.instance?.accountId ?: 0
+        stats[KEY_ENVIRONMENT] = SettingsManager.instance?.sdkKey ?: ""
+
         // Set integration flag if present
         if (initOptions.integrations != null) {
             stats[KEY_INTEGRATIONS] = featureEnabledValue
@@ -88,7 +95,7 @@ object UsageStats {
 
         // Set polling interval if present
         initOptions.pollInterval?.let {
-            stats[KEY_POLL_INTERVAL] = featureEnabledValue
+            stats[KEY_POLL_INTERVAL] = it
         }
 
         // Set Gateway service if present

@@ -9,6 +9,10 @@ buildscript {
     }
     dependencies {
         classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlin_version"
+        // Add NMCP plugin to classpath only when running on Java 17+
+        if (JavaVersion.current().isCompatibleWith(JavaVersion.VERSION_17)) {
+            classpath "com.gradleup.nmcp:com.gradleup.nmcp.gradle.plugin:0.1.5"
+        }
     }
     configurations.classpath {
         resolutionStrategy {
@@ -22,7 +26,6 @@ plugins {
     id 'com.android.application' version '7.2.0' apply false
     id 'com.android.library' version '7.2.0' apply false
     id 'org.jetbrains.kotlin.android' version '1.5.31' apply false
-    id 'com.gradleup.nmcp' version '0.1.5' apply false
 }
 
 version = findProperty("VERSION_NAME") ?: "unspecified"

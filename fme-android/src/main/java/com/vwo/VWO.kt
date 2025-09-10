@@ -30,6 +30,7 @@ import com.vwo.sdk.fme.BuildConfig
 import com.vwo.utils.EventsUtils
 import com.vwo.services.LoggerService
 import com.vwo.utils.AliasIdentityManager
+import com.vwo.utils.UsageStats
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -69,7 +70,7 @@ object VWO {
         SDKMetaUtil.sdkName = options.sdkName
         SDKMetaUtil.sdkVersion = options.sdkVersion
         StorageProvider.userAgent = "VWO FME $PLATFORM ${BuildConfig.SDK_VERSION} ($PLATFORM/${Build.VERSION.RELEASE})"
-        com.vwo.utils.UsageStats.collectStats(options)
+        UsageStats.collectStats(options)
         val settings = vwoBuilder.getSettings(false)
         val vwoInstance = this
         vwoClient = VWOClient(settings, options)
@@ -110,6 +111,8 @@ object VWO {
             }
             if (options.sdkName == SDK_NAME) // Don't call sendSdkInitEvent for hybrid SDKs
                 sendSdkInitEvent(sdkInitTime)
+
+            sendUsageStats()
             instance?.let { initListener.vwoInitSuccess(it, "VWO initialized successfully") }
             BatchManager.start("SDK Initialization")
         }
@@ -136,6 +139,22 @@ object VWO {
         if (instance?.vwoClient?.isSettingsValid == true && wasInitializedEarlier != true) {
             EventsUtils().sendSdkInitEvent(instance?.vwoClient?.settingsFetchTime, sdkInitTime)
         }
+    }
+
+    /**
+     * Sends SDK usage statistics.
+     *
+     * This function retrieves the usage statistics account ID from settings.
+     * If the account ID is found, it triggers an event to send SDK usage statistics.
+     * This helps in understanding how the SDK is being utilized.
+     * If the `usageStatsAccountId` is not available in the settings, the function will return early
+     * and no event will be sent.
+     */
+    private fun sendUsageStats() {
+        // Get usage stats account id from settings
+        val usageStatsAccountId =
+            instance?.vwoClient?.processedSettings?.usageStatsAccountId ?: return
+        EventsUtils().sendSDKUsageStatsEvent(usageStatsAccountId)
     }
 
     /**

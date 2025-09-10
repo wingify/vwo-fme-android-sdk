@@ -141,7 +141,7 @@ class SDKInfoUtilsTest {
         val result = SDKInfoUtils.getAppVersion(mockContext)
 
         // Then
-        assertEquals("", result)
+        assertEquals("Unknown", result)
     }
 
     @Test

@@ -23,7 +23,7 @@ import org.junit.Assert.assertEquals
 fun verifyExpectation(dsl: String, customVariables: Map<String, Any>) {
     SegmentationManager.attachEvaluator()
     assertEquals(
-        SegmentationManager.validateSegmentation(dsl, customVariables),
-        customVariables["expectation"]
+        customVariables["expectation"],
+        SegmentationManager.validateSegmentation(dsl, customVariables)
     )
 }

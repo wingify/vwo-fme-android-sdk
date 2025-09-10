@@ -60,6 +60,33 @@ class EventsUtils {
     }
 
     /**
+     * Sends a usage stats event to VWO.
+     * This event is triggered when the SDK is initialized.
+     *
+     * @param usageStatsAccountId The account ID specifically designated for tracking usage statistics.
+     *                            This might be different from the main VWO account ID.
+     */
+    fun sendSDKUsageStatsEvent(usageStatsAccountId: Int) {
+        // create the query parameters
+        val queryParams = NetworkUtil.getEventsBaseProperties(
+            eventName = EventEnum.VWO_USAGE_STATS.value,
+            visitorUserAgent = null,
+            ipAddress = null,
+            isUsageStatsEvent = true,
+            usageStatsAccountId = usageStatsAccountId
+        )
+
+        // create the payload with required fields
+        val payload = NetworkUtil.getSDKUsageStatsEventPayload(
+            EventEnum.VWO_USAGE_STATS,
+            usageStatsAccountId
+        )
+
+        // Send the payload as a POST request
+        NetworkUtil.sendMessagingEvent(queryParams, payload)
+    }
+
+    /**
      * Evaluates the given DSL against the provided context to determine if the event
      * should be tracked before segmentation.
      *

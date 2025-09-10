@@ -1,9 +1,0 @@
-<resources>
-    <string name="app_name">FME</string>
-    <string name="initSdk">Init SDK</string>
-    <string name="getFlag">Get Flag</string>
-    <string name="getVariable">Get Variable</string>
-    <string name="track">Track</string>
-    <string name="attribute">Attribute</string>
-    <string name="javaScreen">Show Java screen</string>
-</resources>

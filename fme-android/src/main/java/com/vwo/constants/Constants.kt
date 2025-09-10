@@ -28,6 +28,7 @@ object Constants {
     const val DEFAULT_REQUEST_TIME_INTERVAL: Long = 600 // 10 * 60(secs) = 600 secs i.e. 10 minutes
     const val DEFAULT_EVENTS_PER_REQUEST: Int = 100
     const val SDK_NAME: String = "vwo-fme-android-sdk"
+    const val PRODUCT_NAME: String = "fme"
     const val SETTINGS_TIMEOUT: Long = 50000
 
     const val HOST_NAME: String = "dev.visualwebsiteoptimizer.com"
@@ -53,4 +54,10 @@ object Constants {
 
     const val GATEWAY_USER_DATA_CACHE_DURATION = 60 * 60 * 1000L //1 hour in milliseconds
     const val GATEWAY_LIST_EVALUATION_CACHE_DURATION = 60 * 60 * 1000L //1 hour in milliseconds
+
+    const val APP_VERSION = "vwo_av"
+    const val OS_VERSION = "vwo_osv"
+    const val MANUFACTURER = "vwo_mfr"
+    const val DEVICE_MODEL = "vwo_dm"
+    const val LOCALE = "vwo_loc"
 }

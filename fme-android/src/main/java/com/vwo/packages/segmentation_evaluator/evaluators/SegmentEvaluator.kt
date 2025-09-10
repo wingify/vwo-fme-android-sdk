@@ -82,7 +82,30 @@ class SegmentEvaluator {
                 subDsl.asText(),
                 context
             )
+            SegmentOperatorValueEnum.DEVICE_MODEL -> return SegmentOperandEvaluator().evaluateStringOperandDSL(
+                subDsl.asText(),
+                DeviceInfo().getDeviceModel()
+            )
+            SegmentOperatorValueEnum.LOCALE -> return SegmentOperandEvaluator().evaluateStringOperandDSL(
+                subDsl.asText(),
+                DeviceInfo().getLocale()
+            )
+            SegmentOperatorValueEnum.OS_VERSION -> return SegmentOperandEvaluator().evaluateStringOperandDSL(
+                subDsl.asText(),
+                DeviceInfo().getOsVersion()
+            )
+            SegmentOperatorValueEnum.APP_VERSION -> {
+                val context = StorageProvider.contextRef.get() ?: return false
 
+                return SegmentOperandEvaluator().evaluateStringOperandDSL(
+                    subDsl.asText(),
+                    DeviceInfo().getApplicationVersion(context)
+                )
+            }
+            SegmentOperatorValueEnum.MANUFACTURER -> return SegmentOperandEvaluator().evaluateStringOperandDSL(
+                subDsl.asText(),
+                DeviceInfo().getManufacturer()
+            )
             else -> return false
         }
     }

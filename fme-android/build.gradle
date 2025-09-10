@@ -3,8 +3,9 @@ plugins {
     id 'org.jetbrains.kotlin.android'
     id 'maven-publish'
     id 'signing'
-    id 'com.gradleup.nmcp'
 }
+
+
 
 // Set project version
 version = VERSION_NAME
@@ -84,6 +85,24 @@ android {
 
 
 afterEvaluate {
+    // Apply NMCP plugin only when running on Java 17+
+    if (JavaVersion.current().isCompatibleWith(JavaVersion.VERSION_17)) {
+        apply plugin: 'com.gradleup.nmcp'
+        
+        // Configure Maven Central Portal Publishing (NMCP) immediately after applying plugin
+        nmcp {
+            centralPortal {
+                // Get credentials from local.properties
+                username = localProperties.getProperty('mavenCentralUsername')
+                password = localProperties.getProperty('mavenCentralPassword')
+                
+                // USER_MANAGED means upload to staging without auto-release
+                // You control when to publish manually from the portal
+                publishingType = "USER_MANAGED"
+            }
+        }
+    }
+    
     publishing {
         publications {
             release(MavenPublication) {
@@ -148,18 +167,6 @@ afterEvaluate {
     }
 }
 
-// Configure Maven Central Portal Publishing (NMCP)
-nmcp {
-    centralPortal {
-        // Get credentials from local.properties
-        username = localProperties.getProperty('mavenCentralUsername')
-        password = localProperties.getProperty('mavenCentralPassword')
-        
-        // USER_MANAGED means upload to staging without auto-release
-        // You control when to publish manually from the portal
-        publishingType = "USER_MANAGED"
-    }
-}
 
 dependencies {
 
