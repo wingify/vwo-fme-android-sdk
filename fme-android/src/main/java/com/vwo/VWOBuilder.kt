@@ -341,4 +341,5 @@ open class VWOBuilder(private val options: VWOInitOptions?) {
             mapOf("status" to status)
         )
     }
+
 }

@@ -30,11 +30,13 @@ import com.vwo.packages.logger.enums.LogLevelEnum
 import com.vwo.services.HooksManager
 import com.vwo.services.LoggerService
 import com.vwo.services.UrlService
+import com.vwo.utils.AliasIdentityManager
 import com.vwo.utils.DataTypeUtil.getType
 import com.vwo.utils.DataTypeUtil.isBoolean
 import com.vwo.utils.DataTypeUtil.isNumber
 import com.vwo.utils.DataTypeUtil.isString
 import com.vwo.utils.SettingsUtil
+import com.vwo.utils.UserIdUtil
 
 /**
  * Client class for interacting with the VWO SDK.
@@ -112,9 +114,17 @@ class VWOClient(settings: String?, options: VWOInitOptions?) {
                     }
                 })
             val hooksManager: HooksManager = HooksManager(options?.integrations)
-            if (context.id?.isEmpty() == true) {
+
+            // Use effective user ID (either provided userId or generated deviceId)
+            val userId = UserIdUtil.getUserId(context, options)
+            if (userId.isNullOrEmpty()) {
                 getFlag.setIsEnabled(false)
-                throw IllegalArgumentException("User ID is required")
+                throw IllegalArgumentException("User ID is required. Please provide a user ID or enable device ID in VWOUserContext.")
+            }
+
+            // Update context with effective user ID if it was generated
+            if (context.id != userId) {
+                context.id = userId
             }
 
             if (featureKey.isNullOrEmpty()) {
@@ -180,7 +190,14 @@ class VWOClient(settings: String?, options: VWOInitOptions?) {
                 throw IllegalArgumentException("TypeError: Event-name should be a string")
             }
 
-            require(!(context?.id == null || context.id?.isEmpty()==true)) { "User ID is required" }
+            // Use effective user ID (either provided userId or generated deviceId)
+            val userId = UserIdUtil.getUserId(context, options)
+            require(!userId.isNullOrEmpty()) { "User ID is required. Please provide a user ID or enable device ID in VWOUserContext." }
+
+            // Update context with effective user ID if it was generated
+            if (context != null && context.id != userId) {
+                context.id = userId
+            }
 
             val pSettings = this.processedSettings
             if (pSettings == null || !SettingsSchema().isSettingsValid(this.processedSettings)) {
@@ -269,7 +286,14 @@ class VWOClient(settings: String?, options: VWOInitOptions?) {
             }
             removedUnsupportedValues(attributes, apiName)
 
-            require(!(context.id == null || context.id?.isEmpty() == true)) { "User ID is required" }
+            // Use effective user ID (either provided userId or generated deviceId)
+            val userId = UserIdUtil.getUserId(context, options)
+            require(!userId.isNullOrEmpty()) { "User ID is required. Please provide a user ID or enable device ID in VWOUserContext." }
+
+            // Update context with effective user ID if it was generated
+            if (context.id != userId) {
+                context.id = userId
+            }
 
             if (this.processedSettings == null || !SettingsSchema().isSettingsValid(this.processedSettings)) {
                 return
@@ -308,45 +332,69 @@ class VWOClient(settings: String?, options: VWOInitOptions?) {
         }
     }
 
+    fun setAlias(context: VWOUserContext, aliasId: String) {
+
+        if(options?.isAliasingEnabled != true) {
+
+            val msgMap = mapOf<String?, String?>("key" to "VWOInitOptions.isAliasingEnabled to true.")
+            LoggerService.log(LogLevelEnum.ERROR, "ALIAS_NOT_ENABLED", msgMap)
+            return
+        }
+
+        if (options?.gatewayService?.isEmpty() == true) {
+
+            LoggerService.log(LogLevelEnum.ERROR, "GATEWAY_URL_ERROR", null)
+            return
+        }
+
+        (context.getIdBasedOnSpecificCondition())?.let { sanitizedId ->
+
+            AliasIdentityManager().setAlias(userId = sanitizedId, aliasId = aliasId)
+        } ?: kotlin.run {
+
+            LoggerService.log(LogLevelEnum.ERROR, "API_CONTEXT_INVALID")
+        }
+    }
+
     companion object {
         val gson: Gson = GsonUtil.gson
-        
+
         // Gson-based ObjectMapper replacement for API compatibility
         @JvmStatic
         val objectMapper = GsonObjectMapper()
     }
-    
+
     // Companion class for ObjectMapper replacement
     class GsonObjectMapper {
         fun <T> readValue(json: String, clazz: Class<T>): T {
             return gson.fromJson(json, clazz)
         }
-        
+
         fun writeValueAsString(obj: Any): String {
             return gson.toJson(obj)
         }
-        
+
         // For JsonNode equivalent, we'll use JsonElement
         fun readTree(json: String): com.google.gson.JsonElement {
             return gson.fromJson(json, com.google.gson.JsonElement::class.java)
         }
-        
+
         // For type conversion (equivalent to convertValue)
         fun <T> convertValue(obj: Any, clazz: Class<T>): T {
             val json = gson.toJson(obj)
             return gson.fromJson(json, clazz)
         }
-        
+
         // For creating array nodes (basic implementation)
         fun createArrayNode(): com.google.gson.JsonArray {
             return com.google.gson.JsonArray()
         }
-        
+
         // For creating object nodes
         fun createObjectNode(): com.google.gson.JsonObject {
             return com.google.gson.JsonObject()
         }
-        
+
         // For tree conversion
         fun valueToTree(obj: Any): com.google.gson.JsonElement {
             return gson.toJsonTree(obj)

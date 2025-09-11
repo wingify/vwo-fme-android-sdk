@@ -37,5 +37,8 @@ enum class UrlEnum(val url: String) {
 
     GENERATE_RECOMMENDATION("/internalcall/generate-recommendation"), // TODO -- Change this to actual URL
 
-    EVALUATE_DSL("/evaluate-event-dsl")
+    EVALUATE_DSL("/evaluate-event-dsl"),
+
+    SET_ALIAS("/user-alias/setUserAlias"),
+    GET_ALIAS("/user-alias/getAliasUserId")
 }

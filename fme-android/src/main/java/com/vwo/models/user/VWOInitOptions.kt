@@ -42,14 +42,22 @@ class VWOInitOptions {
     var storage: Connector = MobileDefaultStorage()
     var pollInterval: Int? = null
     var vwoBuilder: VWOBuilder? = null
+    var isAliasingEnabled: Boolean = false
 
     var gatewayService: Map<String, Any> = HashMap()
 
-    /** Optional: Even though context is optional, it is required if you want to use features like cached settings, offline batch upload, etc.*/
+    /**
+     * Optional: Even though context is optional, it is required if you want to use features like
+     * cached settings, offline batch upload, device ID generation, storage.*/
     var context: Context? = null
 
-    /** Optional: If this value is provided, SDK will keep using cached settings till this interval is valid.*/
+    /**
+     * Optional: If this value is provided, SDK will keep using cached settings till this interval
+     * is valid.
+     */
     var cachedSettingsExpiryTime: Int = 0
+
+
 
     /**
      * The name of the SDK.
@@ -75,7 +83,7 @@ class VWOInitOptions {
     /** Optional: Batch upload time interval in milliseconds. Please specify at least few minutes*/
     var batchUploadTimeInterval: Long = -1L
 
-    /**Optional: Usage stats should always be collected, don’t collect if `isUsageStatsDisabled` flag is true*/
+    /**Optional: Usage stats should always be collected, don't collect if `isUsageStatsDisabled` flag is true*/
     var isUsageStatsDisabled = false
 
     /**Internal meta data for VWO use.*/

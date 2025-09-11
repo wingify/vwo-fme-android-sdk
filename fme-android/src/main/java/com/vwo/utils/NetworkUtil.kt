@@ -81,7 +81,7 @@ class NetworkUtil {
             val requestQueryParams = RequestQueryParams(
                 eventName,
                 SettingsManager.instance?.accountId.toString(),
-                SettingsManager.instance?.sdkKey?:"",
+                SettingsManager.instance?.sdkKey ?: "",
                 visitorUserAgent,
                 ipAddress,
                 generateEventUrl()
@@ -444,7 +444,7 @@ class NetworkUtil {
             val settingsManager = SettingsManager.instance
             val accountId = settingsManager?.accountId
             val sdkKey = settingsManager?.sdkKey
-            if(accountId==null || sdkKey==null)
+            if (accountId == null || sdkKey == null)
                 return emptyMap()
 
             val uniqueKey = accountId.toString() + "_" + sdkKey
@@ -544,7 +544,10 @@ class NetworkUtil {
             }
         }
 
-        fun sendMessagingEvent(properties: MutableMap<String, String>?, payload: Map<String, Any?>?) {
+        fun sendMessagingEvent(
+            properties: MutableMap<String, String>?,
+            payload: Map<String, Any?>?
+        ) {
             try {
                 NetworkManager.attachClient()
                 val headers = createHeaders(null, null)
@@ -671,7 +674,7 @@ class NetworkUtil {
          * @param ipAddress The IP address of the user.
          * @return Map containing the headers.
          */
-        private fun createHeaders(
+        fun createHeaders(
             userAgent: String?,
             ipAddress: String?
         ): MutableMap<String, String> {
@@ -683,4 +686,5 @@ class NetworkUtil {
             return headers
         }
     }
+
 }

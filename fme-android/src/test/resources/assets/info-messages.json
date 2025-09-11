@@ -32,5 +32,8 @@
   "BATCH_PROCESSING_STARTED": "Batch: Starting to upload events, triggered by {name}.",
   "BATCH_PROCESSING_FINISHED": "Batch: Finished uploading {count} events with status: {status}, triggered by {name}.",
   "CACHED_EVALUATION_RESPONSE": "Found evaluation result of list attribute in cache: {value}",
-  "ONLINE_BATCH_PROCESSING_STATUS": "Batch: Events batching is {status} when device is online."
+  "ONLINE_BATCH_PROCESSING_STATUS": "Batch: Events batching is {status} when device is online.",
+
+  "USER_ID_NULL": "UserId not set & device ID fallback disabled; user id dependent operations may fail.",
+  "USER_ID_INFO": "UserId: Using '{id}' as user identifier."
 }

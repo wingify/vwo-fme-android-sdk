@@ -219,5 +219,16 @@ object VWO {
     fun setAttribute(attributes: Map<String, Any>, context: VWOUserContext) {
         vwoClient?.setAttribute(attributes, context)
     }
+
+    /**
+     * Set alias of [aliasId] to the qualified id in [context].
+     *
+     * @param context - Context that will be used for [getFlag]
+     * @param aliasId  - The actual user id, maybe after login
+     */
+    fun setAlias(context: VWOUserContext, aliasId: String) {
+        vwoClient?.setAlias(context, aliasId)
+    }
+
 }
 

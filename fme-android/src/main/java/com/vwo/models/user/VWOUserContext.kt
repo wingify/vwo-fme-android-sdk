@@ -15,13 +15,17 @@
  */
 package com.vwo.models.user
 
+import com.vwo.utils.DeviceIdUtil
+
 /**
  * Represents the context of a VWO user.
  *
  * This class encapsulates information about a user in the context of VWO, including their ID, user agent, IP address, custom variables, and variation targeting variables.
  */
 class VWOUserContext {
+
     var id: String? = null
+
     var customVariables: MutableMap<String, Any> = HashMap()
 
     var postSegmentationVariables: List<String>? = null
@@ -29,4 +33,22 @@ class VWOUserContext {
     var variationTargetingVariables: MutableMap<String, Any> = HashMap()
 
     var vwo: GatewayService? = null
+
+    /**
+     * Use device ID as user ID when user ID is not provided.
+     * When enabled, the SDK will generate a persistent device ID and use it as the user ID.
+     * This option is useful when explicit user identification is not available.
+     */
+    var shouldUseDeviceIdAsUserId: Boolean = false
+
+    /**
+     * The user might want to use the device id instead of temp id.
+     *
+     * @return [String] - the qualified id picked from either [id] or [DeviceIdUtil]::getDeviceId()
+     */
+    fun getIdBasedOnSpecificCondition(): String? {
+        if (id != null) return id
+        return if (shouldUseDeviceIdAsUserId) DeviceIdUtil().getDeviceId() else id
+    }
+
 }
