@@ -22,10 +22,12 @@ import com.vwo.interfaces.IVwoInitCallback
 import com.vwo.interfaces.IVwoListener
 import com.vwo.models.user.VWOUserContext
 import com.vwo.models.user.VWOInitOptions
+import com.vwo.packages.logger.enums.LogLevelEnum
 import com.vwo.utils.SDKMetaUtil
 import com.vwo.packages.network_layer.manager.BatchManager
 import com.vwo.providers.StorageProvider
 import com.vwo.sdk.fme.BuildConfig
+import com.vwo.services.LoggerService
 import com.vwo.utils.EventsUtils
 import com.vwo.utils.UsageStats
 import kotlinx.coroutines.CoroutineScope
@@ -42,8 +44,24 @@ import kotlin.system.measureTimeMillis
  * management.
  */
 object VWO {
+
     private var instance: VWO? = null
     internal var vwoClient: VWOClient? = null
+
+    /**
+     * Tracks the current initialization state of the VWO SDK.
+     * 
+     * This volatile variable ensures thread-safe access across multiple threads and prevents
+     * concurrent initialization attempts. The state transitions through:
+     * - NOT_INITIALIZED: SDK hasn't been initialized or initialization failed
+     * - INITIALIZING: SDK initialization is currently in progress
+     * - INITIALIZED: SDK has been successfully initialized and is ready for use
+     * 
+     * The @Volatile annotation ensures that changes to this variable are immediately visible
+     * to all threads, preventing race conditions during initialization.
+     */
+    @Volatile
+    private var state: SDKState = SDKState.NOT_INITIALIZED
 
     /**
      * Sets the singleton instance of VWO.
@@ -88,15 +106,36 @@ object VWO {
 
     @JvmStatic
     fun init(options: VWOInitOptions, initListener: IVwoInitCallback) {
+
+        if (state == SDKState.INITIALIZING) {
+
+            // cannot fetch from *.json because SDK has not initialized
+            LoggerService.log(LogLevelEnum.INFO, SDKState.INITIALIZING.message)
+            initListener.vwoInitSuccess(this, SDKState.INITIALIZING.message)
+            return
+        }
+
+        if (state == SDKState.INITIALIZED) {
+
+            LoggerService.log(LogLevelEnum.INFO, SDKState.INITIALIZED.message)
+            initListener.vwoInitSuccess(this, SDKState.INITIALIZED.message)
+            return
+        }
+
+        state = SDKState.INITIALIZING
+
         CoroutineScope(Dispatchers.IO).launch {
             if (options.sdkKey.isNullOrEmpty()) {
-                val message = "SDK key is required to initialize VWO. Please provide the sdkKey in " +
-                        "the options."
+                state = SDKState.NOT_INITIALIZED
+                val message =
+                    "SDK key is required to initialize VWO. Please provide the sdkKey in " +
+                            "the options."
                 initListener.vwoInitFailed(message)
                 return@launch
             }
 
             if (options.accountId == null) {
+                state = SDKState.NOT_INITIALIZED
                 val message = "Account ID is required to initialize VWO. Please provide the " +
                         "accountId in the options."
                 initListener.vwoInitFailed(message)
@@ -110,7 +149,11 @@ object VWO {
                 sendSdkInitEvent(sdkInitTime)
 
             sendUsageStats()
-            instance?.let { initListener.vwoInitSuccess(it, "VWO initialized successfully") }
+            instance?.let {
+                state = SDKState.INITIALIZED
+                initListener.vwoInitSuccess(it, "VWO initialized successfully")
+            }
+
             BatchManager.start("SDK Initialization")
         }
     }
