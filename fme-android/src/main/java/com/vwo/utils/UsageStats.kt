@@ -24,6 +24,7 @@ import com.vwo.providers.StorageProvider
 import com.vwo.services.LoggerService
 import com.vwo.services.SettingsManager
 import java.lang.ref.WeakReference
+import java.util.concurrent.ConcurrentHashMap
 
 private const val KEY_INTEGRATIONS = "ig"
 private const val KEY_EVENT_BATCHING = "eb"
@@ -45,7 +46,7 @@ private const val KEY_ENVIRONMENT = "env"
 
 object UsageStats {
 
-    private val stats = mutableMapOf<String, Any>()
+    private val stats = ConcurrentHashMap<String, Any>()
     private val context: WeakReference<Context> = StorageProvider.contextRef
 
     private val featureEnabledValue = 1

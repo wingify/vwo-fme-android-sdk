@@ -35,5 +35,7 @@
   "ONLINE_BATCH_PROCESSING_STATUS": "Batch: Events batching is {status} when device is online.",
 
   "USER_ID_NULL": "UserId not set & device ID fallback disabled; user id dependent operations may fail.",
-  "USER_ID_INFO": "UserId: Using '{id}' as user identifier."
+  "USER_ID_INFO": "UserId: Using '{id}' as user identifier.",
+
+  "INFO_SDK_INITIALIZING": "VWO is already initializing."
 }
