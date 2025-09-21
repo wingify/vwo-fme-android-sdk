@@ -23,7 +23,9 @@ import com.vwo.models.user.VWOUserContext
 import org.junit.Assert.assertNotNull
 import org.junit.Before
 import org.junit.Test
-import org.mockito.Mockito.*
+import org.mockito.Mockito.eq
+import org.mockito.Mockito.mock
+import org.mockito.Mockito.verify
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
 
@@ -33,8 +35,20 @@ class VWOSetAttributeTest {
     private lateinit var mockSetAttributeAPI: SetAttributeAPI
     private lateinit var settings: Settings
 
+    private fun resetVWOState() {
+        try {
+            val stateField = VWO::class.java.getDeclaredField("state")
+            stateField.isAccessible = true
+            stateField.set(null, SDKState.NOT_INITIALIZED)
+        } catch (_: Exception) {
+        }
+    }
+
     @Before
     fun setUp() {
+
+        resetVWOState()
+
         // Create a mock SetAttributeAPI
         mockSetAttributeAPI = mock(SetAttributeAPI::class.java)
 
