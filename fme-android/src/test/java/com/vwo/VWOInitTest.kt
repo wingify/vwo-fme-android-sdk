@@ -20,6 +20,7 @@ import com.vwo.models.user.VWOInitOptions
 import com.vwo.utils.DummySettingsReader
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
+import org.junit.Before
 import org.junit.Test
 import org.mockito.kotlin.spy
 import org.mockito.kotlin.whenever
@@ -27,6 +28,20 @@ import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
 
 class VWOInitTest {
+
+    private fun resetVWOState() {
+        try {
+            val stateField = VWO::class.java.getDeclaredField("state")
+            stateField.isAccessible = true
+            stateField.set(null, SDKState.NOT_INITIALIZED)
+        } catch (_: Exception) {
+        }
+    }
+
+    @Before
+    fun setUp() {
+        resetVWOState()
+    }
 
     @Test
     fun testInitWithNullSdkKey() {
@@ -144,7 +159,7 @@ class VWOInitTest {
         }
     }
 
-    private fun setupSpySettings(vwoInitOptions : VWOInitOptions){
+    private fun setupSpySettings(vwoInitOptions: VWOInitOptions) {
         val settingsReader = DummySettingsReader()
         val settingsMap = settingsReader.settingsMap
         val settings = settingsMap["BASIC_ROLLOUT_SETTINGS"]

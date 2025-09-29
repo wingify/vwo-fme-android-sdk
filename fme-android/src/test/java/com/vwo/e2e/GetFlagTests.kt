@@ -17,19 +17,21 @@
 
 package com.vwo.e2e
 
+import com.vwo.SDKState
 import com.vwo.VWO
 import com.vwo.VWO.init
 import com.vwo.VWOBuilder
 import com.vwo.interfaces.IVwoInitCallback
 import com.vwo.interfaces.IVwoListener
 import com.vwo.models.user.GetFlag
-import com.vwo.models.user.VWOUserContext
 import com.vwo.models.user.VWOInitOptions
+import com.vwo.models.user.VWOUserContext
 import com.vwo.packages.storage.Connector
 import com.vwo.testcases.StorageTest
 import com.vwo.testcases.TestData
 import com.vwo.testcases.TestDataReader
 import com.vwo.utils.DummySettingsReader
+import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
@@ -47,8 +49,31 @@ class GetFlagTests {
     private lateinit var vwo: VWO
     private val testCases = TestDataReader().testCases
 
+    private fun resetVWOState() {
+        try {
+            // Reset the state
+            val stateField = VWO::class.java.getDeclaredField("state")
+            stateField.isAccessible = true
+            stateField.set(null, SDKState.NOT_INITIALIZED)
+
+            // Reset the instance (CRUCIAL - this was missing)
+            val instanceField = VWO::class.java.getDeclaredField("instance")
+            instanceField.isAccessible = true
+            instanceField.set(null, null)
+
+        } catch (e: Exception) {
+            println("Failed to reset VWO state: ${e.message}")
+        }
+    }
+
     @Before
     fun setup() {
+        resetVWOState()
+    }
+
+    @After
+    fun teardown() {
+        resetVWOState()
     }
 
     @Test
@@ -80,6 +105,9 @@ class GetFlagTests {
 
         var featureFlag: GetFlag? = null
         tests.forEach { testData ->
+
+            resetVWOState()
+
             val vwoInitOptions = VWOInitOptions()
             vwoInitOptions.sdkKey = sdkKey
             vwoInitOptions.accountId = accountId
@@ -196,6 +224,9 @@ class GetFlagTests {
 
     private fun runSaltTest(tests: List<TestData>) {
         for (testData in tests) {
+
+            resetVWOState()
+
             val vwoInitOptions = VWOInitOptions()
             vwoInitOptions.sdkKey = sdkKey
             vwoInitOptions.accountId = accountId
