@@ -15,6 +15,8 @@
  */
 package com.vwo.models.request
 
+import com.google.gson.annotations.SerializedName
+
 /**
  * Represents an event with associated properties, name, and timestamp.
  *
@@ -24,13 +26,16 @@ class Event {
     /**
      * Custom properties associated with the event.
      */
+    @SerializedName("props")
     var props: Props? = null
     /**
      * The name of the event.
      */
+    @SerializedName("name")
     var name: String? = null
     /**
      * The timestamp of when the event occurred (in milliseconds).
      */
+    @SerializedName("time")
     var time: Long? = null
 }

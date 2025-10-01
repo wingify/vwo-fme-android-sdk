@@ -15,6 +15,7 @@
  */
 package com.vwo.models.request
 
+import com.google.gson.annotations.SerializedName
 import com.vwo.models.request.visitor.Visitor
 
 /**
@@ -23,11 +24,25 @@ import com.vwo.models.request.visitor.Visitor
  * @constructor Create empty Event arch data
  */
 class EventArchData {
+
+    @SerializedName("msgId")
     var msgId: String? = null
+
+    @SerializedName("visId")
     var visId: String? = null
+
+    @SerializedName("sessionId")
     var sessionId: Long? = null
+
+    @SerializedName("event")
     var event: Event? = null
+
+    @SerializedName("visitor")
     var visitor: Visitor? = null
+
+    @SerializedName("visitor_ua")
     var visitor_ua: String? = null
+
+    @SerializedName("visitor_ip")
     var visitor_ip: String? = null
 }

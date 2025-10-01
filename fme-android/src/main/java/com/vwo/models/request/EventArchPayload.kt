@@ -15,11 +15,14 @@
  */
 package com.vwo.models.request
 
+import com.google.gson.annotations.SerializedName
+
 /**
  * Event arch payload
  *
  * @constructor Create empty Event arch payload
  */
 class EventArchPayload {
+    @SerializedName("d")
     var d: EventArchData? = null
 }
