@@ -15,6 +15,8 @@
  */
 package com.vwo.models.request.visitor
 
+import com.google.gson.annotations.SerializedName
+
 /**
  * Represents a visitor and their associated properties.
  *
@@ -26,6 +28,7 @@ class Visitor {
      *
      * This property is optional and can be set using the `setProps` method.
      */
+    @SerializedName("props")
     var props: MutableMap<String, Any>? = null
         private set
 
