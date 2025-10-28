@@ -44,10 +44,4 @@ class ResponseModel {
      */
     @JvmField
     var data: String? = null
-
-    /**
-     * The total number of attempts made to send the request.
-     */
-    @JvmField
-    var totalAttempts: Int = 0
 }

@@ -60,15 +60,4 @@ object Constants {
     const val MANUFACTURER = "vwo_mfr"
     const val DEVICE_MODEL = "vwo_dm"
     const val LOCALE = "vwo_loc"
-
-    // Debugger constants
-    const val V2_SETTINGS = "v2-settings"
-    const val POLLING = "polling"
-    const val MOBILE_STORAGE = "MobileDefaultStorage"
-    const val FLAG_DECISION_GIVEN= "FLAG_DECISION_GIVEN"
-    const val NETWORK_CALL_FAILURE_AFTER_MAX_RETRIES = "NETWORK_CALL_FAILURE_AFTER_MAX_RETRIES"
-    const val NETWORK_CALL_SUCCESS_WITH_RETRIES = "NETWORK_CALL_SUCCESS_WITH_RETRIES"
-    const val END_POINT = "endPoint"
-    const val ERR = "err"
-    const val FEATURE_KEY = "fk"
 }

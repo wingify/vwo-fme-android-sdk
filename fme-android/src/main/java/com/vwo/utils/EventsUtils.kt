@@ -56,7 +56,7 @@ class EventsUtils {
         )
 
         // Send the constructed payload via POST request
-        NetworkUtil.sendGatewayEvent(queryParams, payload, EventEnum.VWO_INIT_CALLED.value)
+        NetworkUtil.sendGatewayEvent(queryParams, payload)
     }
 
     /**
@@ -83,7 +83,7 @@ class EventsUtils {
         )
 
         // Send the payload as a POST request
-        NetworkUtil.sendMessagingEvent(queryParams, payload, EventEnum.VWO_USAGE_STATS.value)
+        NetworkUtil.sendMessagingEvent(queryParams, payload)
     }
 
     /**
@@ -103,7 +103,7 @@ class EventsUtils {
         var result = false
         val queryParams: MutableMap<String, String> = HashMap()
         val accountId = instance?.accountId.toString()
-        queryParams["uuid"] = context.getUuid()
+        queryParams["uuid"] = UUIDUtils.getUUID(context.id, accountId)
         queryParams["accountId"] = accountId
 
         val body: MutableMap<String, Any> = LinkedHashMap()

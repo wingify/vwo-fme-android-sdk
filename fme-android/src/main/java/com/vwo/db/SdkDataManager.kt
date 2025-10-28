@@ -19,7 +19,6 @@ import android.content.ContentValues
 import android.content.Context
 import android.database.Cursor
 import android.database.sqlite.SQLiteDatabase
-import com.vwo.constants.Constants
 import com.vwo.db.SdkDatabaseHelper
 import com.vwo.models.OfflineEventData
 import com.vwo.packages.logger.enums.LogLevelEnum
@@ -70,7 +69,7 @@ class SdkDataManager(context: Context) {
             )
             rowId != -1L
         } catch (e: Exception) {
-            LoggerService.log(LogLevelEnum.ERROR, "DATABASE_ERROR", mapOf(Constants.ERR to e.message))
+            LoggerService.log(LogLevelEnum.ERROR, "DATABASE_ERROR", mapOf("err" to e.message))
             false
         }
     }
@@ -106,7 +105,7 @@ class SdkDataManager(context: Context) {
                 offlineEventDataList.add(OfflineEventData(id, sdkKey, accountId, payload))
             }
         } catch (e: Exception) {
-            LoggerService.log(LogLevelEnum.ERROR, "DATABASE_ERROR", mapOf(Constants.ERR to e.message))
+            LoggerService.log(LogLevelEnum.ERROR, "DATABASE_ERROR", mapOf("err" to e.message))
         } finally {
             cursor?.close()
         }
@@ -127,7 +126,7 @@ class SdkDataManager(context: Context) {
             val rowsDeleted = db.delete(TABLE_NAME, "$COLUMN_SDK_KEY = ?", arrayOf(sdkKey))
             rowsDeleted > 0
         } catch (e: Exception) {
-            LoggerService.log(LogLevelEnum.ERROR, "DATABASE_ERROR", mapOf(Constants.ERR to e.message))
+            LoggerService.log(LogLevelEnum.ERROR, "DATABASE_ERROR", mapOf("err" to e.message))
             false
         }
     }
@@ -157,7 +156,7 @@ class SdkDataManager(context: Context) {
                 } while (cursor.moveToNext())
             }
         } catch (e: Exception) {
-            LoggerService.log(LogLevelEnum.ERROR, "DATABASE_ERROR", mapOf(Constants.ERR to e.message))
+            LoggerService.log(LogLevelEnum.ERROR, "DATABASE_ERROR", mapOf("err" to e.message))
         } finally {
             cursor?.close()
         }
@@ -178,7 +177,7 @@ class SdkDataManager(context: Context) {
             val rowCount = db.delete(TABLE_NAME, whereClause, whereArgs)
             rowCount != 0
         } catch (e: Exception) {
-            LoggerService.log(LogLevelEnum.ERROR, "DATABASE_ERROR", mapOf(Constants.ERR to e.message))
+            LoggerService.log(LogLevelEnum.ERROR, "DATABASE_ERROR", mapOf("err" to e.message))
             false
         }
     }
@@ -214,7 +213,7 @@ class SdkDataManager(context: Context) {
 
             entryCount
         } catch (e: Exception) {
-            LoggerService.log(LogLevelEnum.ERROR, "DATABASE_ERROR", mapOf(Constants.ERR to e.message))
+            LoggerService.log(LogLevelEnum.ERROR, "DATABASE_ERROR", mapOf("err" to e.message))
             0
         } finally {
             cursor?.close()

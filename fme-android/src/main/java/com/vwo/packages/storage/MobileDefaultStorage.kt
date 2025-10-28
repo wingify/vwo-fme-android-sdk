@@ -16,10 +16,7 @@
  */
 package com.vwo.packages.storage
 
-import com.vwo.constants.Constants
-import com.vwo.packages.logger.enums.LogLevelEnum
 import com.vwo.providers.StorageProvider.contextRef
-import com.vwo.services.LoggerService
 import com.vwo.utils.toMap
 import org.json.JSONObject
 
@@ -92,16 +89,9 @@ class MobileDefaultStorage :Connector() {
     override fun get(featureKey: String?, userId: String?): Any? {
         val key = featureKey + "_" + userId
 
-        if (storage == null) return null
         val stringValue = storage?.getFeatureKey(key)
         // Check if the key exists in the storage
         if (stringValue.isNullOrEmpty()) {
-            LoggerService.log(LogLevelEnum.INFO,
-                "ERROR_READING_DATA_FROM_BROWSER_STORAGE",
-                mapOf(
-                    Constants.ERR to "value not found in storage"
-                )
-            )
             return null
         }
         return JSONObject(stringValue).toMap()

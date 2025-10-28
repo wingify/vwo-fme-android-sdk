@@ -15,7 +15,6 @@
  */
 package com.vwo.utils
 
-import com.vwo.constants.Constants
 import com.vwo.models.user.VWOUserContext
 import com.vwo.packages.logger.enums.LogLevelEnum
 import com.vwo.packages.storage.LocalStorageController
@@ -71,7 +70,7 @@ class AliasIdentityManager {
             if (response?.statusCode != 200) {
                 // the request was not successful.
                 val errorMap =
-                    mapOf<String?, String?>(Constants.ERR to "Status CODE: ${response?.statusCode}")
+                    mapOf<String?, String?>("err" to "Status CODE: ${response?.statusCode}")
                 LoggerService.log(LogLevelEnum.ERROR, "SET_ALIAS_ERROR", errorMap)
                 return@ioThreadAsync
             }
@@ -83,7 +82,7 @@ class AliasIdentityManager {
 
         }, exceptionDuringProcessing = {
 
-            val errorMap = mapOf<String?, String?>(Constants.ERR to it.message)
+            val errorMap = mapOf<String?, String?>("err" to it.message)
             LoggerService.log(LogLevelEnum.ERROR, "ALIAS_NETWORK_SDK_ERROR", errorMap)
         })
 
@@ -272,7 +271,7 @@ class AliasIdentityManager {
                 if (response?.statusCode != 200) {
 
                     val errorMap =
-                        mapOf<String?, String?>(Constants.ERR to "Status code: ${response?.statusCode}")
+                        mapOf<String?, String?>("err" to "Status code: ${response?.statusCode}")
                     LoggerService.log(LogLevelEnum.ERROR, "GET_ALIAS_ERROR", errorMap)
                     cont.resume(Pair(false, errorMap["err"] ?: ""))
                     return@ioThreadAsync
@@ -280,13 +279,13 @@ class AliasIdentityManager {
 
                 response.data?.let { cont.resume(Pair(true, it)) } ?: kotlin.run {
 
-                    val errorMap = mapOf<String?, String?>(Constants.ERR to "Invalid data error.")
+                    val errorMap = mapOf<String?, String?>("err" to "Invalid data error.")
                     LoggerService.log(LogLevelEnum.ERROR, "GET_ALIAS_ERROR", errorMap)
                     cont.resume(Pair(false, errorMap["err"] ?: ""))
                 }
             }, exceptionDuringProcessing = { ex ->
 
-                val errorMap = mapOf<String?, String?>(Constants.ERR to "${ex.message}")
+                val errorMap = mapOf<String?, String?>("err" to "${ex.message}")
                 LoggerService.log(LogLevelEnum.ERROR, "ALIAS_NETWORK_SDK_ERROR", errorMap)
 
                 cont.resume(Pair(false, ("Exception: ${ex.message}")))

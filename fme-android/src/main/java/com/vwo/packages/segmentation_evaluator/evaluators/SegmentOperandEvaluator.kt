@@ -18,7 +18,6 @@ package com.vwo.packages.segmentation_evaluator.evaluators
 import com.vwo.utils.JsonNode
 import com.vwo.utils.*
 import com.vwo.constants.Constants
-import com.vwo.enums.ApiEnum
 import com.vwo.enums.UrlEnum
 import com.vwo.models.Feature
 import com.vwo.models.user.VWOUserContext
@@ -60,8 +59,7 @@ class SegmentOperandEvaluator {
         dslOperandValue: JsonNode,
         properties: Map<String, Any>,
         accountId: Int?,
-        feature: Feature?,
-        context: VWOUserContext?
+        feature: Feature?
     ): Boolean {
         val entry: Map.Entry<String, JsonNode> = SegmentUtil.getKeyValue(dslOperandValue)
         val operandKey = entry.key
@@ -78,15 +76,7 @@ class SegmentOperandEvaluator {
             val listIdPattern = Pattern.compile("inlist\\(([^)]+)\\)")
             val matcher = listIdPattern.matcher(operandValue)
             if (!matcher.find()) {
-                LoggerService.errorLog(
-                    "INVALID_ATTRIBUTE_LIST_FORMAT",
-                    emptyMap(),
-                    mapOf(
-                        "an" to ApiEnum.GET_FLAG.value,
-                        "uuid" to (context?.getUuid()?:""),
-                        "sId" to (context?.sessionId?:0)
-                    )
-                )
+                LoggerService.log(LogLevelEnum.ERROR, "Invalid 'inList' operand format")
                 return false
             }
             val listId = matcher.group(1)
@@ -329,6 +319,7 @@ class SegmentOperandEvaluator {
      */
     fun evaluateUserAgentDSL(dslOperandValue: String, context: VWOUserContext?): Boolean {
         if (StorageProvider.userAgent == null) {
+            //LogManager.getInstance().info("To Evaluate UserAgent segmentation, please provide userAgent in context");
             return false
         }
         var tagValue = URLDecoder.decode(StorageProvider.userAgent)

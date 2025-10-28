@@ -22,14 +22,12 @@ package com.vwo.enums
  * associating each endpoint with its corresponding string value.
  */
 enum class ApiEnum(val value: String) {
-    INIT("init"),
-    ON_INIT("onInit"),
+    /**
+     * API endpoint for retrieving feature flags.
+     */
     GET_FLAG("getFlag"),
-    TRACK_EVENT("trackEvent"),
-    SET_ATTRIBUTE("setAttribute"),
-    UPDATE_SETTINGS("updateSettings"),
-    GET_USER_DATA("getUserDetails"),
-    ATTRIBUTE_CHECK("checkAttribute"),
-    GET_ALIAS("getAliasUserId"),
-    SET_ALIAS("setAlias")
+    /**
+     * API endpoint for tracking user events.
+     */
+    TRACK("track")
 }

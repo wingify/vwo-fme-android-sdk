@@ -478,7 +478,6 @@ object MegUtil {
                 storageMap["experimentId"] = winnerVariation.id?:0
                 storageMap["experimentKey"] = winnerVariation.key?:""
                 storageMap["experimentVariationId"] = if (winnerVariation.type.equals(CampaignTypeEnum.PERSONALIZE.value)) winnerVariation.variations[0].id?:-1 else -1
-                storageMap["context"] = context
                 StorageDecorator().setDataInStorage(storageMap, storageService)
 
                 if (calledCampaignIds!!.contains(winnerVariation.id)) {
@@ -617,7 +616,6 @@ object MegUtil {
                 storageMap["experimentKey"] = winnerCampaign.key?:""
                 storageMap["experimentVariationId"] =
                     if (winnerCampaign.type == CampaignTypeEnum.PERSONALIZE.value) winnerCampaign.variations[0].id?:-1 else -1
-                storageMap["context"] = context
                 StorageDecorator().setDataInStorage(storageMap, storageService)
 
                 if (calledCampaignIds.contains(winnerCampaign.id)) {

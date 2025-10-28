@@ -15,6 +15,7 @@
  */
 package com.vwo.packages.logger.core
 
+import android.R.id
 import com.vwo.constants.Constants
 import com.vwo.enums.EventEnum
 import com.vwo.interfaces.logger.ILogManager
@@ -24,10 +25,6 @@ import com.vwo.packages.logger.enums.LogLevelEnum
 import com.vwo.packages.logger.transports.LogcatTransport
 import com.vwo.utils.NetworkUtil
 import com.vwo.utils.SDKMetaUtil.sdkVersion
-import com.vwo.utils.LogMessageUtil.buildMessage
-import com.vwo.utils.sendDebugEventToVWO
-import com.vwo.enums.DebuggerCategoryEnum
-import com.vwo.services.LoggerService.Companion.errorMessages
 import java.text.SimpleDateFormat
 import java.util.Locale
 import java.util.UUID
@@ -179,35 +176,17 @@ class LogManager(override val config: Map<String, Any>) : Logger(), ILogManager 
      */
     override fun error(message: String?) {
         transportManager.error(message)
-    }
+        if (message == null) return
 
-    /**
-     * Middleware method that stores error in DebuggerService and logs it.
-     * @param key The template string for the error message.
-     * @param data Data to be used in the template.
-     * @param debugData Additional debug data to be sent.
-     * @param shouldSendToVWO Whether to send the error to VWO.
-     */
-    override fun errorLog(
-        key: String,
-        data: Map<String, Any>?,
-        debugData: Map<String, Any>?,
-        shouldSendToVWO: Boolean
-    ) {
+        val messageToSend = message + "_" + Constants.SDK_NAME + "_" + sdkVersion
+        if (!storedMessages.contains(messageToSend)) {
+            storedMessages.add(messageToSend)
 
-        val message = buildMessage(errorMessages[key], data as Map<String?, Any?>?)
-        error(message)
-        
-        if (shouldSendToVWO) {
-            val debugEventProps = mutableMapOf<String, Any>()
-            debugData?.let { debugEventProps.putAll(it)}
-            data?.let { debugEventProps.putAll(it)}
-            debugEventProps["msg_t"] = key
-            debugEventProps["lt"] = com.vwo.enums.LogLevelEnum.ERROR.name
-            debugEventProps["cg"] = DebuggerCategoryEnum.ERROR.key
-            debugEventProps["msg"] = message ?: ""
-
-            sendDebugEventToVWO(debugEventProps)
+            val properties =
+                NetworkUtil.getEventsBaseProperties(EventEnum.VWO_ERROR.value, null, null)
+            val payload: Map<String, Any> =
+                NetworkUtil.getMessagingEventPayload("error", message, EventEnum.VWO_ERROR.value)
+            NetworkUtil.sendMessagingEvent(properties, payload)
         }
     }
 

@@ -21,9 +21,6 @@ import com.vwo.utils.GsonUtil
 import com.vwo.api.GetFlagAPI
 import com.vwo.api.SetAttributeAPI.setAttribute
 import com.vwo.api.TrackEventAPI
-import com.vwo.constants.Constants
-import com.vwo.constants.Constants.FEATURE_KEY
-import com.vwo.enums.ApiEnum
 import com.vwo.models.Settings
 import com.vwo.models.schemas.SettingsSchema
 import com.vwo.models.user.GetFlag
@@ -38,7 +35,6 @@ import com.vwo.utils.DataTypeUtil.getType
 import com.vwo.utils.DataTypeUtil.isBoolean
 import com.vwo.utils.DataTypeUtil.isNumber
 import com.vwo.utils.DataTypeUtil.isString
-import com.vwo.utils.FunctionUtil.getFormattedErrorMessage
 import com.vwo.utils.SettingsUtil
 import com.vwo.utils.UserIdUtil
 
@@ -92,14 +88,9 @@ class VWOClient(settings: String?, options: VWOInitOptions?) {
             this.processedSettings = gson.fromJson(newSettings, Settings::class.java)
             this.processedSettings?.let { SettingsUtil.processSettings(it) }
         } catch (exception: Exception) {
-            LoggerService.errorLog(
-                "INVALID_SETTINGS_SCHEMA",
-                mapOf(
-                    "apiName" to ApiEnum.UPDATE_SETTINGS.value,
-                    "isViaWebhook" to false,
-                    Constants.ERR to getFormattedErrorMessage(exception)
-                ),
-                mapOf("an" to ApiEnum.UPDATE_SETTINGS.value)
+            LoggerService.log(
+                LogLevelEnum.ERROR,
+                "Exception occurred while updating settings " + exception.message
             )
         }
     }
@@ -111,13 +102,13 @@ class VWOClient(settings: String?, options: VWOInitOptions?) {
      * @return GetFlag object containing the flag values
      */
     fun getFlag(featureKey: String?, context: VWOUserContext): GetFlag {
-        val apiName = ApiEnum.GET_FLAG.value
+        val apiName = "getFlag"
         val getFlag = GetFlag(context)
         try {
             LoggerService.log(
                 LogLevelEnum.DEBUG,
                 "API_CALLED",
-                object : HashMap<String?, String>() {
+                object : HashMap<String?, String?>() {
                     init {
                         put("apiName", apiName)
                     }
@@ -128,21 +119,14 @@ class VWOClient(settings: String?, options: VWOInitOptions?) {
             val userId = UserIdUtil.getUserId(context, options)
             if (userId.isNullOrEmpty()) {
                 getFlag.setIsEnabled(false)
-                LoggerService.errorLog(
-                    "API_CONTEXT_INVALID",
-                    emptyMap(),
-                    mapOf(
-                        "an" to ApiEnum.GET_FLAG.value,
-                        FEATURE_KEY to (featureKey?:"")
-                    )
-                )
-                throw IllegalArgumentException("User ID is required")
+                throw IllegalArgumentException("User ID is required. Please provide a user ID or enable device ID in VWOUserContext.")
             }
 
             // Update context with effective user ID if it was generated
             if (context.id != userId) {
                 context.id = userId
             }
+
             if (featureKey.isNullOrEmpty()) {
                 getFlag.setIsEnabled(false)
                 throw IllegalArgumentException("Feature Key is required")
@@ -150,34 +134,20 @@ class VWOClient(settings: String?, options: VWOInitOptions?) {
             val procSettings = this.processedSettings
             if (procSettings == null || !SettingsSchema().isSettingsValid(procSettings)) {
                 getFlag.setIsEnabled(false)
-                LoggerService.errorLog(
-                    "INVALID_SETTINGS_SCHEMA",
-                    emptyMap(),
-                    mapOf(
-                        "an" to ApiEnum.GET_FLAG.value,
-                        "uuid" to context.getUuid(),
-                        FEATURE_KEY to (featureKey ?: "")
-                    ),
-                    false
-                )
                 return getFlag
             }
             return GetFlagAPI.getFlag(featureKey, procSettings, context, hooksManager)
 
         } catch (exception: Exception) {
-            LoggerService.errorLog(
-                "EXECUTION_FAILED",
-                mapOf(
-                    "apiName" to apiName,
-                    Constants.ERR to getFormattedErrorMessage(exception)
-                ),
-                mapOf(
-                    "an" to ApiEnum.GET_FLAG.value,
-                    "uuid" to context.getUuid(),
-                    FEATURE_KEY to (featureKey ?: "")
-                )
-            )
-
+            LoggerService.log(
+                LogLevelEnum.ERROR,
+                "API_THROW_ERROR",
+                object : HashMap<String?, String?>() {
+                    init {
+                        put("apiName", "getFlag")
+                        put("err", exception.toString())
+                    }
+                })
             getFlag.setIsEnabled(false)
             return getFlag
         }
@@ -195,37 +165,31 @@ class VWOClient(settings: String?, options: VWOInitOptions?) {
         context: VWOUserContext?,
         eventProperties: Map<String, Any>
     ): Map<String, Boolean> {
-        val apiName = ApiEnum.TRACK_EVENT.value
+        val apiName = "trackEvent"
         val resultMap: MutableMap<String, Boolean> = HashMap()
         try {
             LoggerService.log(
-                LogLevelEnum.DEBUG, "API_CALLED", object : HashMap<String?, String>() {
+                LogLevelEnum.DEBUG, "API_CALLED", object : HashMap<String?, String?>() {
                     init {
                         put("apiName", apiName)
                     }
                 })
             val hooksManager = HooksManager(options?.integrations)
-            val debugData = mutableMapOf("an" to apiName)
-            context?.getUuid()?.let { debugData["uuid"] = it }
-
             if (!isString(eventName)) {
-                LoggerService.errorLog(
-                    "INVALID_PARAM",
-                    mapOf(
-                        "apiName" to apiName,
-                        "key" to "eventName",
-                        "type" to getType(eventName),
-                        "correctType" to "String"
-                    ),
-                    debugData
-                )
+                LoggerService.log(
+                    LogLevelEnum.ERROR,
+                    "API_INVALID_PARAM",
+                    object : HashMap<String?, String?>() {
+                        init {
+                            put("apiName", apiName)
+                            put("key", "eventName")
+                            put("type", getType(eventName))
+                            put("correctType", "String")
+                        }
+                    })
                 throw IllegalArgumentException("TypeError: Event-name should be a string")
             }
 
-//            require(!(context?.id == null || context.id?.isEmpty()==true)) {
-//                LoggerService.errorLog("API_CONTEXT_INVALID", emptyMap(), mapOf("an" to apiName))
-//                "User ID is required"
-//            }
             // Use effective user ID (either provided userId or generated deviceId)
             val userId = UserIdUtil.getUserId(context, options)
             require(!userId.isNullOrEmpty()) { "User ID is required. Please provide a user ID or enable device ID in VWOUserContext." }
@@ -238,12 +202,6 @@ class VWOClient(settings: String?, options: VWOInitOptions?) {
             val pSettings = this.processedSettings
             if (pSettings == null || !SettingsSchema().isSettingsValid(this.processedSettings)) {
                 resultMap[eventName] = false
-                LoggerService.errorLog(
-                    "INVALID_SETTINGS_SCHEMA",
-                    emptyMap(),
-                    mapOf("an" to apiName),
-                    false
-                )
                 return resultMap
             }
 
@@ -261,17 +219,15 @@ class VWOClient(settings: String?, options: VWOInitOptions?) {
             }
             return resultMap
         } catch (exception: Exception) {
-
-            val debugData = mutableMapOf("an" to apiName)
-            context?.getUuid()?.let { debugData["uuid"] = it }
-            LoggerService.errorLog(
-                "EXECUTION_FAILED",
-                mapOf(
-                    "apiName" to apiName,
-                    Constants.ERR to getFormattedErrorMessage(exception),
-                ),
-                debugData
-            )
+            LoggerService.log(
+                LogLevelEnum.ERROR,
+                "API_THROW_ERROR",
+                object : HashMap<String?, String?>() {
+                    init {
+                        put("apiName", apiName)
+                        put("err", exception.toString())
+                    }
+                })
             resultMap[eventName] = false
             return resultMap
         }
@@ -312,23 +268,18 @@ class VWOClient(settings: String?, options: VWOInitOptions?) {
      * @param context User context
      */
     fun setAttribute(immutableAttributes: Map<String, Any>, context: VWOUserContext) {
-        val apiName = ApiEnum.SET_ATTRIBUTE.value
+        val apiName = "setAttribute"
         try {
             LoggerService.log(LogLevelEnum.DEBUG, "API_CALLED", mapOf("apiName" to apiName))
 
             val attributes = immutableAttributes.toMutableMap()
 
             if (attributes.isEmpty()) {
-
-                LoggerService.errorLog(
-                    "ATTRIBUTES_NOT_FOUND", mapOf(
+                LoggerService.log(
+                    LogLevelEnum.WARN, "ATTRIBUTES_NOT_FOUND", mapOf(
                         "apiName" to apiName,
                         "key" to "attributes",
                         "expectedFormat" to "a Map with String keys and String, Number or Boolean value types"
-                    ),
-                    mapOf(
-                        "an" to apiName,
-                        "uuid" to context.getUuid()
                     )
                 )
                 throw java.lang.IllegalArgumentException("TypeError: attributeMap should be a non empty map")
@@ -343,27 +294,18 @@ class VWOClient(settings: String?, options: VWOInitOptions?) {
             if (context.id != userId) {
                 context.id = userId
             }
-//            require(!(context.id == null || context.id?.isEmpty() == true)) {
-//                LoggerService.errorLog("API_CONTEXT_INVALID", emptyMap(), mapOf("an" to apiName))
-//                "User ID is required"
-//            }
 
             if (this.processedSettings == null || !SettingsSchema().isSettingsValid(this.processedSettings)) {
-                LoggerService.errorLog(
-                    "INVALID_SETTINGS_SCHEMA", emptyMap(),
-                    mapOf("an" to apiName, "uuid" to context.getUuid()),
-                    false
-                )
                 return
             }
 
             setAttribute(processedSettings!!, attributes, context)
         } catch (exception: Exception) {
-            LoggerService.errorLog(
-                "EXECUTION_FAILED", mapOf(
+            LoggerService.log(
+                LogLevelEnum.ERROR, "API_THROW_ERROR", mapOf(
                     "apiName" to apiName,
-                    Constants.ERR to exception.toString()
-                ), mapOf("an" to apiName, "uuid" to context.getUuid())
+                    "err" to exception.toString()
+                )
             )
         }
     }
@@ -377,7 +319,7 @@ class VWOClient(settings: String?, options: VWOInitOptions?) {
             if (!isString(entry.value) && !isNumber(entry.value) && !isBoolean(entry.value)) {
                 LoggerService.log(
                     LogLevelEnum.ERROR,
-                    "INVALID_PARAM",
+                    "API_INVALID_PARAM",
                     mapOf(
                         "apiName" to apiName,
                         "key" to "attribute value",
@@ -394,15 +336,14 @@ class VWOClient(settings: String?, options: VWOInitOptions?) {
 
         if(options?.isAliasingEnabled != true) {
 
-            val msgMap = mapOf("key" to "VWOInitOptions.isAliasingEnabled to true.")
-            val debugData = mutableMapOf("an" to ApiEnum.SET_ALIAS.value, "uuid" to context.getUuid())
-            LoggerService.errorLog("ALIAS_NOT_ENABLED", msgMap, debugData)
+            val msgMap = mapOf<String?, String?>("key" to "VWOInitOptions.isAliasingEnabled to true.")
+            LoggerService.log(LogLevelEnum.ERROR, "ALIAS_NOT_ENABLED", msgMap)
             return
         }
 
         if (options?.gatewayService?.isEmpty() == true) {
-            val debugData = mutableMapOf("an" to ApiEnum.SET_ALIAS.value, "uuid" to context.getUuid())
-            LoggerService.errorLog( "INVALID_GATEWAY_URL", null, debugData)
+
+            LoggerService.log(LogLevelEnum.ERROR, "GATEWAY_URL_ERROR", null)
             return
         }
 
@@ -410,11 +351,8 @@ class VWOClient(settings: String?, options: VWOInitOptions?) {
 
             AliasIdentityManager().setAlias(userId = sanitizedId, aliasId = aliasId)
         } ?: kotlin.run {
-            val debugData = mutableMapOf(
-                "an" to ApiEnum.SET_ALIAS.value,
-                "uuid" to context.getUuid()
-            )
-            LoggerService.errorLog("API_CONTEXT_INVALID", null, debugData)
+
+            LoggerService.log(LogLevelEnum.ERROR, "API_CONTEXT_INVALID")
         }
     }
 

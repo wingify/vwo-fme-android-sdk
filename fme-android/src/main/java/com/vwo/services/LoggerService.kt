@@ -20,6 +20,7 @@ import com.vwo.packages.logger.core.LogManager
 import com.vwo.packages.logger.enums.LogLevelEnum
 import com.vwo.utils.DataTypeUtil.filterStringMap
 import com.vwo.utils.LogMessageUtil
+import com.vwo.utils.NetworkUtil
 
 /**
  * Provides logging functionality.
@@ -109,38 +110,6 @@ class LoggerService(config: Map<String, Any>) {
                 LogLevelEnum.TRACE -> logManager.trace(message)
                 LogLevelEnum.WARN -> logManager.warn(message)
                 else -> logManager.error(message)
-            }
-        }
-
-        /**
-         * Middleware method that stores error in DebuggerService and logs it.
-         * @param key The template string for the error message.
-         * @param data Data to be used in the template.
-         * @param debugData Additional debug data to be sent.
-         * @param shouldSendToVWO Whether to send the error to VWO.
-         */
-        fun errorLog(
-            key: String,
-            data: Map<String, Any>? = null,
-            debugData: Map<String, Any>? = null,
-            shouldSendToVWO: Boolean= true
-        ) {
-            try {
-
-                val logManager = LogManager.instance ?: return
-                logManager.errorLog(key, data, debugData, shouldSendToVWO)
-            } catch (e: Exception) {
-                log(LogLevelEnum.DEBUG, "Got error while logging error $e")
-            }
-        }
-
-        fun getMessage(level: LogLevelEnum, key: String, map: Map<String?, String?>): String? {
-            return when (level) {
-                LogLevelEnum.DEBUG -> LogMessageUtil.buildMessage(debugMessages[key], map)
-                LogLevelEnum.INFO -> LogMessageUtil.buildMessage(infoMessages[key], map)
-                LogLevelEnum.TRACE -> LogMessageUtil.buildMessage(traceMessages[key], map)
-                LogLevelEnum.WARN -> LogMessageUtil.buildMessage(warningMessages[key], map)
-                else -> LogMessageUtil.buildMessage(errorMessages[key], map)
             }
         }
     }

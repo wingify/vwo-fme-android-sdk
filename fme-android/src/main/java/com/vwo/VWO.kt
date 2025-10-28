@@ -16,8 +16,6 @@
 package com.vwo
 
 import android.os.Build
-import android.text.format.DateFormat
-import android.util.Log
 import com.vwo.constants.Constants.PLATFORM
 import com.vwo.constants.Constants.SDK_NAME
 import com.vwo.interfaces.IVwoInitCallback
@@ -35,7 +33,6 @@ import com.vwo.utils.UsageStats
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
-import java.util.Date
 import kotlin.concurrent.thread
 import kotlin.system.measureTimeMillis
 
@@ -72,7 +69,7 @@ object VWO {
      * @param options - Configuration options for setting up VWO.
      * @return A CompletableFuture resolving to the configured VWO instance.
      */
-    private fun setInstance(options: VWOInitOptions): VWO? {
+    private fun setInstance(options: VWOInitOptions): VWO {
 
         val vwoBuilder: VWOBuilder = options.vwoBuilder ?: VWOBuilder(options)
         vwoBuilder.setLogger() // Sets up logging for debugging and monitoring.
@@ -95,10 +92,7 @@ object VWO {
         vwoClient?.isSettingsValid = vwoBuilder.isSettingsValid
         vwoClient?.settingsFetchTime = vwoBuilder.settingsFetchTime
         vwoBuilder.setVWOClient(vwoClient)
-        return if (settings != null && vwoBuilder.isSettingsValid)
-            vwoInstance
-        else
-            null
+        return vwoInstance
     }
 
     /**
@@ -131,21 +125,19 @@ object VWO {
         state = SDKState.INITIALIZING
 
         CoroutineScope(Dispatchers.IO).launch {
-            val invalidErrorPrefix = "[ERROR]: VWO-SDK "
             if (options.sdkKey.isNullOrEmpty()) {
                 state = SDKState.NOT_INITIALIZED
-                val message = "SDK key is required to initialize VWO. Please provide the sdkKey in " +
+                val message =
+                    "SDK key is required to initialize VWO. Please provide the sdkKey in " +
                             "the options."
-                Log.e(invalidErrorPrefix, message)
                 initListener.vwoInitFailed(message)
                 return@launch
             }
 
-            if (options.accountId == null || options.accountId == 0) {
+            if (options.accountId == null) {
                 state = SDKState.NOT_INITIALIZED
                 val message = "Account ID is required to initialize VWO. Please provide the " +
                         "accountId in the options."
-                Log.e(invalidErrorPrefix, message)
                 initListener.vwoInitFailed(message)
                 return@launch
             }
@@ -157,13 +149,6 @@ object VWO {
                 sendSdkInitEvent(sdkInitTime)
 
             sendUsageStats()
-            if (instance == null) {
-                state = SDKState.NOT_INITIALIZED
-                val message =
-                    "Could not initialize VWO. Please ensure you have provided a valid Account ID and SDK key."
-                Log.e(invalidErrorPrefix, message)
-                initListener.vwoInitFailed(message)
-            }
             instance?.let {
                 state = SDKState.INITIALIZED
                 initListener.vwoInitSuccess(it, "VWO initialized successfully")

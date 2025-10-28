@@ -15,18 +15,14 @@
  */
 package com.vwo.api
 
-import com.vwo.constants.Constants
 import com.vwo.enums.ApiEnum
 import com.vwo.models.Settings
 import com.vwo.models.user.VWOUserContext
-import com.vwo.packages.logger.Logger
 import com.vwo.packages.logger.enums.LogLevelEnum
 import com.vwo.providers.StorageProvider
 import com.vwo.services.HooksManager
-import com.vwo.services.LoggerService
 import com.vwo.services.LoggerService.Companion.log
 import com.vwo.utils.FunctionUtil.doesEventBelongToAnyFeature
-import com.vwo.utils.FunctionUtil.getFormattedErrorMessage
 import com.vwo.utils.ImpressionUtil.encodeURIComponent
 import com.vwo.utils.NetworkUtil
 
@@ -52,37 +48,20 @@ object TrackEventAPI {
                 createAndSendImpressionForTrack(settings, eventName, context, eventProperties)
                 val objectToReturn: MutableMap<String, Any> = HashMap()
                 objectToReturn["eventName"] = eventName
-                objectToReturn["api"] = ApiEnum.TRACK_EVENT.value
+                objectToReturn["api"] = ApiEnum.TRACK.value
                 hooksManager.set(objectToReturn)
                 hooksManager.execute(hooksManager.get())
                 return true
             } else {
-                // Log an error if the event does not exist
-                LoggerService.errorLog(
-                    "EVENT_NOT_FOUND",
-                    mapOf("eventName" to eventName),
-                    mapOf(
-                        "an" to ApiEnum.TRACK_EVENT.value,
-                        "uuid" to context.getUuid(),
-                        "sId" to context.sessionId
-                    )
-                )
+                log(LogLevelEnum.ERROR, "EVENT_NOT_FOUND", object : HashMap<String?, String?>() {
+                    init {
+                        put("eventName", eventName)
+                    }
+                })
                 return false
             }
         } catch (e: Exception) {
-            LoggerService.errorLog(
-                "EXECUTION_FAILED",
-                mapOf(
-                    "apiName" to ApiEnum.TRACK_EVENT.value,
-                    Constants.ERR to getFormattedErrorMessage(e)
-                ),
-                mapOf(
-                    "an" to ApiEnum.TRACK_EVENT.value,
-                    "uuid" to context.getUuid(),
-                    "eventName" to eventName,
-                    "sId" to context.sessionId
-                )
-            )
+            log(LogLevelEnum.ERROR, "Error in tracking event: $eventName Error: $e")
             return false
         }
     }
@@ -116,7 +95,7 @@ object TrackEventAPI {
             context.id,
             eventName,
             context,
-            eventProperties,
+            eventProperties
         )
 
         // Send the constructed properties and payload as a POST request

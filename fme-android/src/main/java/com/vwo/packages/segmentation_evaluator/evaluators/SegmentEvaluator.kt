@@ -18,13 +18,10 @@ package com.vwo.packages.segmentation_evaluator.evaluators
 import com.vwo.utils.JsonNode
 import com.vwo.utils.*
 import com.vwo.VWOClient
-import com.vwo.constants.Constants
 import com.vwo.decorators.StorageDecorator
-import com.vwo.enums.ApiEnum
 import com.vwo.models.Feature
 import com.vwo.models.Settings
 import com.vwo.models.Storage
-import com.vwo.models.user.FMEConfig
 import com.vwo.models.user.VWOUserContext
 import com.vwo.packages.logger.enums.LogLevelEnum
 import com.vwo.packages.segmentation_evaluator.enums.SegmentOperatorValueEnum
@@ -71,8 +68,7 @@ class SegmentEvaluator {
                 subDsl,
                 properties,
                 settings?.accountId,
-                feature,
-                context
+                feature
             )
 
             SegmentOperatorValueEnum.USER -> return SegmentOperandEvaluator().evaluateUserDSL(
@@ -180,14 +176,9 @@ class SegmentEvaluator {
                                 }
                                 return result
                             } else {
-                                LoggerService.errorLog(
-                                    "FEATURE_NOT_FOUND_WITH_ID",
-                                    mapOf("featureIdKey" to featureIdKey),
-                                    mapOf(
-                                        "an" to ApiEnum.GET_FLAG.value,
-                                        "uuid" to (context?.getUuid()?:""),
-                                        "sId" to (context?.sessionId?:FMEConfig.generateSessionId())
-                                    )
+                                LoggerService.log(
+                                    LogLevelEnum.DEBUG,
+                                    "Feature not found with featureIdKey: $featureIdKey"
                                 )
                                 return false // Handle the case when feature is not found
                             }
@@ -202,14 +193,9 @@ class SegmentEvaluator {
                     val uaParserResult = checkUserAgentParser(uaParserMap)
                     return uaParserResult
                 } catch (err: Exception) {
-                    LoggerService.errorLog(
-                        "USER_AGENT_VALIDATION_ERROR",
-                        mapOf(Constants.ERR to err),
-                        mapOf(
-                            "an" to ApiEnum.GET_FLAG.value,
-                            "uuid" to (context?.getUuid()?:""),
-                            "sId" to (context?.sessionId?:0)
-                        )
+                    LoggerService.log(
+                        LogLevelEnum.ERROR,
+                        "Failed to validate User Agent. Error: $err"
                     )
                 }
             }
@@ -296,15 +282,9 @@ class SegmentEvaluator {
     fun checkUserAgentParser(uaParserMap: Map<String, MutableList<String>>): Boolean {
         // Ensure user's user agent is available
         val userAgent = StorageProvider.userAgent
-        if (userAgent.isEmpty()) {
-            LoggerService.errorLog(
-                "USER_AGENT_PRE_SEGMENT_ERROR",
-                emptyMap(),
-                mapOf(
-                    "an" to ApiEnum.GET_FLAG.value,
-                    "uuid" to (context?.getUuid() ?: ""),
-                    "sId" to (context?.sessionId ?: 0)
-                )
+        if (userAgent.isNullOrEmpty()) {
+            LoggerService.log(LogLevelEnum.INFO,
+                "To evaluate user agent related segments, please pass userAgent in context object"
             )
             return false
         }

@@ -16,8 +16,6 @@
 package com.vwo.api
 
 import com.vwo.VWOClient
-import com.vwo.constants.Constants
-import com.vwo.constants.Constants.FEATURE_KEY
 import com.vwo.decorators.StorageDecorator
 import com.vwo.enums.ApiEnum
 import com.vwo.enums.CampaignTypeEnum
@@ -28,6 +26,7 @@ import com.vwo.models.Storage
 import com.vwo.models.Variation
 import com.vwo.models.user.GetFlag
 import com.vwo.models.user.VWOUserContext
+import com.vwo.packages.logger.enums.LogLevelEnum
 import com.vwo.packages.segmentation_evaluator.core.SegmentationManager
 import com.vwo.services.HooksManager
 import com.vwo.services.LoggerService
@@ -39,10 +38,6 @@ import com.vwo.utils.FunctionUtil.getFeatureFromKey
 import com.vwo.utils.FunctionUtil.getSpecificRulesBasedOnType
 import com.vwo.utils.ImpressionUtil.createAndSendImpressionForVariationShown
 import com.vwo.utils.RuleEvaluationUtil
-import com.vwo.utils.extractDecisionKeys
-import com.vwo.utils.sendDebugEventToVWO
-import com.vwo.enums.DebuggerCategoryEnum
-import com.vwo.packages.logger.enums.LogLevelEnum
 
 object GetFlagAPI {
     /**
@@ -67,14 +62,6 @@ object GetFlagAPI {
 
         // get feature object from feature key
         val feature: Feature? = getFeatureFromKey(settings, featureKey)
-
-        // Initialize debug event properties
-        val debugEventProps = mutableMapOf<String, Any>(
-            "an" to ApiEnum.GET_FLAG.value,
-            "uuid" to context.getUuid(),
-            FEATURE_KEY to featureKey,
-            "sId" to context.sessionId
-        )
 
         /**
          * Decision object to be sent for the integrations
@@ -178,11 +165,14 @@ object GetFlagAPI {
          * if feature is not found, return false
          */
         if (feature == null) {
-            LoggerService.errorLog(
+            LoggerService.log(
+                LogLevelEnum.ERROR,
                 "FEATURE_NOT_FOUND",
-                mapOf("featureKey" to featureKey),
-                debugEventProps,
-            )
+                object : HashMap<String?, String?>() {
+                    init {
+                        put("featureKey", featureKey)
+                    }
+                })
             getFlag.setIsEnabled(false)
             return getFlag
         }
@@ -337,7 +327,6 @@ object GetFlagAPI {
 
             feature.key?.let { storageMap["featureKey"] = it }
             context.id?.let { storageMap["userId"] = it }
-            storageMap["context"] = context
             storageMap.putAll(passedRulesInformation)
 
             StorageDecorator().setDataInStorage(storageMap, storageService)
@@ -346,17 +335,6 @@ object GetFlagAPI {
         // Execute the integrations
         hookManager.set(decision)
         hookManager.execute(hookManager.get())
-
-        // send debug event, if debugger is enabled
-        if (feature.isDebuggerEnabled) {
-            debugEventProps["cg"] = DebuggerCategoryEnum.DECISION.key
-            debugEventProps["lt"] = com.vwo.enums.LogLevelEnum.INFO.name
-            debugEventProps["msg_t"] = Constants.FLAG_DECISION_GIVEN
-            debugEventProps["uuid"] = context.getUuid()
-            // Update debug event props with decision keys
-            updateDebugEventProps(debugEventProps, decision)
-            sendDebugEventToVWO(debugEventProps)
-        }
 
         /**
          * If the feature has an impact campaign, send an impression for the variation shown
@@ -410,38 +388,6 @@ object GetFlagAPI {
             passedRulesInformation["experimentVariationId"] = variation.id ?: 0
         }
         decision.putAll(passedRulesInformation)
-    }
-
-    /**
-     * Update debug event props with decision keys
-     * @param debugEventProps Debug event props
-     * @param decision Decision
-     */
-    private fun updateDebugEventProps(debugEventProps: MutableMap<String, Any>, decision: MutableMap<String, Any>) {
-        val decisionKeys = extractDecisionKeys(decision)
-
-        val featureKey = decision["featureKey"] as? String ?: ""
-        val rolloutKey = decision["rolloutKey"] as? String
-        val rolloutVariationId = decision["rolloutVariationId"]
-        val experimentKey = decision["experimentKey"] as? String
-        val experimentVariationId = decision["experimentVariationId"]
-
-        val featurePrefix = if (featureKey.isNotEmpty()) "${featureKey}_" else ""
-
-        val sb = StringBuilder("Flag decision given for feature:").append(featureKey).append('.')
-        if (!rolloutKey.isNullOrEmpty() && rolloutVariationId != null) {
-            val rolloutSuffix = rolloutKey.removePrefix(featurePrefix)
-            sb.append(" Got rollout:").append(rolloutSuffix)
-                .append(" with variation:").append(rolloutVariationId)
-        }
-        if (!experimentKey.isNullOrEmpty() && experimentVariationId != null) {
-            val expSuffix = experimentKey.removePrefix(featurePrefix)
-            sb.append(" and experiment:").append(expSuffix)
-                .append(" with variation:").append(experimentVariationId)
-        }
-
-        debugEventProps["msg"] = sb.toString()
-        debugEventProps.putAll(decisionKeys)
     }
 }
 

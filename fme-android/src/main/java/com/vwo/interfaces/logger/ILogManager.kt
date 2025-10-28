@@ -91,18 +91,4 @@ interface ILogManager {
      * @param transports A list of maps, each representing a transport configuration.
      */
     fun addTransports(transports: List<Map<String, Any>>)
-
-    /**
-     * Middleware method that stores error in DebuggerService and logs it.
-     * @param template The template string for the error message.
-     * @param data Data to be used in the template.
-     * @param debugData Additional debug data to be sent.
-     * @param shouldSendToVWO Whether to send the error to VWO.
-     */
-    fun errorLog(
-        key: String,
-        data: Map<String, Any>?,
-        debugData: Map<String, Any>?,
-        shouldSendToVWO: Boolean
-    )
 }

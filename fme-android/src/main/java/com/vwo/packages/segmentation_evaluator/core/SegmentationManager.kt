@@ -19,7 +19,6 @@ import com.vwo.utils.JsonNode
 import com.vwo.utils.*
 import com.vwo.VWOClient
 import com.vwo.constants.Constants
-import com.vwo.enums.ApiEnum
 import com.vwo.enums.UrlEnum
 import com.vwo.models.Feature
 import com.vwo.models.Settings
@@ -29,7 +28,6 @@ import com.vwo.packages.logger.enums.LogLevelEnum
 import com.vwo.packages.segmentation_evaluator.evaluators.SegmentEvaluator
 import com.vwo.providers.StorageProvider
 import com.vwo.services.LoggerService
-import com.vwo.utils.FunctionUtil.getFormattedErrorMessage
 import com.vwo.utils.GatewayServiceUtil
 
 /**
@@ -83,7 +81,7 @@ object SegmentationManager {
             settings.accountId?.toString()?.let { queryParams["accountId"] = it }
 
             try {
-                val vwo = getGatewayServiceResponse(queryParams, context)
+                val vwo = getGatewayServiceResponse(queryParams)
 
                 val gatewayServiceModel = vwo?.let {
                     VWOClient.objectMapper.readValue(it, GatewayService::class.java)
@@ -91,24 +89,15 @@ object SegmentationManager {
 
                 context.vwo = gatewayServiceModel
             } catch (err: Exception) {
-
-                LoggerService.errorLog(
-                    "ERROR_SETTING_SEGMENTATION_CONTEXT",
-                    mapOf(Constants.ERR to getFormattedErrorMessage(err)),
-                    mapOf(
-                        "an" to ApiEnum.GET_FLAG.value,
-                        "uuid" to context.getUuid(),
-                        "sId" to context.sessionId
-                    )
+                LoggerService.log(
+                    LogLevelEnum.ERROR,
+                    "Error in setting contextual data for segmentation. Got error: $err"
                 )
             }
         }
     }
 
-    private fun getGatewayServiceResponse(
-        params: MutableMap<String, String>,
-        context: VWOUserContext
-    ): String? {
+    private fun getGatewayServiceResponse(params: MutableMap<String, String>): String? {
         val vwo = if (isCachedResponseValid()) {
             StorageProvider.gatewayStore?.getGatewayResponse()
         } else {
