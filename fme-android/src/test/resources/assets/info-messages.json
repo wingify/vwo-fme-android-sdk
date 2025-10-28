@@ -35,5 +35,8 @@
   "ONLINE_BATCH_PROCESSING_STATUS": "Batch: Events batching is {status} when device is online.",
 
   "USER_ID_NULL": "UserId not set & device ID fallback disabled; user id dependent operations may fail.",
-  "USER_ID_INFO": "UserId: Using '{id}' as user identifier."
+  "USER_ID_INFO": "UserId: Using '{id}' as user identifier.",
+  "INFO_SDK_INITIALIZING": "VWO is already initializing.",
+  "NETWORK_CALL_SUCCESS_WITH_RETRIES": "Network call for {extraData} succeeded after {attempts} retry attempt(s). Previous attempts failed with error: {err}",
+  "ERROR_READING_DATA_FROM_BROWSER_STORAGE": "Error while reading from storage. Error: {err}"
 }

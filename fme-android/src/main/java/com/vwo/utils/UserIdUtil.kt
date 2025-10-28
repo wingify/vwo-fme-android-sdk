@@ -56,7 +56,7 @@ object UserIdUtil {
                 }
             } else {
 
-                LoggerService.log(LogLevelEnum.ERROR, "GATEWAY_URL_ERROR", null)
+                LoggerService.log(LogLevelEnum.ERROR, "INVALID_GATEWAY_URL", null)
             }
         }
 

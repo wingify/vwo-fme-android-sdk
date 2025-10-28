@@ -56,4 +56,7 @@ class Feature {
 
     @SerializedName("variables")
     var variables: List<Variable>? = null
+
+    @SerializedName("isDebuggerEnabled")
+    var isDebuggerEnabled: Boolean = false
 }

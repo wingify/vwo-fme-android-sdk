@@ -17,6 +17,9 @@ package com.vwo.models.user
 
 import com.vwo.utils.DeviceIdUtil
 
+import com.vwo.services.SettingsManager
+import com.vwo.utils.UUIDUtils.getUUID
+
 /**
  * Represents the context of a VWO user.
  *
@@ -31,6 +34,12 @@ class VWOUserContext {
     var postSegmentationVariables: List<String>? = null
 
     var variationTargetingVariables: MutableMap<String, Any> = HashMap()
+
+    internal fun getUuid(): String {
+        return getUUID(this.id.toString(), SettingsManager.instance?.accountId?.toString())
+    }
+
+    internal var sessionId: Long = FMEConfig.generateSessionId()
 
     var vwo: GatewayService? = null
 

@@ -15,11 +15,11 @@
  */
 package com.vwo.decorators
 
+import com.vwo.enums.ApiEnum
 import com.vwo.interfaces.storage.IStorageDecorator
 import com.vwo.models.Variation
 import com.vwo.models.user.VWOUserContext
-import com.vwo.packages.logger.enums.LogLevelEnum
-import com.vwo.services.LoggerService.Companion.log
+import com.vwo.services.LoggerService
 import com.vwo.services.StorageService
 
 /**
@@ -62,24 +62,29 @@ class StorageDecorator : IStorageDecorator {
         data: Map<String, Any>,
         storageService: StorageService
     ): Variation? {
+        val context = data["context"] as? VWOUserContext
         val featureKey = data["featureKey"] as String?
         val userId = data["userId"]?.toString()
+        val uuid = context?.getUuid()
+        val debugValues = mutableMapOf("an" to ApiEnum.GET_FLAG.value)
+        if (uuid != null) debugValues["uuid"] = uuid
 
         if (featureKey.isNullOrEmpty()) {
-            log(LogLevelEnum.ERROR, "STORING_DATA_ERROR", object : HashMap<String?, String?>() {
-                init {
-                    put("key", "featureKey")
-                }
-            })
+            LoggerService.errorLog(
+                "ERROR_STORING_DATA_IN_STORAGE",
+                mapOf("key" to "featureKey"),
+                debugValues
+            )
             return null
         }
 
         if (userId.isNullOrEmpty()) {
-            log(LogLevelEnum.ERROR, "STORING_DATA_ERROR", object : HashMap<String?, String?>() {
-                init {
-                    put("key", "Context or Context.id")
-                }
-            })
+            LoggerService.errorLog(
+                "ERROR_STORING_DATA_IN_STORAGE",
+                mapOf("key" to "userId"),
+                debugValues,
+                true
+            )
             return null
         }
 
@@ -89,20 +94,21 @@ class StorageDecorator : IStorageDecorator {
         val experimentVariationId = data["experimentVariationId"] as Int?
 
         if (rolloutKey != null && !rolloutKey.isEmpty() && experimentKey == null && rolloutVariationId == null) {
-            log(LogLevelEnum.ERROR, "STORING_DATA_ERROR", object : HashMap<String?, String?>() {
-                init {
-                    put("key", "Variation:(rolloutKey, experimentKey or rolloutVariationId)")
-                }
-            })
+            LoggerService.errorLog(
+                "ERROR_STORING_DATA_IN_STORAGE",
+                mapOf("key" to "Variation:(rolloutKey, experimentKey or rolloutVariationId)"),
+                debugValues
+            )
             return null
         }
 
         if (!experimentKey.isNullOrEmpty() && experimentVariationId == null) {
-            log(LogLevelEnum.ERROR, "STORING_DATA_ERROR", object : HashMap<String?, String?>() {
-                init {
-                    put("key", "Variation:(experimentKey or rolloutVariationId)")
-                }
-            })
+            LoggerService.errorLog(
+                "ERROR_STORING_DATA_IN_STORAGE",
+                mapOf("key" to "Variation:(experimentKey or rolloutVariationId)"),
+                debugValues,
+                true
+            )
             return null
         }
 

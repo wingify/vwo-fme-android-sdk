@@ -27,6 +27,12 @@ import com.vwo.packages.logger.enums.LogLevelEnum
 import com.vwo.packages.network_layer.manager.NetworkManager
 import com.vwo.packages.network_layer.models.RequestModel
 import com.vwo.utils.NetworkUtil
+import com.vwo.utils.sendDebugEventToVWO
+import com.vwo.enums.DebuggerCategoryEnum
+import com.vwo.constants.Constants.V2_SETTINGS
+import com.vwo.enums.ApiEnum
+import com.vwo.utils.FunctionUtil.getFormattedErrorMessage
+import kotlinx.coroutines.runBlocking
 import java.net.URL
 
 /**
@@ -114,8 +120,12 @@ class SettingsManager(internal val options: VWOInitOptions) {
             }
             return responseString
         } catch (e: Exception) {
-            val map = mapOf<String?, String?>("err" to e.toString())
-            LoggerService.log(LogLevelEnum.ERROR, "SETTINGS_FETCH_ERROR", map)
+
+            LoggerService.errorLog(
+                "ERROR_FETCHING_SETTINGS",
+                mapOf(Constants.ERR to getFormattedErrorMessage(e)),
+                mapOf("an" to Constants.MOBILE_STORAGE)
+            )
         }
         return null
     }
@@ -181,30 +191,19 @@ class SettingsManager(internal val options: VWOInitOptions) {
             request.timeout = networkTimeout
 
             val response = NetworkManager.get(request)
-            if (response?.statusCode != 200) {
-                LoggerService.log(
-                    LogLevelEnum.ERROR,
-                    "SETTINGS_FETCH_ERROR",
-                    object : HashMap<String?, String?>() {
-                        init {
-                            put("err", response?.error.toString())
-                        }
-                    })
-                return null
-            }
 
             settingsFetchTime = System.currentTimeMillis() - startTime
             // Handle object instead of jsonarray
-            var responseData = response.data
+            var responseData = response?.data
             responseData = setFeaturesIfEmpty(responseData)
             return responseData
         } catch (e: Exception) {
-            LoggerService.log(LogLevelEnum.ERROR, "SETTINGS_FETCH_ERROR",
-                object : HashMap<String?, String?>() {
-                    init {
-                        put("err", e.toString())
-                    }
-                })
+            LoggerService.errorLog(
+                "ERROR_FETCHING_SETTINGS",
+                mapOf(Constants.ERR to getFormattedErrorMessage(e)),
+                mapOf("an" to ApiEnum.INIT),
+                false
+            )
             return null
         }
     }
@@ -214,20 +213,18 @@ class SettingsManager(internal val options: VWOInitOptions) {
 
         val settingsJson = VWOClient.objectMapper.readTree(responseData)
 
-        // If features is an empty object, convert it to an empty array
+        // If features is an object (empty or not), convert it to an empty array
         if (settingsJson.isJsonObject &&
             settingsJson.asJsonObject.has("features") &&
-            settingsJson.asJsonObject.get("features").isJsonObject &&
-            settingsJson.asJsonObject.get("features").asJsonObject.size() == 0
+            settingsJson.asJsonObject.get("features").isJsonObject
         ) {
             settingsJson.asJsonObject.add("features", VWOClient.objectMapper.createArrayNode())
         }
 
-        // If campaigns is an empty object, convert it to an empty array
+        // If campaigns is an object (empty or not), convert it to an empty array
         if (settingsJson.isJsonObject &&
             settingsJson.asJsonObject.has("campaigns") &&
-            settingsJson.asJsonObject.get("campaigns").isJsonObject &&
-            settingsJson.asJsonObject.get("campaigns").asJsonObject.size() == 0
+            settingsJson.asJsonObject.get("campaigns").isJsonObject
         ) {
             settingsJson.asJsonObject.add("campaigns", VWOClient.objectMapper.createArrayNode())
         }
@@ -248,7 +245,12 @@ class SettingsManager(internal val options: VWOInitOptions) {
             try {
                 val settings = fetchFromCacheOrServer()
                 if (settings == null) {
-                    LoggerService.log(LogLevelEnum.ERROR, "SETTINGS_SCHEMA_INVALID", null)
+                    LoggerService.errorLog(
+                        "ERROR_FETCHING_SETTINGS",
+                        mapOf(Constants.ERR to "Settings is null"),
+                        mapOf("an" to ApiEnum.INIT.value),
+                        false
+                    )
                     return null
                 }
                 isSettingsValid = SettingsSchema().isSettingsValid(
@@ -257,11 +259,21 @@ class SettingsManager(internal val options: VWOInitOptions) {
                 if (isSettingsValid) {
                     return settings
                 } else {
-                    LoggerService.log(LogLevelEnum.ERROR, "SETTINGS_SCHEMA_INVALID", null)
+                    LoggerService.errorLog(
+                        "INVALID_SETTINGS_SCHEMA",
+                        mapOf(Constants.ERR to "Setting is invalid"),
+                        mapOf("an" to ApiEnum.INIT.value),
+                        false
+                    )
                     return null
                 }
             } catch (e: Exception) {
-                LoggerService.log(LogLevelEnum.ERROR, "SETTINGS_SCHEMA_INVALID", null)
+                LoggerService.errorLog(
+                    "INVALID_SETTINGS_SCHEMA",
+                    mapOf(Constants.ERR to getFormattedErrorMessage(e)),
+                    mapOf("an" to ApiEnum.INIT.value),
+                    false
+                )
                 return null
             }
         }

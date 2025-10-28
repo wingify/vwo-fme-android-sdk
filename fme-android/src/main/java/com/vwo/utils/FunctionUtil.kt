@@ -21,6 +21,7 @@ import com.vwo.models.Campaign
 import com.vwo.models.Feature
 import com.vwo.models.Metric
 import com.vwo.models.Settings
+import org.json.JSONObject
 import java.util.function.Predicate
 import java.util.stream.Collectors
 
@@ -112,6 +113,34 @@ object FunctionUtil {
             feature.metrics?.any { metric ->
                 metric.identifier == eventName
             } ?: false
+        }
+    }
+
+    /**
+     * Formats an error message.
+     *
+     * @param error The error to format. Can be an instance of Throwable, a String,
+     *              or any other object (which will be converted to its JSON string
+     *              representation or its `toString()` value).
+     * @return The formatted error message as a String.
+     */
+    fun getFormattedErrorMessage(error: Any?): String {
+        return when (error) {
+            is Throwable -> error.message ?: "An unknown error occurred"
+            is String -> error
+            is Map<*, *> -> JSONObject(error).toString()
+            null -> "Error object was null"
+            else -> try {
+                // Attempt to serialize to JSON if it's a complex object.
+                if (error::class.java.declaredFields.isNotEmpty() && !error::class.java.isPrimitive) {
+                    Gson().toJson(error)
+                } else {
+                    error.toString()
+                }
+            } catch (e: Exception) {
+                // If JSON serialization fails, fallback to toString()
+                error.toString()
+            }
         }
     }
 }
