@@ -78,7 +78,7 @@ internal class BatchUploader {
         if (response?.statusCode != 200) {
             LoggerService.log(
                 LogLevelEnum.ERROR, "BATCH_UPLOAD_ERROR",
-                mutableMapOf("err" to response?.error.toString())
+                mutableMapOf(Constants.ERR to response?.error.toString())
             )
             return false
         }

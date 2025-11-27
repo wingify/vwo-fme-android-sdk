@@ -15,6 +15,8 @@
  */
 package com.vwo.services
 
+import com.vwo.constants.Constants
+import com.vwo.enums.ApiEnum
 import com.vwo.models.user.VWOUserContext
 import com.vwo.packages.logger.enums.LogLevelEnum
 import com.vwo.packages.storage.Connector
@@ -39,14 +41,14 @@ class StorageService {
         try {
             return (storageInstance as Connector).get(featureKey, context.id) as? Map<String, Any>
         } catch (e: Exception) {
-            LoggerService.log(
-                LogLevelEnum.ERROR,
-                "STORED_DATA_ERROR",
-                object : HashMap<String?, String?>() {
-                    init {
-                        put("err", e.toString())
-                    }
-                })
+            LoggerService.errorLog(
+                "ERROR_READING_STORED_DATA_IN_STORAGE",
+                mapOf(Constants.ERR to e.toString()),
+                mapOf(
+                    "an" to ApiEnum.GET_FLAG.value,
+                    "uuid" to context.getUuid()
+                )
+            )
             return null
         }
     }

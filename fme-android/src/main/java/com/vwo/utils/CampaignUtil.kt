@@ -387,4 +387,48 @@ object CampaignUtil {
                 })
         }
     }
+
+    /**
+     * Retrieves the key of a campaign by its ID.
+     * @param settings The settings model containing all campaigns.
+     * @param campaignId The ID of the campaign to retrieve.
+     * @return The key of the campaign or null if not found.
+     */
+    fun getCampaignKeyFromCampaignId(settings: Settings, campaignId: Int): String? {
+        val campaign = settings.campaigns?.firstOrNull { it.id == campaignId }
+        return campaign?.key
+    }
+
+    /**
+     * Retrieves the variation key by its ID within a specific campaign identified by its ID.
+     * @param settings The settings model containing all campaigns.
+     * @param campaignId The ID of the campaign.
+     * @param variationId The ID of the variation to retrieve.
+     * @return The key of the variation or null if not found.
+     */
+    fun getVariationNameFromCampaignIdAndVariationId(
+        settings: Settings,
+        campaignId: Int,
+        variationId: Int,
+    ): String? {
+        val campaign = settings.campaigns?.firstOrNull { it.id == campaignId }
+        if (campaign != null) {
+            val variation = campaign.variations?.firstOrNull { it.id == variationId }
+            if (variation != null) {
+                return variation.name
+            }
+        }
+        return null
+    }
+
+    /**
+     * Retrieves the type of a campaign by its ID.
+     * @param settings The settings model containing all campaigns.
+     * @param campaignId The ID of the campaign to retrieve.
+     * @return The type of the campaign or null if not found.
+     */
+    fun getCampaignTypeFromCampaignId(settings: Settings, campaignId: Int): String? {
+        val campaign = settings.campaigns?.firstOrNull { it.id == campaignId }
+        return campaign?.type
+    }
 }

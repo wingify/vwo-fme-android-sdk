@@ -19,6 +19,9 @@ import com.vwo.enums.EventEnum
 import com.vwo.models.Settings
 import com.vwo.models.user.VWOUserContext
 import com.vwo.providers.StorageProvider
+import com.vwo.utils.CampaignUtil.getCampaignKeyFromCampaignId
+import com.vwo.utils.CampaignUtil.getVariationNameFromCampaignIdAndVariationId
+import com.vwo.utils.CampaignUtil.getCampaignTypeFromCampaignId
 import java.io.UnsupportedEncodingException
 import java.net.URLEncoder
 
@@ -64,13 +67,25 @@ object ImpressionUtil {
             StorageProvider.ipAddress
         )
 
+        val campaignKeyWithFeatureName = getCampaignKeyFromCampaignId(settings, campaignId)
+        val variationName = getVariationNameFromCampaignIdAndVariationId(settings, campaignId, variationId)
+        val featureName = campaignKeyWithFeatureName?.split('_')?.getOrNull(0)
+        val campaignKey = campaignKeyWithFeatureName?.split('_')?.getOrNull(1)
+        val campaignType = getCampaignTypeFromCampaignId(settings, campaignId)
         // Send the constructed properties and payload as a POST request
         NetworkUtil.sendPostApiRequest(
             settings,
             properties,
             payload,
             StorageProvider.userAgent,
-            StorageProvider.ipAddress
+            StorageProvider.ipAddress,
+            emptyMap(),
+            mapOf<String, Any>(
+                "campaignKey" to (campaignKey ?: ""),
+                "variationName" to (variationName ?: ""),
+                "featureName" to (featureName ?: ""),
+                "campaignType" to (campaignType ?: "")
+            )
         )
     }
 

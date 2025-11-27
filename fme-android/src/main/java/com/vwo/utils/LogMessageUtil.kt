@@ -34,7 +34,7 @@ object LogMessageUtil {
      * @param data     An object containing keys and values used to replace the placeholders in the template.
      * @return The constructed message with all placeholders replaced by their corresponding values from the data object.
      */
-    fun buildMessage(template: String?, data: Map<String?, String?>?): String? {
+    fun buildMessage(template: String?, data: Map<String?, Any?>?): String? {
         if (template == null || data == null) {
             return template
         }

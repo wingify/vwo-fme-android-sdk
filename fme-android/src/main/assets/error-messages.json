@@ -4,16 +4,15 @@
   "INIT_OPTIONS_SDK_KEY_ERROR": "[ERROR]: VWO-SDK {date} Please provide the sdkKey in the options and should be a of type string",
   "INIT_OPTIONS_ACCOUNT_ID_ERROR": "[ERROR]: VWO-SDK {date} Please provide VWO account ID in the options and should be a of type string|number",
 
-  "INIT_OPTIONS_INVALID": "Invalid {key} passed in options. Should be of type: {correctType} and greater than equal to 1000",
+  "INVALID_POLLING_CONFIGURATION": "Invalid {key} passed in options. Should be of type: {correctType} and greater than equal to 1000",
 
-  "SETTINGS_FETCH_ERROR": "Settings could not be fetched. Error: {err}",
+  "ERROR_FETCHING_SETTINGS": "Settings could not be fetched. Error: {err}",
   "BATCH_UPLOAD_ERROR": "Event batch could not be uploaded. Error: {err}",
-  "SETTINGS_SCHEMA_INVALID": "Settings are not valid. Failed schema validation",
+  "INVALID_SETTINGS_SCHEMA": "Settings are not valid. Failed schema validation",
 
   "POLLING_FETCH_SETTINGS_FAILED": "Error while fetching VWO settings with polling",
 
-  "API_THROW_ERROR": "API - {apiName} failed to execute. Trace - {err}",
-  "API_INVALID_PARAM": "{key} passed to {apiName} API is not of valid type. Got type: {type}, should be: {correctType}",
+  "INVALID_PARAM": "{key} passed to {apiName} API is not of valid type. Got type: {type}, should be: {correctType}",
   "API_SETTING_INVALID": "Settings are not valid. Contact VWO Support",
   "API_CONTEXT_INVALID": "Context should be an object and must contain a mandatory key - id, which is User ID",
 
@@ -22,16 +21,44 @@
 
   "STORED_DATA_ERROR": "Error in getting data from storage. Error: {err}",
 
-  "GATEWAY_URL_ERROR": "Please provide a valid URL for VWO Gateway Service",
+  "INVALID_GATEWAY_URL": "Invalid URL for VWO Gateway Service while initializing the SDK",
 
   "NETWORK_CALL_FAILED": "Error occurred while sending {method} request. Error: {err}",
 
   "RECOMMENDATION_ERROR": "Error occurred while fetching recommendations. Error: {err}",
 
   "PARSING_ERROR": "Error while parsing request data, it is not in the expected format. Error: {err}",
-
   "SET_ALIAS_ERROR": "The call to set alias did not succeed. Error: {err}",
   "GET_ALIAS_ERROR": "The call to get alias did not succeed. Error: {err}",
   "ALIAS_NETWORK_SDK_ERROR": "Could not send request to server. Error: {err}",
-  "ALIAS_NOT_ENABLED": "Aliasing is not enabled, you can enable it by setting {key}"
+  "ALIAS_NOT_ENABLED": "Aliasing is not enabled, you can enable it by setting {key}",
+  "ATTRIBUTES_NOT_FOUND": "{key} passed to the {apiName} API is empty. Please provide {expectedFormat}.",
+  "SEGMENTATION_CONTEXT_ERROR": "Error in setting contextual data for segmentation. Got error: {err}",
+  "FEATURE_NOT_FOUND_WITH_ID": "Feature not found with featureIdKey {featureIdKey}",
+  "USER_AGENT_VALIDATION_ERROR": "Failed to validate User Agent. Error: {err}",
+  "USER_AGENT_PRE_SEGMENT_ERROR": "To evaluate user agent related segments, please pass userAgent in context object",
+
+  "LOCATION_PRE_SEGMENT_ERROR": "To evaluate location pre Segment, please pass ipAddress in context object",
+  "INVALID_INIT_FORMAT": "Invalid inList operand format",
+  "GATEWAY_DATA_FETCH_ERROR": "Error while fetching data from gateway. Error: {err}",
+  "STORAGE_READ_ERROR": "Error while reading from storage. Error: {err}",
+  "STORAGE_WRITE_ERROR": "Error while writing to storage. Error: {err}",
+  "DECODE_SDK_KEY_ERROR": "Failed to decode sdkKey from storage. Error: {err}",
+  "INVALID_BATCH_EVENTS_CONFIG": "Invalid batch events config, should be an object, eventsPerRequest should be a number greater than 0 and requestTimeInterval should be a number greater than 0",
+  "ATTRIBUTES_MAP_ERROR": "Attributes map must contain atleast 1 key-value pair",
+  "ATTRIBUTES_MAP_INVALID": "Attributes should be an object containing key-value pairs",
+  "BATCHING_NOT_ENABLED": "Batching is not enabled. Pass batchEventData in the SDK configuration while invoking init API.",
+  "NETWORK_CALL_FAILED_AFTER_MAX_RETRIES": "Max retries reached. Request failed for {endPoint}, Error: {err}",
+  "NETWORK_CALL_RETRY_ATTEMPT": "Request failed for {endPoint}, Error: {err}. Retrying in {delay} seconds, attempt {attempt} of {maxRetries}",
+  "STORING_DATA_ERROR": "Key:{featureKey} is not valid. Not able to store data into storage",
+
+  "NETWORK_CALL_FAILURE_AFTER_MAX_RETRIES": "Network call for {extraData} failed after {attempts} retry attempt(s). Got Error: {err}",
+  "EXECUTION_FAILED": "API - {apiName} failed to execute. Error:{err}",
+  "SET_SEGMENTATION_CONTEXT_ERROR": "Error in setting contextual data for segmentation. Got error: {err}",
+  "ERROR_READING_STORED_DATA_IN_STORAGE": "Error reading data from storage. Error:{err}",
+  "ERROR_STORING_DATA_IN_STORAGE": "Key:{featureKey} is not valid. Unable to store data into storage",
+  "ATTEMPTING_RETRY_FOR_FAILED_NETWORK_CALL": "Request failed for {endPoint}. Error: {err}. Retrying in {delay} seconds, attempt {attempt} of {maxRetries}",
+  "ERROR_SETTING_SEGMENTATION_CONTEXT": "Error in setting contextual data for segmentation. Error: {err}",
+  "INVALID_ATTRIBUTE_LIST_FORMAT": "Invalid inList operand format",
+  "ERROR_FETCHING_SETTINGS_WITH_POLLING": "Settings could not be fetched with polling. Error:{err}"
 }

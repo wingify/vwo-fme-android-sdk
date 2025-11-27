@@ -16,6 +16,8 @@
 package com.vwo
 
 import SdkDataManager
+import com.vwo.constants.Constants
+import com.vwo.enums.ApiEnum
 import com.vwo.utils.JsonNode
 import com.vwo.utils.*
 import com.vwo.providers.StorageProvider
@@ -34,6 +36,7 @@ import com.vwo.utils.DataTypeUtil
 import com.vwo.utils.LogMessageUtil.buildMessage
 import java.lang.ref.WeakReference
 import com.vwo.packages.storage.SettingsStore
+import com.vwo.utils.FunctionUtil.getFormattedErrorMessage
 
 /**
  * Builder class for constructing and configuring VWO instances.
@@ -71,7 +74,7 @@ open class VWOBuilder(private val options: VWOInitOptions?) {
         LoggerService.log(
             LogLevelEnum.DEBUG,
             "SERVICE_INITIALIZED",
-            object : HashMap<String?, String?>() {
+            object : HashMap<String?, String>() {
                 init {
                     put("service", "Network Layer")
                 }
@@ -90,7 +93,7 @@ open class VWOBuilder(private val options: VWOInitOptions?) {
         LoggerService.log(
             LogLevelEnum.DEBUG,
             "SERVICE_INITIALIZED",
-            object : HashMap<String?, String?>() {
+            object : HashMap<String?, String>() {
                 init {
                     put("service", "Segmentation Evaluator")
                 }
@@ -130,14 +133,14 @@ open class VWOBuilder(private val options: VWOInitOptions?) {
             // Return the fetched settings
             return settings
         } catch (e: Exception) {
-            LoggerService.log(
-                LogLevelEnum.ERROR,
-                "SETTINGS_FETCH_ERROR",
-                object : HashMap<String?, String?>() {
-                    init {
-                        put("err", e.toString())
-                    }
-                })
+            LoggerService.errorLog(
+                "ERROR_FETCHING_SETTINGS",
+                mapOf(Constants.ERR to getFormattedErrorMessage(e)),
+                mapOf(
+                    "an" to if (forceFetch) Constants.POLLING else ApiEnum.INIT.value
+                ),
+                false
+            )
             // Clear the flag to indicate that the fetch operation is complete
             isSettingsFetchInProgress = false
 
@@ -195,7 +198,7 @@ open class VWOBuilder(private val options: VWOInitOptions?) {
             LoggerService.log(
                 LogLevelEnum.DEBUG,
                 "SERVICE_INITIALIZED",
-                object : HashMap<String?, String?>() {
+                object : HashMap<String?, String>() {
                     init {
                         put("service", "Logger")
                     }
@@ -217,28 +220,27 @@ open class VWOBuilder(private val options: VWOInitOptions?) {
         }
 
         if (!DataTypeUtil.isInteger(options.pollInterval)) {
-            LoggerService.log(
-                LogLevelEnum.ERROR,
-                "INIT_OPTIONS_INVALID",
-                object : HashMap<String?, String?>() {
-                    init {
-                        put("key", "pollInterval")
-                        put("correctType", "number")
-                    }
-                })
+            LoggerService.errorLog(
+                "INVALID_POLLING_CONFIGURATION",
+                mapOf(
+                    "key" to "pollInterval",
+                    "correctType" to "number"
+                ),
+                mapOf("an" to ApiEnum.INIT.value),
+            )
+
             return this
         }
 
         if ((options.pollInterval ?: 0) < 1000) {
-            LoggerService.log(
-                LogLevelEnum.ERROR,
-                "INIT_OPTIONS_INVALID",
-                object : HashMap<String?, String?>() {
-                    init {
-                        put("key", "pollInterval")
-                        put("correctType", "number")
-                    }
-                })
+            LoggerService.errorLog(
+                "INVALID_POLLING_CONFIGURATION",
+                mapOf(
+                    "key" to "pollInterval",
+                    "correctType" to "number >= 1000"
+                ),
+                mapOf("an" to ApiEnum.INIT.value),
+            )
             return this
         }
 
@@ -277,7 +279,11 @@ open class VWOBuilder(private val options: VWOInitOptions?) {
                     setNewSettings(latestSettings)
                 }
             } catch (e: InterruptedException) {
-                LoggerService.log(LogLevelEnum.ERROR, "POLLING_FETCH_SETTINGS_FAILED", null)
+                LoggerService.errorLog(
+                    "ERROR_FETCHING_SETTINGS_WITH_POLLING",
+                    mapOf(Constants.ERR to getFormattedErrorMessage(e)),
+                    mapOf("an" to Constants.POLLING)
+                )
                 Thread.currentThread().interrupt()
                 break
             } catch (e: Exception) {
