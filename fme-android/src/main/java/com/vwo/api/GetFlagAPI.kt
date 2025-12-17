@@ -21,6 +21,7 @@ import com.vwo.constants.Constants.FEATURE_KEY
 import com.vwo.decorators.StorageDecorator
 import com.vwo.enums.ApiEnum
 import com.vwo.enums.CampaignTypeEnum
+import com.vwo.enums.DebuggerCategoryEnum
 import com.vwo.models.Campaign
 import com.vwo.models.Feature
 import com.vwo.models.Settings
@@ -28,6 +29,7 @@ import com.vwo.models.Storage
 import com.vwo.models.Variation
 import com.vwo.models.user.GetFlag
 import com.vwo.models.user.VWOUserContext
+import com.vwo.packages.logger.enums.LogLevelEnum
 import com.vwo.packages.segmentation_evaluator.core.SegmentationManager
 import com.vwo.services.HooksManager
 import com.vwo.services.LoggerService
@@ -41,8 +43,6 @@ import com.vwo.utils.ImpressionUtil.createAndSendImpressionForVariationShown
 import com.vwo.utils.RuleEvaluationUtil
 import com.vwo.utils.extractDecisionKeys
 import com.vwo.utils.sendDebugEventToVWO
-import com.vwo.enums.DebuggerCategoryEnum
-import com.vwo.packages.logger.enums.LogLevelEnum
 
 object GetFlagAPI {
     /**
@@ -158,6 +158,7 @@ object GetFlagAPI {
                         })
 
                     getFlag.setIsEnabled(true)
+                    getFlag.setVariables(variation.variables)
                     shouldCheckForExperimentsRules = true
                     val featureInfo = mutableMapOf<String, Any>()
                     storedData.rolloutId?.let { featureInfo["rolloutId"] = it }
