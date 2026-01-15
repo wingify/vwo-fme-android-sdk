@@ -18,9 +18,12 @@ package com.vwo.packages.network_layer.client
 import com.google.gson.Gson
 import com.vwo.VWOClient
 import com.vwo.constants.Constants
-import com.vwo.constants.Constants.RETRY_DELAY
+import com.vwo.constants.Constants.HTTP_STATUS_CODE_400
+import com.vwo.constants.Constants.HTTP_STATUS_CODE_401
 import com.vwo.constants.Constants.MAX_RETRY_ATTEMPTS
+import com.vwo.constants.Constants.RETRY_DELAY
 import com.vwo.constants.Constants.SETTINGS_ENDPOINT
+import com.vwo.constants.Constants.SETTINGS_MAX_RETRY_ATTEMPTS
 import com.vwo.enums.ApiEnum
 import com.vwo.enums.CampaignTypeEnum
 import com.vwo.enums.DebuggerCategoryEnum
@@ -51,13 +54,34 @@ class NetworkClient : NetworkClientInterface {
 
     private val logLevel = LogLevelEnum.INFO
 
+    private fun getMaxRetryCount(request: RequestModel, response: ResponseModel? = null): Int {
+
+        val isSettingsEndpoint = request.path?.contains(SETTINGS_ENDPOINT) == true
+
+        val statusCodeForCustomRetry = listOf(HTTP_STATUS_CODE_400, HTTP_STATUS_CODE_401)
+
+        return when {
+            (isSettingsEndpoint && (response != null) && response.statusCode in statusCodeForCustomRetry)
+                -> SETTINGS_MAX_RETRY_ATTEMPTS
+
+            // assume max retry count is 4 for SETTINGS_ENDPOINT,
+            // we can only effectively determine actual retry based on status code
+            else
+                -> MAX_RETRY_ATTEMPTS
+        }
+    }
+
     /**
      * Performs a GET request using the provided RequestModel.
      * @param request The model containing request options.
      * @return A ResponseModel with the response data.
      */
     override fun GET(request: RequestModel): ResponseModel {
-        return retryWrapper(request) { retryCount: Int, outOf: Int ->
+        return retryWrapper(
+            request,
+            maxRetries = getMaxRetryCount(request)
+        ) { retryCount: Int, outOf: Int ->
+
             val responseModel = ResponseModel()
             try {
                 val networkOptions = request.options
@@ -78,7 +102,10 @@ class NetworkClient : NetworkClientInterface {
                     val error =
                         "Invalid response. Status Code: " + statusCode + ", Response : " + connection.responseMessage
                     responseModel.error = Exception(error)
-                    LoggerService.log(logLevel, "GET: attempt $retryCount/$outOf [${responseModel.statusCode}] $url")
+                    LoggerService.log(
+                        logLevel,
+                        "GET: attempt $retryCount/$outOf [${responseModel.statusCode}] $url"
+                    )
                     return@retryWrapper responseModel
                 }
 
@@ -98,7 +125,10 @@ class NetworkClient : NetworkClientInterface {
                 return@retryWrapper responseModel
             } catch (exception: Exception) {
                 responseModel.error = exception
-                LoggerService.log(logLevel, "GET: attempt $retryCount/$outOf [404] ${constructUrl(request.options)} $exception")
+                LoggerService.log(
+                    logLevel,
+                    "GET: attempt $retryCount/$outOf [404] ${constructUrl(request.options)} $exception"
+                )
                 return@retryWrapper responseModel
             }
         }
@@ -110,7 +140,10 @@ class NetworkClient : NetworkClientInterface {
      * @return A ResponseModel with the response data.
      */
     override fun POST(request: RequestModel): ResponseModel {
-        return retryWrapper(request) { retryCount: Int, outOf: Int ->
+        return retryWrapper(
+            request,
+            maxRetries = MAX_RETRY_ATTEMPTS
+        ) { retryCount: Int, outOf: Int ->
             val responseModel = ResponseModel()
             var bodyArray: ByteArray? = null
             try {
@@ -138,11 +171,9 @@ class NetworkClient : NetworkClientInterface {
                         for ((key1, value1) in headers) {
                             connection.setRequestProperty(key1, value1)
                         }
-                        if (bodyArray.isNotEmpty())
-                            connection.setRequestProperty(
-                                "Content-Length",
-                                bodyArray.size.toString()
-                            )
+                        if (bodyArray.isNotEmpty()) connection.setRequestProperty(
+                            "Content-Length", bodyArray.size.toString()
+                        )
                     }
                 }
 
@@ -169,12 +200,20 @@ class NetworkClient : NetworkClientInterface {
                     val error = "Request failed. Status Code: $statusCode, Response: $responseData"
                     responseModel.error = Exception(error)
                 }
-                LoggerService.log(logLevel, "POST: attempt $retryCount/$outOf [${responseModel.statusCode}] $url body=${String(bodyArray)}")
+                LoggerService.log(
+                    logLevel,
+                    "POST: attempt $retryCount/$outOf [${responseModel.statusCode}] $url body=${
+                        String(bodyArray)
+                    }"
+                )
                 return@retryWrapper responseModel
             } catch (exception: Exception) {
                 responseModel.error = exception
                 responseModel.statusCode = 404
-                LoggerService.log(logLevel, "POST: attempt $retryCount/$outOf [404] ${constructUrl(request.options)} $exception")
+                LoggerService.log(
+                    logLevel,
+                    "POST: attempt $retryCount/$outOf [404] ${constructUrl(request.options)} $exception"
+                )
                 return@retryWrapper responseModel
             }
         }
@@ -182,18 +221,21 @@ class NetworkClient : NetworkClientInterface {
 
     private fun retryWrapper(
         request: RequestModel,
-        requestProcessor: (retryCount: Int, outOf: Int) -> ResponseModel
+        maxRetries: Int,
+        requestProcessor: (retryCount: Int, outOf: Int) -> ResponseModel,
     ): ResponseModel {
         var countOfRetries = 0
         var retryDelay = RETRY_DELAY // Initial delay (used for retries, not the first attempt)
         var response: ResponseModel
+        var maxRetriesForRequest = maxRetries
 
         do {
-            response = requestProcessor(countOfRetries + 1, MAX_RETRY_ATTEMPTS)
+
+            response = requestProcessor(countOfRetries + 1, maxRetriesForRequest)
             countOfRetries++
 
             // If the request failed and we need to retry, apply the delay
-            if (response.error != null && countOfRetries < MAX_RETRY_ATTEMPTS) {
+            if (response.error != null && countOfRetries < maxRetriesForRequest) {
 
                 // Don't send retry log for the normal attempt, send log when first retry is attempted
                 if (countOfRetries > 1) {
@@ -202,7 +244,7 @@ class NetworkClient : NetworkClientInterface {
                         Constants.ERR to (response.error ?: ""),
                         "delay" to (retryDelay / 1000),
                         "attempt" to (countOfRetries - 1),
-                        "maxRetries" to MAX_RETRY_ATTEMPTS
+                        "maxRetries" to maxRetriesForRequest
                     )
                     LoggerService.errorLog(
                         "ATTEMPTING_RETRY_FOR_FAILED_NETWORK_CALL",
@@ -214,11 +256,16 @@ class NetworkClient : NetworkClientInterface {
                 request.lastError = getFormattedErrorMessage(response.error)
 
                 retryDelay *= 2 // Double the delay for the next retry
-                Thread.sleep(retryDelay)
+                maxRetriesForRequest = getMaxRetryCount(request, response)
+
+                if (maxRetriesForRequest != SETTINGS_MAX_RETRY_ATTEMPTS) {
+                    // if invalid API settings detected there's no point in waiting retryDelay * 2
+                    Thread.sleep(retryDelay)
+                }
             } else if (response.error != null) {
                 request.lastError = getFormattedErrorMessage(response.error)
             }
-        } while (countOfRetries < MAX_RETRY_ATTEMPTS && response.error != null)
+        } while (countOfRetries < maxRetriesForRequest && response.error != null)
 
         // Set the total number of attempts made
         response.totalAttempts = countOfRetries - 1
@@ -229,15 +276,19 @@ class NetworkClient : NetworkClientInterface {
         if (response.error != null && !request.eventName.contains(EventEnum.VWO_DEBUGGER_EVENT.value)) {
 
             LoggerService.errorLog(
-                "NETWORK_CALL_FAILURE_AFTER_MAX_RETRIES",
-                mapOf(
+                "NETWORK_CALL_FAILURE_AFTER_MAX_RETRIES", mapOf(
                     "extraData" to (request.path ?: ""),
                     "attempts" to response.totalAttempts.toString(),
                     Constants.ERR to (response.error ?: "")
-                ),
-                request.getExtraInfo(),
-                false
+                ), request.getExtraInfo(), false
             )
+        }
+
+        if ((maxRetriesForRequest != MAX_RETRY_ATTEMPTS)
+            && (request.path?.contains(SETTINGS_ENDPOINT) == true)
+        ) {
+            // IMPORTANT: inform devs that they have invalid AccountID and API Key
+            LoggerService.log(LogLevelEnum.ERROR, "INVALID_CREDENTIALS")
         }
 
         return response
@@ -248,18 +299,20 @@ class NetworkClient : NetworkClientInterface {
         response: ResponseModel,
     ): Map<String, Any?> {
         // set category, if call got success then category is retry, otherwise network
-        val category = if (response.error == null) DebuggerCategoryEnum.RETRY else DebuggerCategoryEnum.NETWORK
+        val category =
+            if (response.error == null) DebuggerCategoryEnum.RETRY else DebuggerCategoryEnum.NETWORK
 
         return try {
-            val msgT = if (response.error == null) Constants.NETWORK_CALL_SUCCESS_WITH_RETRIES else Constants.NETWORK_CALL_FAILURE_AFTER_MAX_RETRIES
-            val lt = if (response.error == null) LogLevelEnum.INFO.name else com.vwo.enums.LogLevelEnum.ERROR.name
+            val msgT =
+                if (response.error == null) Constants.NETWORK_CALL_SUCCESS_WITH_RETRIES else Constants.NETWORK_CALL_FAILURE_AFTER_MAX_RETRIES
+            val lt =
+                if (response.error == null) LogLevelEnum.INFO.name else com.vwo.enums.LogLevelEnum.ERROR.name
 
             val payload = if (request.body != null) {
                 val gson = Gson()
                 val jsonString = gson.toJson(request.body)
                 gson.fromJson(jsonString, EventArchPayload::class.java)
-            } else
-                null
+            } else null
 
             val recentError = if (response.error != null) response.error else request.lastError
             val msgPlaceholder = mutableMapOf<String?, String?>(
@@ -283,8 +336,8 @@ class NetworkClient : NetworkClientInterface {
                         val variationName = campaignInfo["variationName"] as? String ?: ""
                         val campaignKey = campaignInfo["campaignKey"] as? String ?: ""
 
-                        val isRolloutOrPersonalize = (type == CampaignTypeEnum.ROLLOUT.value)
-                                || (type == CampaignTypeEnum.PERSONALIZE.value)
+                        val isRolloutOrPersonalize =
+                            (type == CampaignTypeEnum.ROLLOUT.value) || (type == CampaignTypeEnum.PERSONALIZE.value)
 
                         if (isRolloutOrPersonalize) {
                             "feature: $featureName, rule: $variationName"
@@ -294,14 +347,12 @@ class NetworkClient : NetworkClientInterface {
                     } else {
                         ""
                     }
-                    apiEnum =  ApiEnum.GET_FLAG
+                    apiEnum = ApiEnum.GET_FLAG
                 } else if (eventName != EventEnum.VWO_VARIATION_SHOWN.value) {
                     if (eventName === EventEnum.VWO_SYNC_VISITOR_PROP.value) {
                         apiEnum = ApiEnum.SET_ATTRIBUTE
                         extraDataForMessage = apiEnum.value
-                    } else if (eventName !== EventEnum.VWO_DEBUGGER_EVENT.value
-                        && eventName !== EventEnum.VWO_INIT_CALLED.value
-                    ) {
+                    } else if (eventName !== EventEnum.VWO_DEBUGGER_EVENT.value && eventName !== EventEnum.VWO_INIT_CALLED.value) {
                         apiEnum = ApiEnum.TRACK_EVENT
                         extraDataForMessage = "event: $eventName"
                     }
@@ -346,8 +397,7 @@ class NetworkClient : NetworkClientInterface {
             debugEventProps
         } catch (err: Exception) {
             mapOf(
-                "cg" to (category),
-                Constants.ERR to err.toString()
+                "cg" to (category), Constants.ERR to err.toString()
             )
         }
     }
@@ -368,14 +418,11 @@ class NetworkClient : NetworkClientInterface {
         //Code ported from node sdk
         val eventName = payload.d?.event?.name
         val api = if (eventName == EventEnum.VWO_VARIATION_SHOWN.value) {
-             ApiEnum.GET_FLAG
+            ApiEnum.GET_FLAG
         } else {
             if (eventName == EventEnum.VWO_SYNC_VISITOR_PROP.value) {
                 ApiEnum.SET_ATTRIBUTE
-            } else if (
-                eventName != EventEnum.VWO_DEBUGGER_EVENT.value &&
-                eventName != EventEnum.VWO_INIT_CALLED.value
-            ) {
+            } else if (eventName != EventEnum.VWO_DEBUGGER_EVENT.value && eventName != EventEnum.VWO_INIT_CALLED.value) {
                 ApiEnum.TRACK_EVENT
             } else {
                 null

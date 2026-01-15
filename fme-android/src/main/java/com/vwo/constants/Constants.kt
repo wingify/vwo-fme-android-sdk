@@ -71,4 +71,10 @@ object Constants {
     const val END_POINT = "endPoint"
     const val ERR = "err"
     const val FEATURE_KEY = "fk"
+
+    const val SETTINGS_MAX_RETRY_ATTEMPTS = 1
+
+    const val HTTP_STATUS_CODE_400 = 400
+
+    const val HTTP_STATUS_CODE_401 = 401
 }

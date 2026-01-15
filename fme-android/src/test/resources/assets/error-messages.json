@@ -56,5 +56,7 @@
   "ATTEMPTING_RETRY_FOR_FAILED_NETWORK_CALL": "Request failed for {endPoint}. Error: {err}. Retrying in {delay} seconds, attempt {attempt} of {maxRetries}",
   "ERROR_SETTING_SEGMENTATION_CONTEXT": "Error in setting contextual data for segmentation. Error: {err}",
   "INVALID_ATTRIBUTE_LIST_FORMAT": "Invalid inList operand format",
-  "ERROR_FETCHING_SETTINGS_WITH_POLLING": "Settings could not be fetched with polling. Error:{err}"
+  "ERROR_FETCHING_SETTINGS_WITH_POLLING": "Settings could not be fetched with polling. Error:{err}",
+
+  "INVALID_CREDENTIALS": "Invalid Account ID, SDK Key, or both provided during initialization."
 }
