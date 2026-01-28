@@ -17,14 +17,13 @@
 
 package com.vwo.utils
 
+import com.vwo.ServiceContainer
 import com.vwo.enums.EventEnum
 import com.vwo.enums.UrlEnum
 import com.vwo.models.user.VWOUserContext
 import com.vwo.packages.network_layer.manager.NetworkManager
 import com.vwo.packages.network_layer.models.RequestModel
 import com.vwo.providers.StorageProvider
-import com.vwo.services.SettingsManager.Companion.instance
-import com.vwo.services.UrlService.baseUrl
 
 /**
  * Utility class for handling events related operations, such as pre-segmentation and SDK initialization.
@@ -40,23 +39,34 @@ class EventsUtils {
      * @param settingsFetchTime Time taken to fetch settings in milliseconds.
      * @param sdkInitTime Time taken to initialize the SDK in milliseconds.
      */
-    fun sendSdkInitEvent(settingsFetchTime: Long? = null, sdkInitTime: Long? = null) {
+    fun sendSdkInitEvent(
+        settingsFetchTime: Long? = null,
+        sdkInitTime: Long? = null,
+        serviceContainer: ServiceContainer
+    ) {
         // Create the query parameters
         val queryParams = NetworkUtil.getEventsBaseProperties(
             EventEnum.VWO_INIT_CALLED.value,
             null,
-            null
+            null,
+            serviceContainer
         )
 
         // Create the payload with required fields
         val payload = NetworkUtil.getSDKInitEventPayload(
             EventEnum.VWO_INIT_CALLED.value,
             settingsFetchTime,
-            sdkInitTime
+            sdkInitTime,
+            serviceContainer
         )
 
         // Send the constructed payload via POST request
-        NetworkUtil.sendGatewayEvent(queryParams, payload, EventEnum.VWO_INIT_CALLED.value)
+        NetworkUtil.sendGatewayEvent(
+            queryParams,
+            payload,
+            serviceContainer,
+            EventEnum.VWO_INIT_CALLED.value
+        )
     }
 
     /**
@@ -66,12 +76,13 @@ class EventsUtils {
      * @param usageStatsAccountId The account ID specifically designated for tracking usage statistics.
      *                            This might be different from the main VWO account ID.
      */
-    fun sendSDKUsageStatsEvent(usageStatsAccountId: Int) {
+    fun sendSDKUsageStatsEvent(usageStatsAccountId: Int, serviceContainer: ServiceContainer) {
         // create the query parameters
         val queryParams = NetworkUtil.getEventsBaseProperties(
             eventName = EventEnum.VWO_USAGE_STATS.value,
             visitorUserAgent = null,
             ipAddress = null,
+            serviceContainer = serviceContainer,
             isUsageStatsEvent = true,
             usageStatsAccountId = usageStatsAccountId
         )
@@ -79,11 +90,17 @@ class EventsUtils {
         // create the payload with required fields
         val payload = NetworkUtil.getSDKUsageStatsEventPayload(
             EventEnum.VWO_USAGE_STATS,
-            usageStatsAccountId
+            usageStatsAccountId,
+            serviceContainer
         )
 
         // Send the payload as a POST request
-        NetworkUtil.sendMessagingEvent(queryParams, payload, EventEnum.VWO_USAGE_STATS.value)
+        NetworkUtil.sendMessagingEvent(
+            queryParams,
+            payload,
+            serviceContainer,
+            EventEnum.VWO_USAGE_STATS.value
+        )
     }
 
     /**
@@ -99,11 +116,15 @@ class EventsUtils {
      * @param context The VWO context containing user information.
      * @return `true` if the event should be tracked before segmentation, `false` otherwise.
      */
-    fun getEventsPreSegmentation(dsl: Any, context: VWOUserContext): Boolean {
+    fun getEventsPreSegmentation(
+        dsl: Any,
+        context: VWOUserContext,
+        serviceContainer: ServiceContainer
+    ): Boolean {
         var result = false
         val queryParams: MutableMap<String, String> = HashMap()
-        val accountId = instance?.accountId.toString()
-        queryParams["uuid"] = context.getUuid()
+        val accountId = serviceContainer.getAccountId().toString()
+        queryParams["uuid"] = context.getUuid(serviceContainer)
         queryParams["accountId"] = accountId
 
         val body: MutableMap<String, Any> = LinkedHashMap()
@@ -118,16 +139,16 @@ class EventsUtils {
 
         NetworkManager.attachClient()
         val request = RequestModel(
-            baseUrl,
+            serviceContainer.getBaseUrl(),
             "POST",
             UrlEnum.EVALUATE_DSL.url,
             queryParams,
             body,
             HashMap(),
-            instance?.protocol,
-            instance?.port ?: 0
+            serviceContainer.getSettingsManager()?.protocol,
+            serviceContainer.getSettingsManager()?.port ?: 0
         )
-        val responseModel = NetworkManager.post(request)
+        val responseModel = NetworkManager.post(request, serviceContainer)
         if (responseModel?.statusCode == 200) {
             if (responseModel.data?.contains("true", ignoreCase = true) == true) {
                 result = true

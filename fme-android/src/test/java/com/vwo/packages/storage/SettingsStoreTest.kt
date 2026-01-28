@@ -42,50 +42,62 @@ class SettingsStoreTest {
     @Test
     fun testSaveSettings() {
         val settings = "testSettings"
-        settingsStore.saveSettings(settings)
-        val result = settingsStore.getSettings()
+        val accId = 123
+        val sdkKey = "test-sdk-key"
+        settingsStore.saveSettings(settings, accId, sdkKey)
+        val result = settingsStore.getSettings(accId, sdkKey)
         assertEquals(settings, result)
     }
 
     @Test
     fun testGetSettings() {
         val settings = "testSettings"
-        settingsStore.saveSettings(settings)
-        val result = settingsStore.getSettings()
+        val accId = 123
+        val sdkKey = "test-sdk-key"
+        settingsStore.saveSettings(settings, accId, sdkKey)
+        val result = settingsStore.getSettings(accId, sdkKey)
         assertEquals(settings, result)
     }
 
     @Test
     fun testClearSettings() {
         val settings = "testSettings"
-        settingsStore.saveSettings(settings)
-        settingsStore.clearSettings()
-        val result = settingsStore.getSettings()
+        val accId = 123
+        val sdkKey = "test-sdk-key"
+        settingsStore.saveSettings(settings, accId, sdkKey)
+        settingsStore.clearSettings(accId, sdkKey)
+        val result = settingsStore.getSettings(accId, sdkKey)
         assertEquals("", result)
     }
 
     @Test
     fun testSaveSettingsExpiry() {
         val expiryTime = 123456789L
-        settingsStore.saveSettingsExpiry(expiryTime)
-        val result = settingsStore.getSettingsExpiry()
+        val accId = 123
+        val sdkKey = "test-sdk-key"
+        settingsStore.saveSettingsExpiry(expiryTime, accId, sdkKey)
+        val result = settingsStore.getSettingsExpiry(accId, sdkKey)
         assertEquals(expiryTime, result)
     }
 
     @Test
     fun testGetSettingsExpiry() {
         val expiryTime = 123456789L
-        settingsStore.saveSettingsExpiry(expiryTime)
-        val result = settingsStore.getSettingsExpiry()
+        val accId = 123
+        val sdkKey = "test-sdk-key"
+        settingsStore.saveSettingsExpiry(expiryTime, accId, sdkKey)
+        val result = settingsStore.getSettingsExpiry(accId, sdkKey)
         assertEquals(expiryTime, result)
     }
 
     @Test
     fun testClearSettingsExpiry() {
         val expiryTime = 123456789L
-        settingsStore.saveSettingsExpiry(expiryTime)
-        settingsStore.clearSettingsExpiry()
-        val result = settingsStore.getSettingsExpiry()
+        val accId = 123
+        val sdkKey = "test-sdk-key"
+        settingsStore.saveSettingsExpiry(expiryTime, accId, sdkKey)
+        settingsStore.clearSettingsExpiry(accId, sdkKey)
+        val result = settingsStore.getSettingsExpiry(accId, sdkKey)
         assertEquals(-1L, result)
     }
 } 

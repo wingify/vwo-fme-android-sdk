@@ -17,6 +17,7 @@
 
 package com.vwo.services
 
+import com.vwo.ServiceContainer
 import com.vwo.constants.Constants
 import com.vwo.models.request.EventArchQueryParams.EventBatchQueryParams
 import com.vwo.packages.logger.enums.LogLevelEnum
@@ -24,12 +25,12 @@ import com.vwo.packages.network_layer.manager.NetworkManager
 import com.vwo.packages.network_layer.models.RequestModel
 
 /**
- * A class responsible for uploading event batches to theserver.
+ * A class responsible for uploading event batches to the server.
  *
  * This class handles the process of constructing and sending event batch requests to the server.
  * It uses the `NetworkManager` to make the network requests and logs any errors that occur.
  */
-internal class BatchUploader {
+internal object BatchUploader {
 
     /**
      * The network timeout for requests, in milliseconds.
@@ -58,7 +59,7 @@ internal class BatchUploader {
      * @param payload The list of event data to be uploaded.
      * @return `true` if the event batch was uploaded successfully, `false` otherwise.
      */
-    fun uploadBatch(accountId: Long, sdkKey: String, payload: List<MutableMap<*, *>>): Boolean {
+    fun uploadBatch(accountId: Long, sdkKey: String, payload: List<MutableMap<*, *>>, serviceContainer: ServiceContainer?): Boolean {
         val body = mutableMapOf("ev" to payload)
 
         val options = EventBatchQueryParams(sdkKey = sdkKey, accountId = accountId.toString()).queryParams
@@ -74,11 +75,11 @@ internal class BatchUploader {
             port
         )
         request.timeout = networkTimeout
-        val response = NetworkManager.post(request)
+        val response = NetworkManager.post(request, serviceContainer)
         if (response?.statusCode != 200) {
-            LoggerService.log(
-                LogLevelEnum.ERROR, "BATCH_UPLOAD_ERROR",
-                mutableMapOf(Constants.ERR to response?.error.toString())
+            serviceContainer?.getLoggerService()?.log(
+                LogLevelEnum.INFO, "BATCH_UPLOAD_ERROR",
+                mutableMapOf("err" to response?.error.toString())
             )
             return false
         }

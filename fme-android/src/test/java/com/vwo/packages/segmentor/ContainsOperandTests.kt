@@ -17,11 +17,12 @@ package com.vwo.packages.segmentor
 
 import android.os.Build
 import com.vwo.VWO
-import com.vwo.VWO.init
+
 import com.vwo.constants.Constants.PLATFORM
 import com.vwo.interfaces.IVwoInitCallback
 import com.vwo.models.user.VWOInitOptions
 import com.vwo.packages.segmentation_evaluator.core.SegmentationManager
+import com.vwo.ServiceContainer
 import com.vwo.providers.StorageProvider
 import com.vwo.sdk.fme.BuildConfig
 import com.vwo.utils.NetworkUtil.Companion.removeNullValues
@@ -41,7 +42,7 @@ class ContainsOperandTests {
         vwoInitOptions.sdkKey = sdkKey
         vwoInitOptions.accountId = accountId
         vwoInitOptions.isUsageStatsDisabled = true
-        init(vwoInitOptions, object : IVwoInitCallback {
+        VWO.init(vwoInitOptions, object : IVwoInitCallback {
             override fun vwoInitSuccess(vwo: VWO, message: String) {
                 this@ContainsOperandTests.vwo = vwo
             }
@@ -479,10 +480,17 @@ class ContainsOperandTests {
     }
 
     private fun verifyExpectation(dsl: String, customVariables: Map<String, Any>) {
-        SegmentationManager.attachEvaluator()
+        val segmentationManager = SegmentationManager()
+        val mockServiceContainer = ServiceContainer(
+            settingsManager = null,
+            options = VWOInitOptions(),
+            settings = null,
+            loggerService = null
+        )
+        segmentationManager.attachEvaluator(mockServiceContainer)
         assertEquals(
             customVariables["expectation"],
-            SegmentationManager.validateSegmentation(dsl, customVariables)
+            segmentationManager.validateSegmentation(dsl, customVariables)
         )
     }
 }

@@ -16,7 +16,7 @@
 package com.vwo.packages.segmentor
 
 import com.vwo.VWO
-import com.vwo.VWO.init
+
 import com.vwo.interfaces.IVwoInitCallback
 import com.vwo.models.user.VWOInitOptions
 import com.vwo.utils.NetworkUtil.Companion.removeNullValues

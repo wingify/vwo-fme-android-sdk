@@ -23,7 +23,8 @@ import com.vwo.models.Rule
 import com.vwo.models.Settings
 import com.vwo.models.Variation
 import com.vwo.packages.logger.enums.LogLevelEnum
-import com.vwo.services.LoggerService.Companion.log
+import com.vwo.ServiceContainer
+import com.vwo.services.LoggerService
 import java.util.Objects
 import kotlin.math.ceil
 import kotlin.math.min
@@ -41,10 +42,10 @@ object CampaignUtil {
      * Otherwise, it assigns range values to each variation in the campaign.
      * @param campaign The campaign for which to set the variation allocation.
      */
-    fun setVariationAllocation(campaign: Campaign) {
+    fun setVariationAllocation(campaign: Campaign, serviceContainer: ServiceContainer? = null) {
         // Check if the campaign type is roll out or PERSONALIZE
         if (campaign.type == CampaignTypeEnum.ROLLOUT.value || campaign.type == CampaignTypeEnum.PERSONALIZE.value) {
-            handleRolloutCampaign(campaign)
+            handleRolloutCampaign(campaign, serviceContainer)
         } else {
             var currentAllocation = 0
             // Iterate over each variation in the campaign
@@ -52,7 +53,7 @@ object CampaignUtil {
                 // Assign range values to the variation and update the current allocation
                 val stepFactor = assignRangeValues(variation, currentAllocation)
                 currentAllocation += stepFactor
-                log(
+                serviceContainer?.getLoggerService()?.log(
                     LogLevelEnum.INFO,
                     "VARIATION_RANGE_ALLOCATION",
                     object : HashMap<String?, String?>() {
@@ -367,13 +368,13 @@ object CampaignUtil {
      * Handles the rollout campaign by setting start and end ranges for all variations.
      * @param campaign The campaign to handle.
      */
-    private fun handleRolloutCampaign(campaign: Campaign) {
+    private fun handleRolloutCampaign(campaign: Campaign, serviceContainer: ServiceContainer? = null) {
         // Set start and end ranges for all variations in the campaign
         for (variation in campaign.variations!!) {
             val endRange = (variation.weight * 100).toInt()
             variation.startRangeVariation = 1
             variation.endRangeVariation = endRange
-            log(
+            serviceContainer?.getLoggerService()?.log(
                 LogLevelEnum.INFO,
                 "VARIATION_RANGE_ALLOCATION",
                 object : HashMap<String?, String?>() {

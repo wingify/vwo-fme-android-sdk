@@ -39,7 +39,7 @@ class VWOInitOptions {
     var logger: Map<String, Any> = HashMap()
     var networkClientInterface: NetworkClientInterface? = null
     var segmentEvaluator: SegmentEvaluator? = null
-    var storage: Connector = MobileDefaultStorage()
+    var storage: Connector = MobileDefaultStorage(this)
     var pollInterval: Int? = null
     var vwoBuilder: VWOBuilder? = null
     var isAliasingEnabled: Boolean = false

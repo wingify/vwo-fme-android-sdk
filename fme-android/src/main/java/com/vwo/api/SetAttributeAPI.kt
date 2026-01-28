@@ -15,6 +15,7 @@
  */
 package com.vwo.api
 
+import com.vwo.ServiceContainer
 import com.vwo.enums.EventEnum
 import com.vwo.models.Settings
 import com.vwo.models.user.VWOUserContext
@@ -29,8 +30,13 @@ object SetAttributeAPI {
      * @param attributeMap - Map of attribute key and value to be set
      * @param context  The user context model containing user-specific data.
      */
-    fun setAttribute(settings: Settings, attributeMap: Map<String, Any>, context: VWOUserContext) {
-        createAndSendImpressionForSetAttribute(settings, attributeMap, context)
+    fun setAttribute(
+        settings: Settings,
+        attributeMap: Map<String, Any>,
+        context: VWOUserContext,
+        serviceContainer: ServiceContainer
+    ) {
+        createAndSendImpressionForSetAttribute(settings, attributeMap, context, serviceContainer)
     }
 
     /**
@@ -45,13 +51,15 @@ object SetAttributeAPI {
     private fun createAndSendImpressionForSetAttribute(
         settings: Settings,
         attributeMap: Map<String, Any>,
-        context: VWOUserContext
+        context: VWOUserContext,
+        serviceContainer: ServiceContainer
     ) {
         // Get base properties for the event
         val properties = NetworkUtil.getEventsBaseProperties(
             EventEnum.VWO_SYNC_VISITOR_PROP.value,
             encodeURIComponent(StorageProvider.userAgent),
-            StorageProvider.ipAddress
+            StorageProvider.ipAddress,
+            serviceContainer
         )
 
         // Construct payload data for tracking the user
@@ -60,10 +68,17 @@ object SetAttributeAPI {
             context,
             context.id,
             EventEnum.VWO_SYNC_VISITOR_PROP.value,
-            attributeMap
+            attributeMap,
+            serviceContainer
         )
 
         // Send the constructed properties and payload as a POST request
-        NetworkUtil.sendPostApiRequest(settings, properties, payload, StorageProvider.userAgent, StorageProvider.ipAddress)
+        NetworkUtil.sendPostApiRequest(
+            properties,
+            payload,
+            StorageProvider.userAgent,
+            StorageProvider.ipAddress,
+            serviceContainer
+        )
     }
 }

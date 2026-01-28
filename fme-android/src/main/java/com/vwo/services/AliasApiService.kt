@@ -15,6 +15,7 @@
  */
 package com.vwo.services
 
+import com.vwo.ServiceContainer
 import com.vwo.enums.UrlEnum
 import com.vwo.interfaces.networking.HttpMethods
 import com.vwo.packages.network_layer.manager.NetworkManager
@@ -39,21 +40,21 @@ class AliasApiService {
      * @param userId The base user identifier whose alias mapping is requested.
      * @return [ResponseModel] if the request was executed, or null on failure to dispatch.
      */
-    fun getAlias(userId: String): ResponseModel? {
+    fun getAlias(userId: String, serviceContainer: ServiceContainer): ResponseModel? {
 
         val headers = createHeaders(null, null)
-        val queryParams = getQueryParams(mutableMapOf(KEY_USER_ID to userId))
+        val queryParams = getQueryParams(serviceContainer, mutableMapOf(KEY_USER_ID to userId))
         val request = RequestModel(
-            url = SettingsManager.instance?.hostname,
+            url = serviceContainer.getSettingsManager()?.hostname,
             method = HttpMethods.GET.value,
             path = UrlEnum.GET_ALIAS.url,
             query = queryParams,
             body = null,
             headers = headers,
-            scheme = SettingsManager.instance?.protocol,
-            port = SettingsManager.instance?.port ?: 0
+            scheme = serviceContainer.getSettingsManager()?.protocol,
+            port = serviceContainer.getSettingsManager()?.port ?: 0
         )
-        return NetworkManager.get(request)
+        return NetworkManager.get(request, serviceContainer)
     }
 
     /**
@@ -66,21 +67,21 @@ class AliasApiService {
      * @param aliasId The alias to associate with the given user identifier.
      * @return [ResponseModel] if the request was executed, or null on failure to dispatch.
      */
-    fun setAlias(userId: String, aliasId: String): ResponseModel? {
+    fun setAlias(userId: String, aliasId: String, serviceContainer: ServiceContainer): ResponseModel? {
         NetworkManager.attachClient()
         val headers = createHeaders(null, null)
         val requestBody = mapOf(KEY_USER_ID to userId, KEY_ALIAS_ID to aliasId)
         val request = RequestModel(
-            url = SettingsManager.instance?.hostname,
+            url = serviceContainer.getSettingsManager()?.hostname,
             method = HttpMethods.POST.value,
             path = UrlEnum.SET_ALIAS.url,
-            query = getQueryParams(),
+            query = getQueryParams(serviceContainer),
             body = requestBody,
             headers = headers,
-            scheme = SettingsManager.instance?.protocol,
-            port = SettingsManager.instance?.port ?: 0
+            scheme = serviceContainer.getSettingsManager()?.protocol,
+            port = serviceContainer.getSettingsManager()?.port ?: 0
         )
-        return NetworkManager.post(request)
+        return NetworkManager.post(request, serviceContainer)
     }
 
     /**
@@ -92,9 +93,9 @@ class AliasApiService {
      * @param map Optional additional query parameters to merge.
      * @return A mutable map containing merged query parameters.
      */
-    private fun getQueryParams(map: Map<String, String> = mapOf()): MutableMap<String, String> {
-        val accountId = SettingsManager.instance?.accountId.toString()
-        val sdkKey = SettingsManager.instance?.sdkKey.toString()
+    private fun getQueryParams(serviceContainer: ServiceContainer, map: Map<String, String> = mapOf()): MutableMap<String, String> {
+        val accountId = serviceContainer.getSettingsManager()?.accountId.toString()
+        val sdkKey = serviceContainer.getSettingsManager()?.sdkKey.toString()
 
         val result = mutableMapOf(KEY_ACCOUNT_ID to accountId, KEY_SDK_KEY to sdkKey)
         map.forEach { result[it.key] = it.value }

@@ -18,6 +18,7 @@
 package com.vwo.models.user
 
 import com.vwo.packages.logger.enums.LogLevelEnum
+import com.vwo.ServiceContainer
 import com.vwo.services.LoggerService
 import java.util.Calendar
 
@@ -53,24 +54,24 @@ object FMEConfig {
      * @param sessionData The FmeSession object containing session information.
      */
     @JvmStatic
-    fun setSessionData(sessionData: Map<String, Any>) {
+    fun setSessionData(sessionData: Map<String, Any>, serviceContainer: ServiceContainer? = null) {
 
         isMISdkLinked = false
         if (sessionData.isEmpty()) {
-            LoggerService.log(LogLevelEnum.ERROR, "Session data cannot be empty.")
+            serviceContainer?.getLoggerService()?.log(LogLevelEnum.ERROR, "Session data cannot be empty.")
             return
         } else if (!sessionData.containsKey(sessionIdKey)) {
-            LoggerService.log(LogLevelEnum.ERROR, "Session data must contain 'sessionId' key.")
+            serviceContainer?.getLoggerService()?.log(LogLevelEnum.ERROR, "Session data must contain 'sessionId' key.")
             return
         }
 
         val sessionIdValue = sessionData["sessionId"]
         if (sessionIdValue !is Long) {
-            LoggerService.log(LogLevelEnum.ERROR, "'sessionId' value must be a Long.")
+            serviceContainer?.getLoggerService()?.log(LogLevelEnum.ERROR, "'sessionId' value must be a Long.")
             return
         }
         if (sessionIdValue <= 0) {
-            LoggerService.log(LogLevelEnum.ERROR, "'sessionId' value must be a positive number.")
+            serviceContainer?.getLoggerService()?.log(LogLevelEnum.ERROR, "'sessionId' value must be a positive number.")
             return
         }
         this.sessionData = FmeSession(sessionIdValue)

@@ -32,6 +32,9 @@ enum class EventEnum(val value: String) {
      */
     VWO_SYNC_VISITOR_PROP("vwo_syncVisitorProp"),
 
+    /** Error log*/
+    VWO_ERROR("vwo_log"),
+
     /** FME sdk init event*/
     VWO_INIT_CALLED("vwo_fmeSdkInit"),
 

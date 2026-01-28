@@ -27,7 +27,7 @@ import java.util.Locale
  *
  * This class is responsible for managing a list of log transports and logging messages to them based on the configured log level.
  */
-class LogTransportManager(private val config: Map<String, Any>) : Logger(), LogTransport {
+class LogTransportManager(private val config: Map<String, Any>, val logManager: LogManager) : Logger(), LogTransport {
     @VisibleForTesting(otherwise = VisibleForTesting.PRIVATE)
     internal val transports: MutableList<LogTransport> = ArrayList()
 
@@ -109,7 +109,7 @@ class LogTransportManager(private val config: Map<String, Any>) : Logger(), LogT
      */
     override fun log(level: LogLevelEnum, message: String?) {
         for (transport in transports) {
-            val levelString = (LogManager.instance?.level ?: LogLevelEnum.ERROR).toString()
+            val levelString = logManager.level.toString()
             if (shouldLog(level.name, levelString)) {
                 transport.log(level, message)
             }

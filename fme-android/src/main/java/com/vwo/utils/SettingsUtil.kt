@@ -15,14 +15,13 @@
  */
 package com.vwo.utils
 
-import com.google.gson.Gson
+import com.vwo.ServiceContainer
 import com.vwo.enums.CampaignTypeEnum
 import com.vwo.models.Campaign
 import com.vwo.models.Rule
 import com.vwo.models.Settings
 import com.vwo.models.Variation
 import com.vwo.packages.logger.enums.LogLevelEnum
-import com.vwo.services.LoggerService
 import java.util.regex.Pattern
 
 /**
@@ -33,8 +32,6 @@ import java.util.regex.Pattern
  */
 object SettingsUtil {
 
-    var settingsFile: Settings? = Settings()
-
     /**
      * Processes the settings file and modifies it as required.
      * This method is called before the settings are used by the SDK.
@@ -44,23 +41,23 @@ object SettingsUtil {
      * @param settings - The settings file to modify.
      */
     @JvmStatic
-    fun processSettings(settings: Settings) {
+    fun processSettings(settings: Settings, serviceContainer: ServiceContainer? = null) {
         try {
             val campaigns: List<Campaign> = settings.campaigns ?: return
 
             for (i in campaigns.indices) {
                 val campaign: Campaign = campaigns[i]
-                CampaignUtil.setVariationAllocation(campaign)
+                CampaignUtil.setVariationAllocation(campaign, serviceContainer)
                 //campaigns.set(i, campaign) Redundant call
             }
             addLinkedCampaignsToSettings(settings)
             addIsGatewayServiceRequiredFlag(settings)
             addIsHistoricalEventDSL(settings)
-            settingsFile = settings
         } catch (exception: Exception) {
-            LoggerService.log(
+            serviceContainer?.getLoggerService()?.log(
                 LogLevelEnum.ERROR,
-                "Exception occurred while processing settings " + exception.message
+                "Exception occurred while processing settings " + exception.message,
+                null
             )
         }
     }

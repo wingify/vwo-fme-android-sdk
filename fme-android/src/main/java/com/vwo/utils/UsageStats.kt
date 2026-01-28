@@ -16,6 +16,7 @@
 package com.vwo.utils
 
 import android.content.Context
+import com.vwo.ServiceContainer
 import com.vwo.models.user.VWOInitOptions
 import com.vwo.packages.logger.core.LogManager
 import com.vwo.packages.logger.enums.LogLevelEnum
@@ -44,7 +45,7 @@ private const val KEY_CACHED_SETTINGS_EXPIRY = "cse"
 private const val KEY_ACCOUNT_ID = "a"
 private const val KEY_ENVIRONMENT = "env"
 
-object UsageStats {
+class UsageStats {
 
     private val stats = ConcurrentHashMap<String, Any>()
     private val context: WeakReference<Context> = StorageProvider.contextRef
@@ -53,10 +54,10 @@ object UsageStats {
     private val featureDisabledValue = 0
     private lateinit var initOptions: VWOInitOptions
 
-    private fun collectStats() {
+    private fun collectStats(serviceContainer: ServiceContainer) {
 
-        stats[KEY_ACCOUNT_ID] = SettingsManager.instance?.accountId ?: 0
-        stats[KEY_ENVIRONMENT] = SettingsManager.instance?.sdkKey ?: ""
+        stats[KEY_ACCOUNT_ID] = serviceContainer.getSettings()?.accountId ?: 0
+        stats[KEY_ENVIRONMENT] = serviceContainer.getSettings()?.sdkKey ?: ""
 
         // Set integration flag if present
         if (initOptions.integrations != null) {
@@ -86,7 +87,7 @@ object UsageStats {
         }
 
         // Set log level if present
-        LogManager.instance?.level?.position?.let { stats[KEY_LOG_LEVEL] = it }
+        serviceContainer.getLoggerService()?.logManager?.level?.position?.let { stats[KEY_LOG_LEVEL] = it }
 
         // Set storage service flag
         if (initOptions.storage !is MobileDefaultStorage) // Client has provided their own storage service
@@ -130,13 +131,13 @@ object UsageStats {
         }
     }
     
-    fun collectStats(initOptions: VWOInitOptions): Map<String, Any> {
+    fun collectStats(initOptions: VWOInitOptions, serviceContainer: ServiceContainer): Map<String, Any> {
         this@UsageStats.initOptions = initOptions
 
         if (!initOptions.isUsageStatsDisabled) {
-            collectStats()
+            collectStats(serviceContainer)
         }
-        LoggerService.log(LogLevelEnum.INFO, "Usage stats: $stats")
+        serviceContainer.getLoggerService()?.log(LogLevelEnum.INFO, "Usage stats: $stats", null)
         return stats.toMap()
     }
 

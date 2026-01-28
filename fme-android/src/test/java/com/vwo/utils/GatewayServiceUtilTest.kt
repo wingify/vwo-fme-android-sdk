@@ -33,6 +33,7 @@ import org.junit.Assert.assertTrue
 import org.mockito.kotlin.any
 import org.mockito.kotlin.argThat
 import com.vwo.interfaces.networking.NetworkClientInterface
+import com.vwo.ServiceContainer
 import org.junit.Assert.assertFalse
 
 @RunWith(MockitoJUnitRunner::class)
@@ -43,6 +44,11 @@ class GatewayServiceUtilTest {
 
     @Mock
     private lateinit var mockNetworkClient: NetworkClientInterface
+    
+    @Mock
+    private lateinit var mockServiceContainer: ServiceContainer
+    
+    private lateinit var settingsManager: SettingsManager
 
     @Before
     fun setUp() {
@@ -51,11 +57,15 @@ class GatewayServiceUtilTest {
         val vwoInitOptions = VWOInitOptions()
         vwoInitOptions.sdkKey = sdkKey
         vwoInitOptions.accountId = accountId
-        SettingsManager(vwoInitOptions)
+        settingsManager = SettingsManager(vwoInitOptions)
 
-        SettingsManager.instance?.hostname = "test.vwo.com"
-        SettingsManager.instance?.protocol = "https"
-        SettingsManager.instance?.port = 443
+        settingsManager.hostname = "test.vwo.com"
+        settingsManager.protocol = "https"
+        settingsManager.port = 443
+
+        // Set up the mock ServiceContainer to return expected values
+        `when`(mockServiceContainer.getBaseUrl()).thenReturn("test.vwo.com")
+        `when`(mockServiceContainer.getSettingsManager()).thenReturn(settingsManager)
 
         NetworkManager.attachClient(mockNetworkClient)
     }
@@ -70,9 +80,9 @@ class GatewayServiceUtilTest {
             statusCode = 200
             data = expectedResponse
         }
-        `when`(mockNetworkClient.GET(any<RequestModel>())).thenReturn(responseModel)
+        `when`(mockNetworkClient.GET(any<RequestModel>(), any())).thenReturn(responseModel)
 
-        val result = GatewayServiceUtil.getFromGatewayService(queryParams, endpoint)
+        val result = GatewayServiceUtil.getFromGatewayService(queryParams, endpoint, mockServiceContainer)
 
         assertEquals(expectedResponse, result)
         verify(mockNetworkClient).GET(org.mockito.kotlin.argThat { request ->
@@ -82,7 +92,7 @@ class GatewayServiceUtilTest {
                     request.query == queryParams &&
                     request.scheme == "https" &&
                     request.port == 443
-        })
+        }, any())
     }
 
     @Test
@@ -90,15 +100,15 @@ class GatewayServiceUtilTest {
         val queryParams = mutableMapOf("key" to "value")
         val endpoint = "/test-endpoint"
 
-        `when`(mockNetworkClient.GET(any<RequestModel>())).thenReturn(null)
+        `when`(mockNetworkClient.GET(any<RequestModel>(), any())).thenReturn(null)
 
-        val result = GatewayServiceUtil.getFromGatewayService(queryParams, endpoint)
+        val result = GatewayServiceUtil.getFromGatewayService(queryParams, endpoint, mockServiceContainer)
 
         assertNull(result)
         verify(mockNetworkClient).GET(org.mockito.kotlin.argThat { request ->
             request.url == "test.vwo.com" &&
                     request.path == endpoint
-        })
+        }, any())
     }
 
     @Test
@@ -106,15 +116,15 @@ class GatewayServiceUtilTest {
         val queryParams = mutableMapOf("key" to "value")
         val endpoint = "/test-endpoint"
 
-        `when`(mockNetworkClient.GET(any<RequestModel>())).thenThrow(RuntimeException("Network error"))
+        `when`(mockNetworkClient.GET(any<RequestModel>(), any())).thenThrow(RuntimeException("Network error"))
 
-        val result = GatewayServiceUtil.getFromGatewayService(queryParams, endpoint)
+        val result = GatewayServiceUtil.getFromGatewayService(queryParams, endpoint, mockServiceContainer)
 
         assertNull(result)
         verify(mockNetworkClient).GET(org.mockito.kotlin.argThat { request ->
             request.url == "test.vwo.com" &&
                     request.path == endpoint
-        })
+        }, any())
     }
 
     @Test
@@ -127,9 +137,9 @@ class GatewayServiceUtilTest {
             statusCode = 200
             data = "test response"
         }
-        `when`(mockNetworkClient.GET(any<RequestModel>())).thenReturn(responseModel)
+        `when`(mockNetworkClient.GET(any<RequestModel>(), any())).thenReturn(responseModel)
 
-        val response = GatewayServiceUtil.getFromGatewayService(queryParams, endpoint, expectedResponseType)
+        val response = GatewayServiceUtil.getFromGatewayService(queryParams, endpoint, mockServiceContainer, expectedResponseType)
 
         assertEquals(responseModel.data, response)
     }

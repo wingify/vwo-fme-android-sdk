@@ -15,19 +15,16 @@
  */
 package com.vwo.packages.logger.core
 
-import com.vwo.constants.Constants
-import com.vwo.enums.EventEnum
+import com.vwo.ServiceContainer
+import com.vwo.enums.DebuggerCategoryEnum
 import com.vwo.interfaces.logger.ILogManager
 import com.vwo.interfaces.logger.LogTransport
 import com.vwo.packages.logger.Logger
 import com.vwo.packages.logger.enums.LogLevelEnum
 import com.vwo.packages.logger.transports.LogcatTransport
-import com.vwo.utils.NetworkUtil
-import com.vwo.utils.SDKMetaUtil.sdkVersion
+import com.vwo.services.LoggerService.Companion.errorMessages
 import com.vwo.utils.LogMessageUtil.buildMessage
 import com.vwo.utils.sendDebugEventToVWO
-import com.vwo.enums.DebuggerCategoryEnum
-import com.vwo.services.LoggerService.Companion.errorMessages
 import java.text.SimpleDateFormat
 import java.util.Locale
 import java.util.UUID
@@ -37,9 +34,10 @@ import java.util.UUID
  *
  * This class is responsible for initializing and managing the logging system,including configuring loglevels, transports, and formatting. It provides methods for adding transports, retrieving log details, and logging messages at various levels.
  */
-class LogManager(override val config: Map<String, Any>) : Logger(), ILogManager {
+class LogManager(override val config: Map<String, Any>, val serviceContainer: ServiceContainer) :
+    Logger(), ILogManager {
 
-    override val transportManager: LogTransportManager = LogTransportManager(config)
+    override val transportManager: LogTransportManager = LogTransportManager(config, this)
 
     override val name: String = config["name"] as? String ?: "VWO Logger"
 
@@ -68,7 +66,6 @@ class LogManager(override val config: Map<String, Any>) : Logger(), ILogManager 
 
     init {
         handleTransports()
-        instance = this
     }
 
     /**
@@ -194,26 +191,20 @@ class LogManager(override val config: Map<String, Any>) : Logger(), ILogManager 
         debugData: Map<String, Any>?,
         shouldSendToVWO: Boolean
     ) {
-
         val message = buildMessage(errorMessages[key], data as Map<String?, Any?>?)
         error(message)
-        
+
         if (shouldSendToVWO) {
             val debugEventProps = mutableMapOf<String, Any>()
-            debugData?.let { debugEventProps.putAll(it)}
-            data?.let { debugEventProps.putAll(it)}
+            debugData?.let { debugEventProps.putAll(it) }
+            data?.let { debugEventProps.putAll(it) }
             debugEventProps["msg_t"] = key
             debugEventProps["lt"] = com.vwo.enums.LogLevelEnum.ERROR.name
             debugEventProps["cg"] = DebuggerCategoryEnum.ERROR.key
             debugEventProps["msg"] = message ?: ""
 
-            sendDebugEventToVWO(debugEventProps)
+            sendDebugEventToVWO(debugEventProps, serviceContainer)
         }
     }
 
-    companion object {
-        @JvmStatic
-        var instance: LogManager? = null
-            private set
-    }
 }

@@ -6,6 +6,7 @@
 
   "INVALID_POLLING_CONFIGURATION": "Invalid {key} passed in options. Should be of type: {correctType} and greater than equal to 1000",
 
+
   "ERROR_FETCHING_SETTINGS": "Settings could not be fetched. Error: {err}",
   "BATCH_UPLOAD_ERROR": "Event batch could not be uploaded. Error: {err}",
   "INVALID_SETTINGS_SCHEMA": "Settings are not valid. Failed schema validation",

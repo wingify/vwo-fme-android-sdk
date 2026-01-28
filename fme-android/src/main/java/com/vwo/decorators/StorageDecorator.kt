@@ -15,6 +15,7 @@
  */
 package com.vwo.decorators
 
+import com.vwo.ServiceContainer
 import com.vwo.enums.ApiEnum
 import com.vwo.interfaces.storage.IStorageDecorator
 import com.vwo.models.Variation
@@ -29,7 +30,7 @@ import com.vwo.services.StorageService
  * and variations. It ensures data integrity by validating the input before storing it and logs
  * errors if any inconsistencies are found.
  */
-class StorageDecorator : IStorageDecorator {
+class StorageDecorator(private val serviceContainer: ServiceContainer? = null) : IStorageDecorator {
 
     /**
      * Retrieves feature data from storage for the given feature key and user context.
@@ -65,25 +66,28 @@ class StorageDecorator : IStorageDecorator {
         val context = data["context"] as? VWOUserContext
         val featureKey = data["featureKey"] as String?
         val userId = data["userId"]?.toString()
-        val uuid = context?.getUuid()
+        val uuid = serviceContainer?.let { sc -> context?.getUuid(serviceContainer = sc) }
         val debugValues = mutableMapOf("an" to ApiEnum.GET_FLAG.value)
         if (uuid != null) debugValues["uuid"] = uuid
 
         if (featureKey.isNullOrEmpty()) {
             LoggerService.errorLog(
-                "ERROR_STORING_DATA_IN_STORAGE",
-                mapOf("key" to "featureKey"),
-                debugValues
+                key = "ERROR_STORING_DATA_IN_STORAGE",
+                data = mapOf("key" to "featureKey"),
+                debugData = debugValues,
+                shouldSendToVWO = true,
+                serviceContainer = serviceContainer
             )
             return null
         }
 
         if (userId.isNullOrEmpty()) {
             LoggerService.errorLog(
-                "ERROR_STORING_DATA_IN_STORAGE",
-                mapOf("key" to "userId"),
-                debugValues,
-                true
+                key = "ERROR_STORING_DATA_IN_STORAGE",
+                data = mapOf("key" to "userId"),
+                debugData = debugValues,
+                shouldSendToVWO = true,
+                serviceContainer = serviceContainer
             )
             return null
         }
@@ -95,19 +99,22 @@ class StorageDecorator : IStorageDecorator {
 
         if (rolloutKey != null && !rolloutKey.isEmpty() && experimentKey == null && rolloutVariationId == null) {
             LoggerService.errorLog(
-                "ERROR_STORING_DATA_IN_STORAGE",
-                mapOf("key" to "Variation:(rolloutKey, experimentKey or rolloutVariationId)"),
-                debugValues
+                key = "ERROR_STORING_DATA_IN_STORAGE",
+                data = mapOf("key" to "Variation:(rolloutKey, experimentKey or rolloutVariationId)"),
+                debugData = debugValues,
+                shouldSendToVWO = true,
+                serviceContainer = serviceContainer
             )
             return null
         }
 
         if (!experimentKey.isNullOrEmpty() && experimentVariationId == null) {
             LoggerService.errorLog(
-                "ERROR_STORING_DATA_IN_STORAGE",
-                mapOf("key" to "Variation:(experimentKey or rolloutVariationId)"),
-                debugValues,
-                true
+                key = "ERROR_STORING_DATA_IN_STORAGE",
+                data = mapOf("key" to "Variation:(experimentKey or rolloutVariationId)"),
+                debugData = debugValues,
+                shouldSendToVWO = true,
+                serviceContainer = serviceContainer
             )
             return null
         }

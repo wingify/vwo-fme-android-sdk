@@ -19,6 +19,7 @@ import android.content.Context
 import com.vwo.models.user.VWOUserContext
 import com.vwo.models.user.VWOInitOptions
 import com.vwo.providers.StorageProvider
+import com.vwo.ServiceContainer
 import org.junit.Assert.*
 import org.junit.Before
 import org.junit.Test
@@ -35,9 +36,12 @@ class UserIdUtilTest {
 
     @Mock
     private lateinit var mockContext: Context
-    
+
     @Mock
     private lateinit var mockDeviceIdUtil: DeviceIdUtil
+    
+    @Mock
+    private lateinit var mockServiceContainer: ServiceContainer
 
     @Before
     fun setup() {
@@ -54,7 +58,7 @@ class UserIdUtilTest {
         options.context = mockContext
 
         // Act
-        val userId = UserIdUtil.getUserId(context, options)
+        val userId = UserIdUtil.getUserId(context, options, mockServiceContainer)
 
         // Assert
         assertEquals("user123", userId)
@@ -72,7 +76,7 @@ class UserIdUtilTest {
         whenever(mockDeviceIdUtil.getDeviceId(mockContext)).thenReturn("device_123456")
 
         // Act
-        val userId = UserIdUtil.getUserId(context, options, mockDeviceIdUtil)
+        val userId = UserIdUtil.getUserId(context, options, mockServiceContainer, mockDeviceIdUtil)
 
         // Assert
         assertEquals("device_123456", userId)
@@ -90,7 +94,7 @@ class UserIdUtilTest {
         whenever(mockDeviceIdUtil.getDeviceId(mockContext)).thenReturn("device_789012")
 
         // Act
-        val userId = UserIdUtil.getUserId(context, options, mockDeviceIdUtil)
+        val userId = UserIdUtil.getUserId(context, options, mockServiceContainer, mockDeviceIdUtil)
 
         // Assert
         assertEquals("device_789012", userId)
@@ -106,7 +110,7 @@ class UserIdUtilTest {
         options.context = mockContext
 
         // Act
-        val userId = UserIdUtil.getUserId(context, options)
+        val userId = UserIdUtil.getUserId(context, options, mockServiceContainer)
 
         // Assert
         assertNull(userId)
@@ -122,7 +126,7 @@ class UserIdUtilTest {
         options.context = mockContext
 
         // Act
-        val userId = UserIdUtil.getUserId(context, options)
+        val userId = UserIdUtil.getUserId(context, options, mockServiceContainer)
 
         // Assert
         assertNull(userId)
@@ -135,7 +139,7 @@ class UserIdUtilTest {
         options.context = mockContext
 
         // Act
-        val userId = UserIdUtil.getUserId(null, options)
+        val userId = UserIdUtil.getUserId(null, options, mockServiceContainer)
 
         // Assert
         assertNull(userId)
@@ -148,7 +152,7 @@ class UserIdUtilTest {
         context.id = ""
 
         // Act
-        val userId = UserIdUtil.getUserId(context, null)
+        val userId = UserIdUtil.getUserId(context, null, mockServiceContainer)
 
         // Assert
         assertNull(userId)
@@ -166,7 +170,7 @@ class UserIdUtilTest {
         whenever(mockDeviceIdUtil.getDeviceId(mockContext)).thenReturn(null)
 
         // Act
-        val userId = UserIdUtil.getUserId(context, options, mockDeviceIdUtil)
+        val userId = UserIdUtil.getUserId(context, options, mockServiceContainer, mockDeviceIdUtil)
 
         // Assert
         assertNull(userId)
@@ -182,7 +186,7 @@ class UserIdUtilTest {
         options.context = mockContext
 
         // Act
-        val isAvailable = UserIdUtil.isUserIdAvailable(context, options)
+        val isAvailable = UserIdUtil.isUserIdAvailable(context, options, mockDeviceIdUtil, mockServiceContainer)
 
         // Assert
         assertTrue(isAvailable)
@@ -200,7 +204,7 @@ class UserIdUtilTest {
         whenever(mockDeviceIdUtil.getDeviceId(mockContext)).thenReturn("device_123456")
 
         // Act
-        val isAvailable = UserIdUtil.isUserIdAvailable(context, options, mockDeviceIdUtil)
+        val isAvailable = UserIdUtil.isUserIdAvailable(context, options, mockDeviceIdUtil, mockServiceContainer)
 
         // Assert
         assertTrue(isAvailable)
@@ -216,7 +220,7 @@ class UserIdUtilTest {
         options.context = mockContext
 
         // Act
-        val isAvailable = UserIdUtil.isUserIdAvailable(context, options)
+        val isAvailable = UserIdUtil.isUserIdAvailable(context, options, mockDeviceIdUtil, mockServiceContainer)
 
         // Assert
         assertFalse(isAvailable)

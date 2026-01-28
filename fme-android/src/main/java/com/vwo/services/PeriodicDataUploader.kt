@@ -127,7 +127,7 @@ class UploadWorker(appContext: Context, workerParams: WorkerParameters) :
             // and then our work will start.
             val delayToWaitForNetwork: Long = 10 * 1000
             delay(delayToWaitForNetwork)
-            val isFinished = BatchManager.start("Background worker")
+            val isFinished = BatchManager.start("Background worker", null)
             if (!isFinished) return Result.retry()
             return Result.success()
         } catch (e: Exception) {

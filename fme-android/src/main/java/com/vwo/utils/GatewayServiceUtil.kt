@@ -15,10 +15,9 @@
  */
 package com.vwo.utils
 
+import com.vwo.ServiceContainer
 import com.vwo.packages.network_layer.manager.NetworkManager
 import com.vwo.packages.network_layer.models.RequestModel
-import com.vwo.services.SettingsManager
-import com.vwo.services.UrlService.baseUrl
 import java.net.URLEncoder
 
 /**
@@ -37,22 +36,23 @@ object GatewayServiceUtil {
     fun getFromGatewayService(
         queryParams: MutableMap<String, String>,
         endpoint: String,
+        serviceContainer: ServiceContainer,
         expectedResponseType: String = "application/json"
     ): String? {
         var responseString: String? = null
         try {
             val request = RequestModel(
-                baseUrl,
+                serviceContainer.getBaseUrl(),
                 "GET",
                 endpoint,
                 queryParams,
                 null,
                 null,
-                SettingsManager.instance?.protocol,
-                SettingsManager.instance?.port ?: 0,
+                serviceContainer.getSettingsManager()?.protocol,
+                serviceContainer.getSettingsManager()?.port ?: 0,
                 expectedResponseType,
             )
-            val response = NetworkManager.get(request)
+            val response = NetworkManager.get(request,serviceContainer)
 
             responseString = response?.data
         } catch (e: Exception) {

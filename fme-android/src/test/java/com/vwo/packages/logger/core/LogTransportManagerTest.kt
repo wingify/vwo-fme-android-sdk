@@ -18,6 +18,8 @@ package com.vwo.packages.logger.core
 
 import com.vwo.interfaces.logger.LogTransport
 import com.vwo.packages.logger.enums.LogLevelEnum
+import com.vwo.ServiceContainer
+import com.vwo.models.user.VWOInitOptions
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -43,11 +45,17 @@ class LogTransportManagerTest {
 
     @Before
     fun setup() {
-        logTransportManager = LogTransportManager(config)
         val loggerConfig = mutableMapOf<String, Any>().apply {
             put("level", "TRACE")
         }
-        LogManager(loggerConfig)
+        val mockServiceContainer = ServiceContainer(
+            settingsManager = null,
+            options = VWOInitOptions(),
+            settings = null,
+            loggerService = null
+        )
+        val logManager = LogManager(loggerConfig, mockServiceContainer)
+        logTransportManager = LogTransportManager(config, logManager)
     }
 
     @Test
@@ -177,7 +185,14 @@ class LogTransportManagerTest {
     fun `test log with multiple transports and different levels`() {
         // Arrange
         val debugConfig = mapOf<String, Any>("level" to "DEBUG")
-        val debugManager = LogTransportManager(debugConfig)
+        val mockServiceContainer = ServiceContainer(
+            settingsManager = null,
+            options = VWOInitOptions(),
+            settings = null,
+            loggerService = null
+        )
+        val logManager = LogManager(debugConfig, mockServiceContainer)
+        val debugManager = LogTransportManager(debugConfig, logManager)
         debugManager.addTransport(mockTransport1)
         debugManager.addTransport(mockTransport2)
 

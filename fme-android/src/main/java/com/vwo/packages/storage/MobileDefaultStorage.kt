@@ -17,6 +17,7 @@
 package com.vwo.packages.storage
 
 import com.vwo.constants.Constants
+import com.vwo.models.user.VWOInitOptions
 import com.vwo.packages.logger.enums.LogLevelEnum
 import com.vwo.providers.StorageProvider.contextRef
 import com.vwo.services.LoggerService
@@ -30,12 +31,13 @@ import org.json.JSONObject
  * instance to interact with the local storage. It provides methods for setting
  * and getting data associated with feature keys and user IDs.
  */
-class MobileDefaultStorage :Connector() {
+class MobileDefaultStorage(private val initOptions: VWOInitOptions) : Connector() {
 
     /**
      * The instance of `DefaultStorage` used for local storage operations.
      */
     private var storage: DefaultStorage? = null
+    private val separator = "_"
 
     /**
      * Initializes the `MobileDefaultStorage` instance.
@@ -63,9 +65,12 @@ class MobileDefaultStorage :Connector() {
      * - "experimentId": The experiment ID for the data (optional).
      */
     override fun set(data: Map<String, Any>) {
+        val accId = initOptions.accountId ?: return
+        val sdkKey = initOptions.sdkKey ?: return
         if (storage == null) return
 
-        val key = data["featureKey"].toString() + "_" + data["userId"]
+        val key =
+            "$accId${separator}$sdkKey${separator}${data["featureKey"].toString()}$separator${data["userId"]}"
 
         // Create a map to store the data
         val value: MutableMap<String, Any?> = HashMap()
@@ -90,17 +95,21 @@ class MobileDefaultStorage :Connector() {
      * @return The data if found, or null otherwise.
      */
     override fun get(featureKey: String?, userId: String?): Any? {
-        val key = featureKey + "_" + userId
+        val accId = initOptions.accountId ?: return null
+        val sdkKey = initOptions.sdkKey ?: return null
+        val key = "$accId${separator}$sdkKey${separator}${featureKey}$separator${userId}"
 
         if (storage == null) return null
         val stringValue = storage?.getFeatureKey(key)
         // Check if the key exists in the storage
         if (stringValue.isNullOrEmpty()) {
-            LoggerService.log(LogLevelEnum.INFO,
-                "ERROR_READING_DATA_FROM_BROWSER_STORAGE",
-                mapOf(
+            LoggerService.log(
+                level = LogLevelEnum.INFO,
+                key = "ERROR_READING_DATA_FROM_BROWSER_STORAGE",
+                map = mapOf(
                     Constants.ERR to "value not found in storage"
-                )
+                ),
+                serviceContainer = null
             )
             return null
         }

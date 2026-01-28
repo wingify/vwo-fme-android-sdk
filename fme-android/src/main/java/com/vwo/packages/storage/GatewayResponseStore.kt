@@ -38,13 +38,20 @@ internal class GatewayResponseStore(context: Context) : LocalStorageController(c
      */
     private val GATEWAY_RESPONSE_EXPIRY_KEY = "gatewayResponseExpiry"
 
+    private fun getKey(accId: Int, sdkKey: String) =
+        "${accId}_${sdkKey}_$GATEWAY_RESPONSE_KEY"
+
+    private fun getExpiryKey(accId: Int, sdkKey: String) =
+        "${accId}_${sdkKey}_$GATEWAY_RESPONSE_EXPIRY_KEY"
+
     /**
      * Retrieves the gateway response data from local storage.
      *
      * @return The gateway response data as a string.
      */
-    fun getGatewayResponse(): String {
-        return getString(GATEWAY_RESPONSE_KEY)
+    fun getGatewayResponse(accId: Int, sdkKey: String): String {
+        val key = getKey(accId, sdkKey)
+        return getString(key)
     }
 
     /**
@@ -52,15 +59,15 @@ internal class GatewayResponseStore(context: Context) : LocalStorageController(c
      *
      * @param gatewayResponse The gateway response data to be saved.
      */
-    fun saveGatewayResponse(gatewayResponse: String) {
-        saveString(GATEWAY_RESPONSE_KEY, gatewayResponse)
+    fun saveGatewayResponse(gatewayResponse: String, accId: Int, sdkKey: String) {
+        saveString(getKey(accId, sdkKey), gatewayResponse)
     }
 
     /**
      * Clears the gateway response data from local storage.
      */
-    fun clearGatewayResponse() {
-        clearData(GATEWAY_RESPONSE_KEY)
+    fun clearGatewayResponse(accId: Int, sdkKey: String) {
+        clearData(getKey(accId, sdkKey))
     }
 
     /**
@@ -68,8 +75,8 @@ internal class GatewayResponseStore(context: Context) : LocalStorageController(c
      *
      * @return The gateway response expiry time as a long value.
      */
-    fun getGatewayResponseExpiry(): Long {
-        return getLong(GATEWAY_RESPONSE_EXPIRY_KEY)
+    fun getGatewayResponseExpiry(accId: Int, sdkKey: String): Long {
+        return getLong(getExpiryKey(accId, sdkKey))
     }
 
     /**
@@ -77,15 +84,15 @@ internal class GatewayResponseStore(context: Context) : LocalStorageController(c
      *
      * @param expiryTime The gateway response expiry time to be saved.
      */
-    fun saveGatewayResponseExpiry(expiryTime: Long) {
-        saveLong(GATEWAY_RESPONSE_EXPIRY_KEY, expiryTime)
+    fun saveGatewayResponseExpiry(expiryTime: Long, accId: Int, sdkKey: String) {
+        saveLong(getExpiryKey(accId, sdkKey), expiryTime)
     }
 
     /**
      * Clears the gateway response expiry time from local storage.
      */
-    fun clearGatewayResponseExpiry() {
-        clearData(GATEWAY_RESPONSE_EXPIRY_KEY)
+    fun clearGatewayResponseExpiry(accId: Int, sdkKey: String) {
+        clearData(getExpiryKey(accId, sdkKey))
     }
 
     /**

@@ -19,13 +19,11 @@ import android.content.ContentValues
 import android.content.Context
 import android.database.Cursor
 import android.database.sqlite.SQLiteDatabase
+import com.vwo.ServiceContainer
 import com.vwo.constants.Constants
 import com.vwo.db.SdkDatabaseHelper
 import com.vwo.models.OfflineEventData
 import com.vwo.packages.logger.enums.LogLevelEnum
-import com.vwo.services.LoggerService
-import com.vwo.providers.StorageProvider
-import com.vwo.services.PeriodicDataUploader
 
 const val TABLE_NAME = "fme_events"
 const val COLUMN_ID_KEY = "id"
@@ -40,7 +38,7 @@ const val COLUMN_PAYLOAD = "payload"
  *
  * @param context The application context.
  */
-class SdkDataManager(context: Context) {
+class SdkDataManager(context: Context, private val serviceContainer: ServiceContainer? = null) {
 
     private val dbHelper = SdkDatabaseHelper(context)
 
@@ -70,7 +68,7 @@ class SdkDataManager(context: Context) {
             )
             rowId != -1L
         } catch (e: Exception) {
-            LoggerService.log(LogLevelEnum.ERROR, "DATABASE_ERROR", mapOf(Constants.ERR to e.message))
+            serviceContainer?.getLoggerService()?.log(LogLevelEnum.ERROR, "DATABASE_ERROR", mapOf(Constants.ERR to e.message))
             false
         }
     }
@@ -106,7 +104,7 @@ class SdkDataManager(context: Context) {
                 offlineEventDataList.add(OfflineEventData(id, sdkKey, accountId, payload))
             }
         } catch (e: Exception) {
-            LoggerService.log(LogLevelEnum.ERROR, "DATABASE_ERROR", mapOf(Constants.ERR to e.message))
+            serviceContainer?.getLoggerService()?.log(LogLevelEnum.ERROR, "DATABASE_ERROR", mapOf(Constants.ERR to e.message))
         } finally {
             cursor?.close()
         }
@@ -127,7 +125,7 @@ class SdkDataManager(context: Context) {
             val rowsDeleted = db.delete(TABLE_NAME, "$COLUMN_SDK_KEY = ?", arrayOf(sdkKey))
             rowsDeleted > 0
         } catch (e: Exception) {
-            LoggerService.log(LogLevelEnum.ERROR, "DATABASE_ERROR", mapOf(Constants.ERR to e.message))
+            serviceContainer?.getLoggerService()?.log(LogLevelEnum.ERROR, "DATABASE_ERROR", mapOf(Constants.ERR to e.message))
             false
         }
     }
@@ -157,7 +155,7 @@ class SdkDataManager(context: Context) {
                 } while (cursor.moveToNext())
             }
         } catch (e: Exception) {
-            LoggerService.log(LogLevelEnum.ERROR, "DATABASE_ERROR", mapOf(Constants.ERR to e.message))
+            serviceContainer?.getLoggerService()?.log(LogLevelEnum.ERROR, "DATABASE_ERROR", mapOf(Constants.ERR to e.message))
         } finally {
             cursor?.close()
         }
@@ -178,7 +176,7 @@ class SdkDataManager(context: Context) {
             val rowCount = db.delete(TABLE_NAME, whereClause, whereArgs)
             rowCount != 0
         } catch (e: Exception) {
-            LoggerService.log(LogLevelEnum.ERROR, "DATABASE_ERROR", mapOf(Constants.ERR to e.message))
+            serviceContainer?.getLoggerService()?.log(LogLevelEnum.ERROR, "DATABASE_ERROR", mapOf(Constants.ERR to e.message))
             false
         }
     }
@@ -214,7 +212,57 @@ class SdkDataManager(context: Context) {
 
             entryCount
         } catch (e: Exception) {
-            LoggerService.log(LogLevelEnum.ERROR, "DATABASE_ERROR", mapOf(Constants.ERR to e.message))
+            serviceContainer?.getLoggerService()?.log(LogLevelEnum.ERROR, "DATABASE_ERROR", mapOf("err" to e.message))
+            0
+        } finally {
+            cursor?.close()
+        }
+    }
+
+    /**
+     * Retrieves the count of events for a specific account ID and SDK key.
+     *
+     * This function queries the database to count the number of rows matching the provided
+     * account ID and SDK key combination.
+     *
+     * @param accountId The account ID to filter by.
+     * @param sdkKey The SDK key to filter by.
+     * @return The count of events for the specified account ID and SDK key.
+     */
+    fun getEventCount(accountId: Long, sdkKey: String): Int {
+        if (sdkKey.isEmpty()) return 0
+
+        var cursor: Cursor? = null
+        return try {
+            val db = dbHelper.readableDatabase
+
+            cursor = db.query(
+                TABLE_NAME,
+                arrayOf("COUNT(*)"),
+                "$COLUMN_SDK_KEY = ? AND $COLUMN_ACCOUNT_ID = ?",
+                arrayOf(sdkKey, accountId.toString()),
+                null,
+                null,
+                null
+            )
+
+            var eventCount = 0
+            if (cursor != null && cursor.moveToFirst()) {
+                eventCount = cursor.getInt(0)
+            }
+
+            eventCount
+        } catch (e: Exception) {
+            serviceContainer?.getLoggerService()?.log(
+                LogLevelEnum.ERROR,
+                "DATABASE_ERROR",
+                mapOf(
+                    "err" to e.message,
+                    "operation" to "getEventCount",
+                    "accountId" to accountId.toString(),
+                    "sdkKey" to sdkKey
+                )
+            )
             0
         } finally {
             cursor?.close()

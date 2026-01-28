@@ -15,11 +15,11 @@
  */
 package com.vwo.utils
 
+import com.vwo.ServiceContainer
 import com.vwo.VWOClient
 import com.vwo.constants.Constants
 import com.vwo.constants.Constants.PRODUCT_NAME
 import com.vwo.constants.Constants.VWO_FS_ENVIRONMENT
-import com.vwo.constants.Constants.defaultString
 import com.vwo.enums.EventEnum
 import com.vwo.enums.HeadersEnum
 import com.vwo.enums.UrlEnum
@@ -37,9 +37,6 @@ import com.vwo.packages.logger.enums.LogLevelEnum
 import com.vwo.packages.network_layer.manager.NetworkManager
 import com.vwo.packages.network_layer.models.RequestModel
 import com.vwo.providers.StorageProvider
-import com.vwo.services.LoggerService.Companion.log
-import com.vwo.services.SettingsManager
-import com.vwo.services.UrlService.baseUrl
 import java.util.Calendar
 
 /**
@@ -75,22 +72,23 @@ class NetworkUtil {
             eventName: String,
             visitorUserAgent: String?,
             ipAddress: String?,
+            serviceContainer: ServiceContainer,
             isUsageStatsEvent: Boolean = false,
             usageStatsAccountId: Int = 0,
         ): MutableMap<String, String> {
 
             val requestQueryParams = RequestQueryParams(
                 eventName,
-                SettingsManager.instance?.accountId.toString(),
-                SettingsManager.instance?.sdkKey ?: "",
+                serviceContainer.getAccountId().toString(),
+                serviceContainer.getSdkKey(),
                 visitorUserAgent,
                 ipAddress,
-                generateEventUrl()
+                generateEventUrl(serviceContainer)
             )
             if (isUsageStatsEvent) {
                 requestQueryParams.a = usageStatsAccountId.toString()
             } else {
-                requestQueryParams.env = SettingsManager.instance?.sdkKey
+                requestQueryParams.env = serviceContainer.getSettingsManager()?.sdkKey
             }
 
             requestQueryParams.queryParams["sn"] = SDKMetaUtil.sdkName
@@ -114,6 +112,7 @@ class NetworkUtil {
             eventName: String,
             visitorUserAgent: String?,
             ipAddress: String?,
+            serviceContainer: ServiceContainer,
             isUsageStatsEvent: Boolean = false,
             usageStatsAccountId: Int = 0,
             shouldGenerateUUID: Boolean = true,
@@ -122,7 +121,7 @@ class NetworkUtil {
             val accountId = if (isUsageStatsEvent) {
                 usageStatsAccountId
             } else {
-                SettingsManager.instance?.accountId
+                serviceContainer.getAccountId()
             }
 
             val uuid = if (shouldGenerateUUID) {
@@ -136,12 +135,12 @@ class NetworkUtil {
             eventArchData.sessionId = context?.sessionId
             setOptionalVisitorData(eventArchData, visitorUserAgent, ipAddress)
 
-            val event = createEvent(eventName, isUsageStatsEvent)
+            val event = createEvent(eventName, isUsageStatsEvent, serviceContainer)
             eventArchData.event = event
             val visitor = if (isUsageStatsEvent) {
                 null
             } else {
-                createVisitor(isUsageStatsEvent)
+                createVisitor(isUsageStatsEvent, serviceContainer)
             }
             eventArchData.visitor = visitor
 
@@ -176,9 +175,13 @@ class NetworkUtil {
          * @param settings The settings model containing configuration.
          * @return The event model.
          */
-        private fun createEvent(eventName: String, isUsageStatsEvent: Boolean = false): Event {
+        private fun createEvent(
+            eventName: String,
+            isUsageStatsEvent: Boolean = false,
+            serviceContainer: ServiceContainer
+        ): Event {
             val event = Event()
-            val props = createProps(isUsageStatsEvent)
+            val props = createProps(isUsageStatsEvent, serviceContainer)
             event.props = props
             event.name = eventName
             event.time = System.currentTimeMillis()
@@ -190,12 +193,15 @@ class NetworkUtil {
          * @param settings The settings model containing configuration.
          * @return The visitor model.
          */
-        private fun createProps(isUsageStatsEvent: Boolean = false): Props {
+        private fun createProps(
+            isUsageStatsEvent: Boolean = false,
+            serviceContainer: ServiceContainer
+        ): Props {
             val props = Props()
             props.setSdkName(SDKMetaUtil.sdkName)
             props.setSdkVersion(SDKMetaUtil.sdkVersion)
             if (!isUsageStatsEvent) {
-                props.setEnvKey(SettingsManager.instance?.sdkKey)
+                props.setEnvKey(serviceContainer.getSdkKey())
             }
             return props
         }
@@ -205,11 +211,14 @@ class NetworkUtil {
          * @param settings The settings model containing configuration.
          * @return The visitor model.
          */
-        private fun createVisitor(isUsageStatsEvent: Boolean = false): Visitor {
+        private fun createVisitor(
+            isUsageStatsEvent: Boolean = false,
+            serviceContainer: ServiceContainer
+        ): Visitor {
             val visitor = Visitor()
             val visitorProps: MutableMap<String, Any> = HashMap()
             if (!isUsageStatsEvent) {
-                visitorProps[VWO_FS_ENVIRONMENT] = SettingsManager.instance?.sdkKey ?: defaultString
+                visitorProps[VWO_FS_ENVIRONMENT] = serviceContainer.getSdkKey()
             }
             visitor.setProps(visitorProps)
             return visitor
@@ -279,7 +288,8 @@ class NetworkUtil {
             campaignId: Int,
             variationId: Int,
             visitorUserAgent: String?,
-            ipAddress: String?
+            ipAddress: String?,
+            serviceContainer: ServiceContainer
         ): Map<String, Any> {
             val properties =
                 getEventBasePayload(
@@ -288,7 +298,8 @@ class NetworkUtil {
                     userId,
                     eventName,
                     visitorUserAgent,
-                    ipAddress
+                    ipAddress,
+                    serviceContainer
                 )
             properties.d!!.event!!.props!!.id = campaignId
             properties.d!!.event!!.props!!.variation = variationId.toString()
@@ -300,7 +311,7 @@ class NetworkUtil {
                 addCustomVariablesToVisitorProps(properties, context)
             }
 
-            log(
+            serviceContainer.getLoggerService()?.log(
                 LogLevelEnum.DEBUG,
                 "IMPRESSION_FOR_TRACK_USER",
                 object : HashMap<String?, String?>() {
@@ -329,7 +340,8 @@ class NetworkUtil {
             userId: String?,
             eventName: String,
             context: VWOUserContext,
-            eventProperties: Map<String, Any>
+            eventProperties: Map<String, Any>,
+            serviceContainer: ServiceContainer
         ): Map<String, Any?> {
             val properties = getEventBasePayload(
                 settings,
@@ -337,11 +349,12 @@ class NetworkUtil {
                 userId,
                 eventName,
                 StorageProvider.userAgent,
-                StorageProvider.ipAddress
+                StorageProvider.ipAddress,
+                serviceContainer
             )
             properties.d?.event?.props?.setCustomEvent(true)
             addCustomEventProperties(properties, eventProperties)
-            log(
+            serviceContainer.getLoggerService()?.log(
                 LogLevelEnum.DEBUG,
                 "IMPRESSION_FOR_TRACK_GOAL",
                 object : HashMap<String?, String?>() {
@@ -383,12 +396,21 @@ class NetworkUtil {
             context: VWOUserContext,
             userId: String?,
             eventName: String,
-            attributeMap: Map<String, Any>
+            attributeMap: Map<String, Any>,
+            serviceContainer: ServiceContainer
         ): Map<String, Any> {
-            val properties = getEventBasePayload(settings, context, userId, eventName, null, null)
+            val properties = getEventBasePayload(
+                settings,
+                context,
+                userId,
+                eventName,
+                null,
+                null,
+                serviceContainer
+            )
             properties.d?.event?.props?.setCustomEvent(true)
             properties.d?.visitor?.props?.putAll(attributeMap)
-            log(
+            serviceContainer.getLoggerService()?.log(
                 LogLevelEnum.DEBUG,
                 "IMPRESSION_FOR_SYNC_VISITOR_PROP",
                 object : HashMap<String?, String?>() {
@@ -413,11 +435,13 @@ class NetworkUtil {
         fun getMessagingEventPayload(
             messageType: String,
             message: String,
-            eventName: String
+            eventName: String,
+            serviceContainer: ServiceContainer
         ): Map<String, Any> {
-            val settingsManager = SettingsManager.instance
-            val userId = settingsManager?.accountId.toString() + "_" + settingsManager?.sdkKey
-            val properties = getEventBasePayload(null, null, userId, eventName, null, null)
+            val userId =
+                serviceContainer.getAccountId().toString() + "_" + serviceContainer.getSdkKey()
+            val properties =
+                getEventBasePayload(null, null, userId, eventName, null, null, serviceContainer)
             properties.d?.event?.props?.setProduct(PRODUCT_NAME)
             val data: MutableMap<String, Any> = HashMap()
             data["type"] = messageType
@@ -446,16 +470,18 @@ class NetworkUtil {
         fun getSDKInitEventPayload(
             eventName: String,
             settingsFetchTime: Long? = null,
-            sdkInitTime: Long? = null
+            sdkInitTime: Long? = null,
+            serviceContainer: ServiceContainer
         ): Map<String, Any> {
-            val settingsManager = SettingsManager.instance
+            val settingsManager = serviceContainer.getSettingsManager()
             val accountId = settingsManager?.accountId
             val sdkKey = settingsManager?.sdkKey
             if (accountId == null || sdkKey == null)
                 return emptyMap()
 
             val uniqueKey = accountId.toString() + "_" + sdkKey
-            val properties = getEventBasePayload(null, null, uniqueKey, eventName, null, null)
+            val properties =
+                getEventBasePayload(null, null, uniqueKey, eventName, null, null, serviceContainer)
 
             // Set the required fields as specified
             properties.d?.event?.props?.let { props ->
@@ -488,33 +514,32 @@ class NetworkUtil {
          * @param ipAddress The IP address of the user.
          */
         fun sendPostApiRequest(
-            settings: Settings,
             properties: MutableMap<String, String>,
             payload: Map<String, Any?>?,
             userAgent: String?,
             ipAddress: String?,
-            eventProperties: Map<String, Any?> = emptyMap(),
-            campaignInfo: Map<String, Any> = emptyMap()
+            serviceContainer: ServiceContainer,
+            campaignInfo: Map<String, Any> = emptyMap(),
         ) {
             try {
                 NetworkManager.attachClient()
                 val headers = createHeaders(userAgent, ipAddress)
                 val request = RequestModel(
-                    baseUrl,
+                    serviceContainer.getBaseUrl(),
                     "POST",
                     UrlEnum.EVENTS.url,
                     properties,
                     payload,
                     headers,
-                    SettingsManager.instance!!.protocol,
-                    SettingsManager.instance!!.port
+                    serviceContainer.getSettingsManager()?.protocol,
+                    serviceContainer.getSettingsManager()?.port ?: 0,
                 )
                 request.campaignInfo = campaignInfo
-                NetworkManager.postAsync(request)
-                if (UsageStats.getStats().isNotEmpty())
-                    UsageStats.clearUsageStats()
+                NetworkManager.postAsync(request, serviceContainer)
+                if (serviceContainer.usageStats.getStats().isNotEmpty())
+                    serviceContainer.usageStats.clearUsageStats()
             } catch (exception: Exception) {
-                log(
+                serviceContainer.getLoggerService()?.log(
                     LogLevelEnum.ERROR,
                     "NETWORK_CALL_FAILED",
                     object : HashMap<String?, String?>() {
@@ -529,26 +554,26 @@ class NetworkUtil {
         fun sendGatewayEvent(
             queryParams: MutableMap<String, String>?,
             payload: Map<String, Any?>?,
+            serviceContainer: ServiceContainer,
             eventName: String
         ) {
             try {
                 NetworkManager.attachClient()
                 val headers = createHeaders(null, null)
                 val request = RequestModel(
-                    baseUrl,
+                    serviceContainer.getBaseUrl(),
                     "POST",
                     UrlEnum.EVENTS.url,
                     queryParams,
                     payload,
                     headers,
-                    SettingsManager.instance!!.protocol,
-                    SettingsManager.instance!!.port
+                    serviceContainer.getSettingsManager()?.protocol,
+                    serviceContainer.getSettingsManager()?.port ?: 0
                 )
                 request.eventName = eventName
-                NetworkManager.postAsync(request)
-            } catch (exception: Exception) {
-                // Silently catch any exceptions to prevent disrupting normal flow
-                /*log(
+                NetworkManager.postAsync(request, serviceContainer)
+            } catch (_: Exception) {
+                /*serviceContainer.getLoggerService()?.log(
                     LogLevelEnum.ERROR,
                     "NETWORK_CALL_FAILED",
                     object : HashMap<String?, String?>() {
@@ -563,7 +588,8 @@ class NetworkUtil {
         fun sendMessagingEvent(
             properties: MutableMap<String, String>?,
             payload: Map<String, Any?>?,
-            eventName: String
+            serviceContainer: ServiceContainer,
+            eventName: String,
         ) {
             try {
                 NetworkManager.attachClient()
@@ -579,9 +605,9 @@ class NetworkUtil {
                     0
                 )
                 request.eventName = eventName
-                NetworkManager.postAsync(request)
+                NetworkManager.postAsync(request, serviceContainer)
             } catch (exception: Exception) {
-                log(
+                serviceContainer.getLoggerService()?.log(
                     LogLevelEnum.DEBUG,
                     "NETWORK_CALL_FAILED",
                     object : HashMap<String?, String?>() {
@@ -608,8 +634,12 @@ class NetworkUtil {
          *         for the SDK usage statistics event. This map is ready to be serialized
          *         (e.g., to JSON) and sent to the server.
          */
-        fun getSDKUsageStatsEventPayload(event: EventEnum, usageStatsAccountId: Int): Map<String, Any> {
-            val settingsManager = SettingsManager.instance
+        fun getSDKUsageStatsEventPayload(
+            event: EventEnum,
+            usageStatsAccountId: Int,
+            serviceContainer: ServiceContainer
+        ): Map<String, Any> {
+            val settingsManager = serviceContainer.getSettingsManager()
             val accountId = settingsManager?.accountId
             val sdkKey = settingsManager?.sdkKey
             val userId = "${accountId}_$sdkKey"
@@ -621,6 +651,7 @@ class NetworkUtil {
                 event.value,
                 null,
                 null,
+                serviceContainer,
                 true,
                 usageStatsAccountId
             )
@@ -628,7 +659,7 @@ class NetworkUtil {
             // Set the required fields
             properties.d?.event?.props?.setProduct(PRODUCT_NAME)
 
-            val usageStats = UsageStats.getStats()
+            val usageStats = serviceContainer.usageStats.getStats()
             if (usageStats.isNotEmpty()) {
                 properties.d?.event?.props?.setVwoMeta(usageStats)
             }
@@ -673,8 +704,8 @@ class NetworkUtil {
          * Generates the URL for the event.
          * @return The URL for the event.
          */
-        private fun generateEventUrl(): String {
-            return Constants.HTTPS_PROTOCOL + baseUrl + UrlEnum.EVENTS.url
+        private fun generateEventUrl(serviceContainer: ServiceContainer): String {
+            return Constants.HTTPS_PROTOCOL + serviceContainer.getBaseUrl() + UrlEnum.EVENTS.url
         }
 
         /**
@@ -691,11 +722,16 @@ class NetworkUtil {
          * @param eventProps The properties for the debugger event.
          * @return Map containing the payload data.
          */
-        fun getDebuggerEventPayload(eventProps: Map<String, Any> = emptyMap()): Map<String, Any> {
+        fun getDebuggerEventPayload(
+            eventProps: Map<String, Any> = emptyMap(),
+            serviceContainer: ServiceContainer
+        ): Map<String, Any> {
+
+            val settingsManager = serviceContainer.getSettingsManager()
 
             // Compute UUID like Node: if absent, generate using accountId and sdkKey; else use provided
-            val accountId = SettingsManager.instance?.accountId
-            val sdkKey = SettingsManager.instance?.sdkKey
+            val accountId = settingsManager?.accountId
+            val sdkKey = settingsManager?.sdkKey
             val computedUuid = if (!eventProps.containsKey("uuid")) {
                 val userKey = "${accountId}_${sdkKey}"
                 UUIDUtils.getUUID(userKey, accountId.toString())
@@ -710,6 +746,7 @@ class NetworkUtil {
                 EventEnum.VWO_DEBUGGER_EVENT.value,
                 null,
                 null,
+                serviceContainer,
                 false,
                 0,
                 false
@@ -725,7 +762,7 @@ class NetworkUtil {
             val sessionId = (eventProps["sId"] as? Long) ?: FMEConfig.generateSessionId()
             properties.d?.sessionId = sessionId
             properties.d?.event?.props?.let { props ->
-                val envKey = SettingsManager.instance?.sdkKey?:""
+                val envKey = settingsManager?.sdkKey ?: ""
                 val map = mapOf(VWO_FS_ENVIRONMENT to envKey)
                 props.setAdditionalProperties(map)
                 props.setEnvKey(envKey)
@@ -745,13 +782,13 @@ class NetworkUtil {
             }
 
             // Static/meta fields
-            vwoMeta["a"] = SettingsManager.instance?.accountId ?: ""
+            vwoMeta["a"] = settingsManager?.accountId ?: ""
             vwoMeta["product"] = Constants.PRODUCT_NAME
             vwoMeta["sn"] = SDKMetaUtil.sdkName
             vwoMeta["sv"] = SDKMetaUtil.sdkVersion
             vwoMeta["pt"] = Constants.PLATFORM
             // Add eventId generated from sdkKey
-            vwoMeta["eventId"] = UUIDUtils.getRandomUUID(SettingsManager.instance?.sdkKey ?: "")
+            vwoMeta["eventId"] = UUIDUtils.getRandomUUID(settingsManager?.sdkKey ?: "")
 
             properties.d?.event?.props?.setVwoMeta(vwoMeta)
 

@@ -15,6 +15,7 @@
  */
 package com.vwo.services
 
+import com.vwo.ServiceContainer
 import com.vwo.VWOClient
 import com.vwo.packages.logger.core.LogManager
 import com.vwo.packages.logger.enums.LogLevelEnum
@@ -27,12 +28,11 @@ import com.vwo.utils.LogMessageUtil
  * This class is responsible for handling logging operations, allowing the application to record
  * events, messages,and errors for debugging and monitoring purposes.
  */
-class LoggerService(config: Map<String, Any>) {
+class LoggerService(private val config: Map<String, Any>, val serviceContainer: ServiceContainer) {
+
+    internal var logManager = LogManager(config, serviceContainer)
 
     init {
-        // initialize the LogManager
-        LogManager(config)
-
         // read the log files
         debugMessages = readLogFiles("assets/debug-messages.json")
         infoMessages = readLogFiles("assets/info-messages.json")
@@ -47,7 +47,7 @@ class LoggerService(config: Map<String, Any>) {
     private fun readLogFiles(fileName: String): Map<String, String> {
         try {
             val inputStream = this.javaClass.classLoader?.getResourceAsStream(fileName)
-            val jsonString = inputStream?.bufferedReader().use { it?.readText() }?:"{}"
+            val jsonString = inputStream?.bufferedReader().use { it?.readText() } ?: "{}"
             val values = VWOClient.objectMapper.readValue(jsonString, MutableMap::class.java)
             return filterStringMap(values)
         } catch (ex: Exception) {
@@ -57,8 +57,39 @@ class LoggerService(config: Map<String, Any>) {
         return HashMap()
     }
 
-    companion object {
+    fun log(level: LogLevelEnum, key: String, map: Map<String?, String?>?) {
+        when (level) {
+            LogLevelEnum.DEBUG -> logManager.debug(
+                LogMessageUtil.buildMessage(debugMessages[key], map)
+            )
 
+            LogLevelEnum.INFO -> logManager.info(
+                LogMessageUtil.buildMessage(infoMessages[key], map)
+            )
+
+            LogLevelEnum.TRACE -> logManager.trace(
+                LogMessageUtil.buildMessage(traceMessages[key], map)
+            )
+
+            LogLevelEnum.WARN -> logManager.warn(
+                LogMessageUtil.buildMessage(warningMessages[key], map)
+            )
+
+            else -> logManager.error(LogMessageUtil.buildMessage(errorMessages[key], map))
+        }
+    }
+
+    fun log(level: LogLevelEnum?, message: String?) {
+        when (level) {
+            LogLevelEnum.DEBUG -> logManager.debug(message)
+            LogLevelEnum.INFO -> logManager.info(message)
+            LogLevelEnum.TRACE -> logManager.trace(message)
+            LogLevelEnum.WARN -> logManager.warn(message)
+            else -> logManager.error(message)
+        }
+    }
+
+    companion object {
         var debugMessages = emptyMap<String, String>()
         var errorMessages = emptyMap<String, String>()
         var infoMessages = emptyMap<String, String>()
@@ -71,8 +102,13 @@ class LoggerService(config: Map<String, Any>) {
          * @param key The key of the message to log.
          * @param map Optional parameters to replace placeholders in the message.
          */
-        fun log(level: LogLevelEnum, key: String, map: Map<String?, String?>?) {
-            val logManager = LogManager.instance ?: return
+        fun log(
+            level: LogLevelEnum,
+            key: String,
+            map: Map<String?, String?>?,
+            serviceContainer: ServiceContainer?
+        ) {
+            val logManager = serviceContainer?.getLoggerService()?.logManager ?: return
             when (level) {
                 LogLevelEnum.DEBUG -> logManager.debug(
                     LogMessageUtil.buildMessage(debugMessages[key], map)
@@ -101,8 +137,12 @@ class LoggerService(config: Map<String, Any>) {
          * @param message The message string to log.
          */
         @JvmStatic
-        fun log(level: LogLevelEnum?, message: String?) {
-            val logManager = LogManager.instance ?: return
+        fun log(
+            level: LogLevelEnum?,
+            message: String?,
+            serviceContainer: ServiceContainer?
+        ) {
+            val logManager = serviceContainer?.getLoggerService()?.logManager ?: return
             when (level) {
                 LogLevelEnum.DEBUG -> logManager.debug(message)
                 LogLevelEnum.INFO -> logManager.info(message)
@@ -123,14 +163,15 @@ class LoggerService(config: Map<String, Any>) {
             key: String,
             data: Map<String, Any>? = null,
             debugData: Map<String, Any>? = null,
-            shouldSendToVWO: Boolean= true
+            shouldSendToVWO: Boolean = true,
+            serviceContainer: ServiceContainer?
         ) {
             try {
 
-                val logManager = LogManager.instance ?: return
+                val logManager = serviceContainer?.getLoggerService()?.logManager ?: return
                 logManager.errorLog(key, data, debugData, shouldSendToVWO)
             } catch (e: Exception) {
-                log(LogLevelEnum.DEBUG, "Got error while logging error $e")
+                log(LogLevelEnum.DEBUG, "Got error while logging error $e", serviceContainer)
             }
         }
 

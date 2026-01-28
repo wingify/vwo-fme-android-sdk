@@ -15,6 +15,9 @@
  */
 package com.vwo.packages.segmentation_evaluator.evaluators
 
+import com.vwo.packages.segmentation_evaluator.evaluators.SegmentOperandEvaluator
+import com.vwo.ServiceContainer
+import com.vwo.models.user.VWOInitOptions
 import org.junit.Test
 import org.junit.Assert.assertTrue
 import org.junit.Assert.assertFalse
@@ -34,7 +37,13 @@ import org.robolectric.annotation.Config
 @Config(manifest = Config.NONE)
 class SegmentOperandEvaluatorTest {
 
-    private val evaluator = SegmentOperandEvaluator()
+    private val mockServiceContainer = ServiceContainer(
+        settingsManager = null,
+        options = VWOInitOptions(),
+        settings = null,
+        loggerService = null
+    )
+    private val evaluator = SegmentOperandEvaluator(mockServiceContainer)
 
     // ==================== WILDCARD TESTS ====================
 

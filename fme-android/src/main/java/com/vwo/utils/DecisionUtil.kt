@@ -15,6 +15,7 @@
  */
 package com.vwo.utils
 
+import com.vwo.ServiceContainer
 import com.vwo.VWOClient
 import com.vwo.constants.Constants
 import com.vwo.decorators.StorageDecorator
@@ -29,10 +30,8 @@ import com.vwo.packages.decision_maker.DecisionMaker
 import com.vwo.packages.logger.enums.LogLevelEnum
 import com.vwo.packages.segmentation_evaluator.core.SegmentationManager
 import com.vwo.services.CampaignDecisionService
-import com.vwo.services.LoggerService.Companion.log
 import com.vwo.services.StorageService
 import com.vwo.utils.CampaignUtil.getGroupDetailsIfCampaignPartOfIt
-import com.vwo.utils.MegUtil.evaluateGroups
 import com.vwo.utils.UUIDUtils.getUUID
 import com.vwo.models.Storage
 
@@ -43,7 +42,7 @@ import com.vwo.models.Storage
  * This object provides helper methods for making decisions based on various factors, such as user
  * eligibility for campaigns, feature variations, or other decision points within the application.
  */
-object DecisionUtil {
+class DecisionUtil {
     /**
      * This method is used to evaluate the rule for a given feature and campaign.
      * @param settings  SettingsModel object containing the account settings.
@@ -63,7 +62,8 @@ object DecisionUtil {
         evaluatedFeatureMap: MutableMap<String, Any>,
         megGroupWinnerCampaigns: MutableMap<Int, String>?,
         storageService: StorageService?,
-        decision: MutableMap<String, Any>
+        decision: MutableMap<String, Any>,
+        serviceContainer: ServiceContainer
     ): MutableMap<String, Any?> {
         val vwoUserId = getUUID(context.id, settings.accountId.toString())
         val campaignId = campaign.id!!
@@ -84,7 +84,7 @@ object DecisionUtil {
 
             // check if the campaign satisfies the whitelisting
             if (campaign.isForcedVariationEnabled == true) {
-                val whitelistedVariation = checkCampaignWhitelisting(campaign, context)
+                val whitelistedVariation = checkCampaignWhitelisting(campaign, context, serviceContainer)
                 if (whitelistedVariation != null) {
                     return object : HashMap<String, Any?>() {
                         init {
@@ -94,7 +94,7 @@ object DecisionUtil {
                     }
                 }
             } else {
-                log(LogLevelEnum.INFO, "WHITELISTING_SKIP", object : HashMap<String?, String?>() {
+                serviceContainer.getLoggerService()?.log(LogLevelEnum.INFO, "WHITELISTING_SKIP", object : HashMap<String?, String?>() {
                     init {
                         put("userId", context.id)
                         put("campaignKey", campaign.ruleKey)
@@ -168,7 +168,7 @@ object DecisionUtil {
                         Storage::class.java
                     )
                     if (storedData != null && storedData.experimentId != null && storedData.experimentKey != null) {
-                        log(
+                        serviceContainer.getLoggerService()?.log(
                             LogLevelEnum.INFO,
                             "MEG_CAMPAIGN_FOUND_IN_STORAGE",
                             object : HashMap<String?, String?>() {
@@ -228,7 +228,7 @@ object DecisionUtil {
                         }
                     }
                 } catch (e: Exception) {
-                    log(
+                    serviceContainer.getLoggerService()?.log(
                         LogLevelEnum.ERROR,
                         "STORED_DATA_ERROR",
                         object : HashMap<String?, String?>() {
@@ -242,16 +242,17 @@ object DecisionUtil {
 
         // If Whitelisting is skipped/failed, Check campaign's pre-segmentation
         val isPreSegmentationPassed =
-            CampaignDecisionService().getPreSegmentationDecision(campaign, context)
+            CampaignDecisionService(serviceContainer).getPreSegmentationDecision(campaign, context)
 
         if (isPreSegmentationPassed && groupId != null && groupId.isNotEmpty()) {
-            val variationModel = evaluateGroups(
+            val variationModel = MegUtil().evaluateGroups(
                 settings,
                 feature,
                 groupId.toInt(),
                 evaluatedFeatureMap,
                 context,
-                storageService!!
+                storageService!!,
+                serviceContainer
             )
             // this condition would be true only when the current campaignId match with group winner campaignId
             // for personalise campaign, all personalise variations have same campaignId, so we check for campaignId_variationId
@@ -330,17 +331,18 @@ object DecisionUtil {
     fun evaluateTrafficAndGetVariation(
         settings: Settings,
         campaign: Campaign,
-        userId: String?
+        userId: String?,
+        serviceContainer:ServiceContainer
     ): Variation? {
         // Get the variation allotted to the user
 
-        val variation = CampaignDecisionService().getVariationAllotted(
+        val variation = CampaignDecisionService(serviceContainer).getVariationAllotted(
             userId,
             settings.accountId.toString(),
             campaign
         )
         if (variation == null) {
-            log(
+            serviceContainer.getLoggerService()?.log(
                 LogLevelEnum.INFO,
                 "USER_CAMPAIGN_BUCKET_INFO",
                 object : HashMap<String?, String?>() {
@@ -359,7 +361,7 @@ object DecisionUtil {
             return null
         }
 
-        log(LogLevelEnum.INFO, "USER_CAMPAIGN_BUCKET_INFO", object : HashMap<String?, String?>() {
+        serviceContainer.getLoggerService()?.log(LogLevelEnum.INFO, "USER_CAMPAIGN_BUCKET_INFO", object : HashMap<String?, String?>() {
             init {
                 put("userId", userId)
                 put("campaignKey", campaign.ruleKey)
@@ -377,13 +379,14 @@ object DecisionUtil {
      */
     private fun checkCampaignWhitelisting(
         campaign: Campaign,
-        context: VWOUserContext
+        context: VWOUserContext,
+        serviceContainer:ServiceContainer
     ): Map<String, Any?>? {
-        val whitelistingResult = evaluateWhitelisting(campaign, context)
+        val whitelistingResult = evaluateWhitelisting(campaign, context, serviceContainer)
         val status = if (whitelistingResult != null) StatusEnum.PASSED else StatusEnum.FAILED
         val variationString =
             if (whitelistingResult != null) whitelistingResult["variationName"] as String? else ""
-        log(LogLevelEnum.INFO, "WHITELISTING_STATUS", object : HashMap<String?, String?>() {
+        serviceContainer.getLoggerService()?.log(LogLevelEnum.INFO, "WHITELISTING_STATUS", object : HashMap<String?, String?>() {
             init {
                 put("userId", context.id)
                 put(
@@ -406,12 +409,12 @@ object DecisionUtil {
      * @param context  Context object containing user information
      * @return  Whitelisted variation or null if not whitelisted
      */
-    private fun evaluateWhitelisting(campaign: Campaign, context: VWOUserContext): Map<String, Any?>? {
+    private fun evaluateWhitelisting(campaign: Campaign, context: VWOUserContext, serviceContainer: ServiceContainer): Map<String, Any?>? {
         val targetedVariations: MutableList<Variation> = ArrayList()
 
         for (variation in campaign.variations!!) {
             if (variation.segments.isEmpty()) {
-                log(LogLevelEnum.INFO, "WHITELISTING_SKIP", object : HashMap<String?, String?>() {
+                serviceContainer.getLoggerService()?.log(LogLevelEnum.INFO, "WHITELISTING_SKIP", object : HashMap<String?, String?>() {
                     init {
                         put("userId", context.id)
                         put(
@@ -432,7 +435,7 @@ object DecisionUtil {
 
             // Check for segmentation and evaluate
             if (variation.segments != null) {
-                val segmentationResult = SegmentationManager.validateSegmentation(
+                val segmentationResult = serviceContainer.getSegmentationManager().validateSegmentation(
                     variation.segments,
                     context.variationTargetingVariables
                 )
@@ -453,7 +456,7 @@ object DecisionUtil {
                 stepFactor = CampaignUtil.assignRangeValues(variation, currentAllocation)
                 currentAllocation += stepFactor
             }
-            whitelistedVariation = CampaignDecisionService().getVariation(
+            whitelistedVariation = CampaignDecisionService(serviceContainer).getVariation(
                 targetedVariations,
                 DecisionMaker().calculateBucketValue(
                     CampaignUtil.getBucketingSeed(

@@ -18,13 +18,14 @@
 package com.vwo.packages.network_layer.manager
 
 import SdkDataManager
+import android.util.Log
 import com.vwo.VWOClient
 import com.vwo.models.OfflineEventData
 import com.vwo.packages.logger.enums.LogLevelEnum
 import com.vwo.services.BatchUploader
-import com.vwo.services.LoggerService
+import com.vwo.ServiceContainer
+import com.vwo.providers.ServiceContainerProvider
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
@@ -43,8 +44,11 @@ internal object BatchManager {
      */
     var sdkDataManager: SdkDataManager? = null
 
-    private val batchUploader = BatchUploader()
+    private val batchUploader = BatchUploader
     private val mutex = Mutex()
+
+    private var isInitUploadingStarted = false
+    val initName = "SDK Initialization"
 
     /**
      * Starts the batch upload process.
@@ -54,24 +58,17 @@ internal object BatchManager {
      *
      * @return `true` if all batches were uploaded successfully, `false` otherwise.
      */
-    suspend fun start(entryName: String): Boolean {
+    suspend fun start(entryName: String, serviceContainer: ServiceContainer?): Boolean {
+        if (entryName == initName && isInitUploadingStarted) {
+            return true
+        } else
+            isInitUploadingStarted = true
+
         // When using mutex.withLock, the coroutine is suspended until the lock is available, and
         // the thread remains free to execute other coroutines. This leads to better scalability in
         // coroutine-based programs.
         mutex.withLock {
-            val result = sendBatches()
-            if ((result.isUploaded && result.uploadEventCount > 0) || !result.isUploaded) {
-                // If isUploaded==true && uploadEventCount==0, events are already uploaded, log is not required
-                LoggerService.log(
-                    LogLevelEnum.INFO,
-                    "BATCH_PROCESSING_FINISHED",
-                    mapOf(
-                        "status" to result.isUploaded.toString(),
-                        "name" to entryName,
-                        "count" to result.uploadEventCount.toString()
-                    )
-                )
-            }
+            val result = sendBatches(entryName, serviceContainer)
             return result.isUploaded
         }
     }
@@ -84,25 +81,45 @@ internal object BatchManager {
      *
      * @return `true` if all batches were uploaded successfully, `false` otherwise.
      */
-    private suspend fun sendBatches(): BatchUploadResult = withContext(Dispatchers.IO) {
+    private suspend fun sendBatches(entryName: String, serviceContainer:ServiceContainer?): BatchUploadResult = withContext(Dispatchers.IO) {
         var result = true
         var count = 0
         try {
 
-            val batches = getData()
+            val batches = if (serviceContainer == null)
+                getData() //This is offline batch uploading, send all events
+            else
+                getData(serviceContainer.getAccountId().toLong(), serviceContainer.getSdkKey())
+
             batches.forEach { batch ->
                 //Upload one batch at a time, and wait till it finishes, then start second batch
                 val firstItem = batch.first()
+
+                val batchServiceContainer = serviceContainer ?: ServiceContainerProvider.getServiceContainer(
+                    firstItem.accountId.toInt(),
+                    firstItem.sdkKey
+                )
                 val values = batch.map {
                     VWOClient.objectMapper.readValue(it.payload, MutableMap::class.java)
                 }
-                val isUploaded =
-                    batchUploader.uploadBatch(firstItem.accountId, firstItem.sdkKey, values)
+                val isUploaded = batchUploader.uploadBatch(firstItem.accountId, firstItem.sdkKey, values, serviceContainer)
                 if (isUploaded) {
                     count += batch.size
                     removeStoredData(batch)
                 }
                 result = isUploaded && result
+                if ((isUploaded && count > 0) || !isUploaded) {
+                    Log.d("Swapnil", "Batch uploading success/failed ${firstItem.accountId} ${firstItem.sdkKey} count=$count")
+                    batchServiceContainer?.getLoggerService()?.log(
+                        LogLevelEnum.INFO,
+                        "BATCH_PROCESSING_FINISHED",
+                        mapOf(
+                            "status" to isUploaded.toString(),
+                            "name" to entryName,
+                            "count" to count.toString()
+                        )
+                    )
+                }
             }
         } catch (e: Exception) {
             e.printStackTrace()
@@ -146,6 +163,25 @@ internal object BatchManager {
     }
 
     /**
+     * Retrieves data for batches of offline events from the database.
+     *
+     * This function retrieves distinct SDK keys and account IDs from the database and then fetches all events associated with each combination.
+     * It groups the events into batches based on their SDK key and account ID.
+     *
+     * @return A mutable list of lists of `OfflineEventData` objects, representing the batches of events.
+     */
+    private fun getData(accountId: Long, sdkKey: String): MutableList<List<OfflineEventData>> {
+        val result = mutableListOf<List<OfflineEventData>>()
+        val batch = sdkDataManager?.getSdkData(accountId, sdkKey)
+        if (batch?.isNotEmpty() == true) {
+            result.add(batch)
+        } else {
+            println("No data found for $accountId and $sdkKey")
+        }
+        return result
+    }
+
+    /**
      * Determines whether online batching is allowed based on configured settings.
      *
      * This function checks if online batching is enabled by verifying if either the minimum batch
@@ -154,12 +190,34 @@ internal object BatchManager {
      *
      * @return `true` if online batching is allowed, `false` otherwise.
      */
-    fun isOnlineBatchingAllowed(): Boolean {
-        val batchMinSize = OnlineBatchUploadManager.batchMinSize
+    fun isOnlineBatchingAllowed(onlineBatchUploadManager: OnlineBatchUploadManager): Boolean {
+        val batchMinSize = onlineBatchUploadManager.batchMinSize
         val isBatchSizeProvided = batchMinSize > 0
 
-        val isBatchUploadIntervalProvided = OnlineBatchUploadManager.batchUploadTimeInterval > 0
+        val isBatchUploadIntervalProvided = onlineBatchUploadManager.batchUploadTimeInterval > 0
         return isBatchSizeProvided || isBatchUploadIntervalProvided
+    }
+
+    /**
+     * Initializes batch manager & necessary values for it.
+     * @param serviceContainer The ServiceContainer instance for this account
+     */
+    fun initBatchManager(serviceContainer: ServiceContainer) {
+        val options = serviceContainer.getVWOInitOptions()
+        val onlineBatchUploadManager = serviceContainer.onlineBatchUploadManager
+        onlineBatchUploadManager.batchMinSize = options.batchMinSize
+        onlineBatchUploadManager.batchUploadTimeInterval = options.batchUploadTimeInterval
+
+        val onlineBatchingAllowed = isOnlineBatchingAllowed(onlineBatchUploadManager)
+        val status = if (onlineBatchingAllowed) "enabled" else "disabled"
+        if (onlineBatchingAllowed) {
+            onlineBatchUploadManager.startBatchUploader(serviceContainer.getBatchManager(), serviceContainer)
+        }
+        serviceContainer.getLoggerService()?.log(
+            LogLevelEnum.INFO,
+            "ONLINE_BATCH_PROCESSING_STATUS",
+            mapOf("status" to status)
+        )
     }
 }
 

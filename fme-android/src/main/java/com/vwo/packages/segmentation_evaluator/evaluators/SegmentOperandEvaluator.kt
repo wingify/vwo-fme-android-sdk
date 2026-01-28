@@ -15,8 +15,7 @@
  */
 package com.vwo.packages.segmentation_evaluator.evaluators
 
-import com.vwo.utils.JsonNode
-import com.vwo.utils.*
+import com.vwo.ServiceContainer
 import com.vwo.constants.Constants
 import com.vwo.enums.ApiEnum
 import com.vwo.enums.UrlEnum
@@ -31,6 +30,8 @@ import com.vwo.providers.StorageProvider
 import com.vwo.services.LoggerService
 import com.vwo.utils.DataTypeUtil
 import com.vwo.utils.GatewayServiceUtil
+import com.vwo.utils.JsonNode
+import com.vwo.utils.asText
 import java.net.URLDecoder
 import java.text.DecimalFormat
 import java.util.regex.Pattern
@@ -47,7 +48,7 @@ private const val TAG_VALUE = "tagValue"
  * This class is responsible for processing and evaluating individual operands within segmentation
  * rules to determine if a user meets the specified criteria.
  */
-class SegmentOperandEvaluator {
+class SegmentOperandEvaluator(val serviceContainer: ServiceContainer) {
 
     /**
      * Evaluates a custom variable DSL operand against user properties.
@@ -79,13 +80,15 @@ class SegmentOperandEvaluator {
             val matcher = listIdPattern.matcher(operandValue)
             if (!matcher.find()) {
                 LoggerService.errorLog(
-                    "INVALID_ATTRIBUTE_LIST_FORMAT",
-                    emptyMap(),
-                    mapOf(
+                    key = "INVALID_ATTRIBUTE_LIST_FORMAT",
+                    data = emptyMap(),
+                    debugData = mapOf(
                         "an" to ApiEnum.GET_FLAG.value,
-                        "uuid" to (context?.getUuid()?:""),
-                        "sId" to (context?.sessionId?:0)
-                    )
+                        "uuid" to (context?.getUuid(serviceContainer) ?: ""),
+                        "sId" to (context?.sessionId ?: 0)
+                    ),
+                    shouldSendToVWO = true,
+                    serviceContainer = serviceContainer
                 )
                 return false
             }
@@ -108,7 +111,7 @@ class SegmentOperandEvaluator {
             )
         } else {
             // Process other types of operands
-            var tagValue:Any? = properties[operandKey]
+            var tagValue: Any? = properties[operandKey]
             if (tagValue == null) {
                 tagValue = ""
             }
@@ -123,7 +126,8 @@ class SegmentOperandEvaluator {
             if (operandType == SegmentOperandValueEnum.STARTING_ENDING_STAR_VALUE ||
                 operandType == SegmentOperandValueEnum.STARTING_STAR_VALUE ||
                 operandType == SegmentOperandValueEnum.ENDING_STAR_VALUE ||
-                operandType == SegmentOperandValueEnum.REGEX_VALUE) {
+                operandType == SegmentOperandValueEnum.REGEX_VALUE
+            ) {
                 processedValues?.set(TAG_VALUE, processedValues[TAG_VALUE].toString())
             }
 
@@ -150,8 +154,13 @@ class SegmentOperandEvaluator {
         if (SegmentUtil.matchWithRegex(operand, SegmentOperandRegexEnum.LOWER_MATCH.regex)) {
             operandType = SegmentOperandValueEnum.LOWER_VALUE
             operandValue = extractOperandValue(operand, SegmentOperandRegexEnum.LOWER_MATCH.regex)
-        } else if (SegmentUtil.matchWithRegex(operand, SegmentOperandRegexEnum.WILDCARD_MATCH.regex)) {
-            operandValue = extractOperandValue(operand, SegmentOperandRegexEnum.WILDCARD_MATCH.regex)
+        } else if (SegmentUtil.matchWithRegex(
+                operand,
+                SegmentOperandRegexEnum.WILDCARD_MATCH.regex
+            )
+        ) {
+            operandValue =
+                extractOperandValue(operand, SegmentOperandRegexEnum.WILDCARD_MATCH.regex)
             val startingStar: Boolean = SegmentUtil.matchWithRegex(
                 operandValue,
                 SegmentOperandRegexEnum.STARTING_STAR.regex
@@ -240,7 +249,8 @@ class SegmentOperandEvaluator {
             val listIdPattern = Pattern.compile("inlist\\(([^)]+)\\)")
             val matcher = listIdPattern.matcher(dslOperandValue)
             if (!matcher.find()) {
-                LoggerService.log(LogLevelEnum.ERROR, "Invalid 'inList' operand format")
+                serviceContainer.getLoggerService()
+                    ?.log(LogLevelEnum.ERROR, "Invalid 'inList' operand format")
                 return false
             }
             val listId = matcher.group(1)
@@ -252,7 +262,14 @@ class SegmentOperandEvaluator {
             if (listId != null) queryParamsObj["listId"] = listId
             accountId?.toString()?.let { queryParamsObj["accountId"] = it }
 
-            return evaluateListAttribute(feature, listId, attributeValue, properties, queryParamsObj, false)
+            return evaluateListAttribute(
+                feature,
+                listId,
+                attributeValue,
+                properties,
+                queryParamsObj,
+                false
+            )
         } else {
             val users =
                 dslOperandValue.split(",".toRegex()).dropLastWhile { it.isEmpty() }.toTypedArray()
@@ -287,7 +304,7 @@ class SegmentOperandEvaluator {
             val value = gatewayStore.getBoolean(key)
 
             if (value != null && isValid) {
-                LoggerService.log(
+                serviceContainer.getLoggerService()?.log(
                     LogLevelEnum.INFO,
                     "CACHED_EVALUATION_RESPONSE",
                     mapOf("value" to value.toString())
@@ -296,7 +313,10 @@ class SegmentOperandEvaluator {
             } else {
                 // Make a web service call to check the attribute against the list
                 val gatewayServiceResponse: String = GatewayServiceUtil.getFromGatewayService(
-                    queryParamsObj, UrlEnum.ATTRIBUTE_CHECK.url, "application/javascript"
+                    queryParamsObj,
+                    UrlEnum.ATTRIBUTE_CHECK.url,
+                    serviceContainer,
+                    "application/javascript"
                 ) ?: return false
                 val result = gatewayServiceResponse.toBoolean()
                 gatewayStore.saveBoolean(key, result)
@@ -308,7 +328,10 @@ class SegmentOperandEvaluator {
         } else {
             // Make a web service call to check the attribute against the list
             val gatewayServiceResponse: String = GatewayServiceUtil.getFromGatewayService(
-                queryParamsObj, UrlEnum.ATTRIBUTE_CHECK.url, "application/javascript"
+                queryParamsObj,
+                UrlEnum.ATTRIBUTE_CHECK.url,
+                serviceContainer,
+                "application/javascript"
             ) ?: return false
             return gatewayServiceResponse.toBoolean()
         }
@@ -335,7 +358,7 @@ class SegmentOperandEvaluator {
         val preProcessOperandValue = preProcessOperandValue(dslOperandValue)
         val processedValues = preProcessOperandValue[OPERAND_VALUE]?.let {
             processValues(it, tagValue)
-        }?:return false
+        } ?: return false
 
         tagValue = processedValues[TAG_VALUE] as String?
         val operandType = preProcessOperandValue[OPERAND_TYPE] as SegmentOperandValueEnum?

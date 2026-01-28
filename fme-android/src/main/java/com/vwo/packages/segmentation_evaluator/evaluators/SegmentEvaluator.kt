@@ -15,8 +15,7 @@
  */
 package com.vwo.packages.segmentation_evaluator.evaluators
 
-import com.vwo.utils.JsonNode
-import com.vwo.utils.*
+import com.vwo.ServiceContainer
 import com.vwo.VWOClient
 import com.vwo.constants.Constants
 import com.vwo.decorators.StorageDecorator
@@ -32,6 +31,15 @@ import com.vwo.packages.segmentation_evaluator.utils.SegmentUtil
 import com.vwo.providers.StorageProvider
 import com.vwo.services.LoggerService
 import com.vwo.services.StorageService
+import com.vwo.utils.DeviceInfo
+import com.vwo.utils.JsonNode
+import com.vwo.utils.asText
+import com.vwo.utils.fieldNames
+import com.vwo.utils.get
+import com.vwo.utils.isArray
+import com.vwo.utils.isTextual
+import com.vwo.utils.iterator
+import com.vwo.utils.size
 
 /**
  * Evaluates user segments for feature targeting.
@@ -39,7 +47,7 @@ import com.vwo.services.StorageService
  * This class is responsible for determining if a user qualifies for a specific feature based on
  * defined segment criteria and user attributes.
  */
-class SegmentEvaluator {
+class SegmentEvaluator(val serviceContainer: ServiceContainer) {
     var context: VWOUserContext? = null
     var settings: Settings? = null
     var feature: Feature? = null
@@ -67,7 +75,9 @@ class SegmentEvaluator {
 
             SegmentOperatorValueEnum.AND -> return every(subDsl, properties)
             SegmentOperatorValueEnum.OR -> return some(subDsl, properties)
-            SegmentOperatorValueEnum.CUSTOM_VARIABLE -> return SegmentOperandEvaluator().evaluateCustomVariableDSL(
+            SegmentOperatorValueEnum.CUSTOM_VARIABLE -> return SegmentOperandEvaluator(
+                serviceContainer
+            ).evaluateCustomVariableDSL(
                 subDsl,
                 properties,
                 settings?.accountId,
@@ -75,41 +85,47 @@ class SegmentEvaluator {
                 context
             )
 
-            SegmentOperatorValueEnum.USER -> return SegmentOperandEvaluator().evaluateUserDSL(
+            SegmentOperatorValueEnum.USER -> return SegmentOperandEvaluator(serviceContainer).evaluateUserDSL(
                 subDsl.toString(),
                 properties,
                 settings?.accountId,
                 feature
             )
 
-            SegmentOperatorValueEnum.UA -> return SegmentOperandEvaluator().evaluateUserAgentDSL(
+            SegmentOperatorValueEnum.UA -> return SegmentOperandEvaluator(serviceContainer).evaluateUserAgentDSL(
                 subDsl.asText(),
                 context
             )
-            SegmentOperatorValueEnum.DEVICE_MODEL -> return SegmentOperandEvaluator().evaluateStringOperandDSL(
+
+            SegmentOperatorValueEnum.DEVICE_MODEL -> return SegmentOperandEvaluator(serviceContainer).evaluateStringOperandDSL(
                 subDsl.asText(),
                 DeviceInfo().getDeviceModel()
             )
-            SegmentOperatorValueEnum.LOCALE -> return SegmentOperandEvaluator().evaluateStringOperandDSL(
+
+            SegmentOperatorValueEnum.LOCALE -> return SegmentOperandEvaluator(serviceContainer).evaluateStringOperandDSL(
                 subDsl.asText(),
                 DeviceInfo().getLocale()
             )
-            SegmentOperatorValueEnum.OS_VERSION -> return SegmentOperandEvaluator().evaluateStringOperandDSL(
+
+            SegmentOperatorValueEnum.OS_VERSION -> return SegmentOperandEvaluator(serviceContainer).evaluateStringOperandDSL(
                 subDsl.asText(),
                 DeviceInfo().getOsVersion()
             )
+
             SegmentOperatorValueEnum.APP_VERSION -> {
                 val context = StorageProvider.contextRef.get() ?: return false
 
-                return SegmentOperandEvaluator().evaluateStringOperandDSL(
+                return SegmentOperandEvaluator(serviceContainer).evaluateStringOperandDSL(
                     subDsl.asText(),
                     DeviceInfo().getApplicationVersion(context)
                 )
             }
-            SegmentOperatorValueEnum.MANUFACTURER -> return SegmentOperandEvaluator().evaluateStringOperandDSL(
+
+            SegmentOperatorValueEnum.MANUFACTURER -> return SegmentOperandEvaluator(serviceContainer).evaluateStringOperandDSL(
                 subDsl.asText(),
                 DeviceInfo().getManufacturer()
             )
+
             else -> return false
         }
     }
@@ -159,10 +175,12 @@ class SegmentEvaluator {
                 // Check for feature toggle based on feature ID
                 if (keyEnum == SegmentOperatorValueEnum.FEATURE_ID) {
                     val featureIdObject: JsonNode? = dsl.get(key)
-                    val featureIdKeys: Iterator<String> = featureIdObject?.fieldNames() ?: emptyList<String>().iterator()
+                    val featureIdKeys: Iterator<String> =
+                        featureIdObject?.fieldNames() ?: emptyList<String>().iterator()
                     if (featureIdKeys.hasNext()) {
                         val featureIdKey = featureIdKeys.next()
-                        val featureIdValue: String = featureIdObject?.get(featureIdKey)?.asText() ?: ""
+                        val featureIdValue: String =
+                            featureIdObject?.get(featureIdKey)?.asText() ?: ""
 
                         if (featureIdValue == "on" || featureIdValue == "off") {
                             val features: List<Feature?>? = settings?.features
@@ -174,20 +192,23 @@ class SegmentEvaluator {
                                     if (featureKey != null) {
                                         checkInUserStorage(featureKey, it)
                                     } else false
-                                }?:false
+                                } ?: false
                                 if (featureIdValue == "off") {
                                     return !result
                                 }
                                 return result
                             } else {
                                 LoggerService.errorLog(
-                                    "FEATURE_NOT_FOUND_WITH_ID",
-                                    mapOf("featureIdKey" to featureIdKey),
-                                    mapOf(
+                                    key = "FEATURE_NOT_FOUND_WITH_ID",
+                                    data = mapOf("featureIdKey" to featureIdKey),
+                                    debugData = mapOf(
                                         "an" to ApiEnum.GET_FLAG.value,
-                                        "uuid" to (context?.getUuid()?:""),
-                                        "sId" to (context?.sessionId?:FMEConfig.generateSessionId())
-                                    )
+                                        "uuid" to (context?.getUuid(serviceContainer) ?: ""),
+                                        "sId" to (context?.sessionId
+                                            ?: FMEConfig.generateSessionId())
+                                    ),
+                                    shouldSendToVWO = true,
+                                    serviceContainer = serviceContainer
                                 )
                                 return false // Handle the case when feature is not found
                             }
@@ -203,13 +224,15 @@ class SegmentEvaluator {
                     return uaParserResult
                 } catch (err: Exception) {
                     LoggerService.errorLog(
-                        "USER_AGENT_VALIDATION_ERROR",
-                        mapOf(Constants.ERR to err),
-                        mapOf(
+                        key = "USER_AGENT_VALIDATION_ERROR",
+                        data = mapOf(Constants.ERR to err),
+                        debugData = mapOf(
                             "an" to ApiEnum.GET_FLAG.value,
-                            "uuid" to (context?.getUuid()?:""),
-                            "sId" to (context?.sessionId?:0)
-                        )
+                            "uuid" to (context?.getUuid(serviceContainer) ?: ""),
+                            "sId" to (context?.sessionId ?: 0)
+                        ),
+                        shouldSendToVWO = true,
+                        serviceContainer = serviceContainer
                     )
                 }
             }
@@ -298,13 +321,15 @@ class SegmentEvaluator {
         val userAgent = StorageProvider.userAgent
         if (userAgent.isEmpty()) {
             LoggerService.errorLog(
-                "USER_AGENT_PRE_SEGMENT_ERROR",
-                emptyMap(),
-                mapOf(
+                key = "USER_AGENT_PRE_SEGMENT_ERROR",
+                data = emptyMap(),
+                debugData = mapOf(
                     "an" to ApiEnum.GET_FLAG.value,
-                    "uuid" to (context?.getUuid() ?: ""),
+                    "uuid" to (context?.getUuid(serviceContainer) ?: ""),
                     "sId" to (context?.sessionId ?: 0)
-                )
+                ),
+                shouldSendToVWO = true,
+                serviceContainer = serviceContainer
             )
             return false
         }
@@ -328,8 +353,9 @@ class SegmentEvaluator {
         featureKey: String,
         context: VWOUserContext
     ): Boolean {
-        val storageService = StorageService()
-        val storedDataMap: Map<String, Any>? = StorageDecorator().getFeatureFromStorage(featureKey, context, storageService)
+        val storageService = StorageService(serviceContainer)
+        val storedDataMap: Map<String, Any>? =
+            StorageDecorator().getFeatureFromStorage(featureKey, context, storageService)
         try {
             val storageMapAsString: String =
                 VWOClient.objectMapper.writeValueAsString(storedDataMap ?: emptyMap<String, Any>())
@@ -338,7 +364,7 @@ class SegmentEvaluator {
 
             return storedData != null && (storedDataMap?.size ?: 0) > 1
         } catch (exception: Exception) {
-            LoggerService.log(
+            serviceContainer.getLoggerService()?.log(
                 LogLevelEnum.ERROR,
                 "Error in checking feature in user storage. Got error: $exception"
             )

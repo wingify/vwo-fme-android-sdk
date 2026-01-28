@@ -18,25 +18,25 @@ package com.vwo
 import SdkDataManager
 import com.vwo.constants.Constants
 import com.vwo.enums.ApiEnum
-import com.vwo.utils.JsonNode
-import com.vwo.utils.*
-import com.vwo.providers.StorageProvider
+import com.vwo.models.Settings
 import com.vwo.models.user.VWOInitOptions
 import com.vwo.packages.logger.enums.LogLevelEnum
 import com.vwo.packages.network_layer.manager.BatchManager
 import com.vwo.packages.network_layer.manager.NetworkManager
-import com.vwo.packages.network_layer.manager.OnlineBatchUploadManager
 import com.vwo.packages.segmentation_evaluator.core.SegmentationManager
 import com.vwo.packages.storage.GatewayResponseStore
 import com.vwo.packages.storage.MobileDefaultStorage
+import com.vwo.packages.storage.SettingsStore
 import com.vwo.packages.storage.Storage
+import com.vwo.providers.ServiceContainerProvider
+import com.vwo.providers.StorageProvider
 import com.vwo.services.LoggerService
 import com.vwo.services.SettingsManager
 import com.vwo.utils.DataTypeUtil
+import com.vwo.utils.FunctionUtil.getFormattedErrorMessage
+import com.vwo.utils.JsonNode
 import com.vwo.utils.LogMessageUtil.buildMessage
 import java.lang.ref.WeakReference
-import com.vwo.packages.storage.SettingsStore
-import com.vwo.utils.FunctionUtil.getFormattedErrorMessage
 
 /**
  * Builder class for constructing and configuring VWO instances.
@@ -46,7 +46,9 @@ import com.vwo.utils.FunctionUtil.getFormattedErrorMessage
  *
  * @param options Optional initialization options for pre-configuring the builder.
  */
-open class VWOBuilder(private val options: VWOInitOptions?) {
+open class VWOBuilder(private val options: VWOInitOptions) {
+
+    private var serviceContainer: ServiceContainer? = null
     private var vwoClient: VWOClient? = null
     private var settingFileManager: SettingsManager? = null
     private val settings: String? = null
@@ -55,9 +57,38 @@ open class VWOBuilder(private val options: VWOInitOptions?) {
     internal var isSettingsValid = false
     internal var settingsFetchTime: Long = 0
 
+    // Instance-level services instead of static ones
+    private var loggerService: LoggerService? = null
+    private var batchManager: BatchManager? = null
+    internal var storage = Storage()
+
     // Set VWOClient instance
     fun setVWOClient(vwoClient: VWOClient?) {
         this.vwoClient = vwoClient
+    }
+
+    /**
+     * Gets the LoggerService instance
+     * @return LoggerService instance
+     */
+    fun getLoggerService(): LoggerService? {
+        return loggerService
+    }
+
+    /**
+     * Gets the SettingsManager instance
+     * @return SettingsManager instance
+     */
+    fun getSettingsManager(): SettingsManager? {
+        return settingFileManager
+    }
+
+    /**
+     * Gets the BatchManager instance
+     * @return BatchManager instance
+     */
+    internal fun getBatchManager(): Any? {
+        return batchManager
     }
 
     /**
@@ -71,7 +102,7 @@ open class VWOBuilder(private val options: VWOInitOptions?) {
             NetworkManager.attachClient()
         }
         NetworkManager.config?.developmentMode = false
-        LoggerService.log(
+        loggerService?.log(
             LogLevelEnum.DEBUG,
             "SERVICE_INITIALIZED",
             object : HashMap<String?, String>() {
@@ -88,9 +119,9 @@ open class VWOBuilder(private val options: VWOInitOptions?) {
      */
     fun setSegmentation(): VWOBuilder {
         if (options?.segmentEvaluator != null) {
-            SegmentationManager.attachEvaluator(options.segmentEvaluator)
+            SegmentationManager().attachEvaluator(options.segmentEvaluator)
         }
-        LoggerService.log(
+        loggerService?.log(
             LogLevelEnum.DEBUG,
             "SERVICE_INITIALIZED",
             object : HashMap<String?, String>() {
@@ -133,13 +164,15 @@ open class VWOBuilder(private val options: VWOInitOptions?) {
             // Return the fetched settings
             return settings
         } catch (e: Exception) {
+
             LoggerService.errorLog(
                 "ERROR_FETCHING_SETTINGS",
                 mapOf(Constants.ERR to getFormattedErrorMessage(e)),
                 mapOf(
                     "an" to if (forceFetch) Constants.POLLING else ApiEnum.INIT.value
                 ),
-                false
+                false,
+                serviceContainer
             )
             // Clear the flag to indicate that the fetch operation is complete
             isSettingsFetchInProgress = false
@@ -163,12 +196,10 @@ open class VWOBuilder(private val options: VWOInitOptions?) {
      * @return  The instance of this builder.
      */
     fun setStorage(): VWOBuilder {
-        if (options?.storage != null) {
-            if (options.storage is MobileDefaultStorage)
-                (options.storage as MobileDefaultStorage).init()
+        if (options.storage is MobileDefaultStorage)
+            (options.storage as MobileDefaultStorage).init()
 
-            Storage.instance?.attachConnector(options.storage)
-        }
+        storage.attachConnector(options.storage)
         return this
     }
 
@@ -190,21 +221,24 @@ open class VWOBuilder(private val options: VWOInitOptions?) {
      */
     fun setLogger(): VWOBuilder {
         try {
+            val serviceContainer = createServiceContainer(null, options)
             if (this.options == null || (options.logger == null) || options.logger.isEmpty()) {
-                LoggerService(hashMapOf<String, Any>())
+                this.loggerService = LoggerService(hashMapOf<String, Any>(), serviceContainer)
             } else {
-                LoggerService(options.logger)
+                this.loggerService = LoggerService(options.logger, serviceContainer)
             }
-            LoggerService.log(
-                LogLevelEnum.DEBUG,
-                "SERVICE_INITIALIZED",
-                object : HashMap<String?, String>() {
-                    init {
-                        put("service", "Logger")
-                    }
-                })
+            // Use static LoggerService for now due to existing architecture
+            loggerService?.log(
+                level = LogLevelEnum.DEBUG,
+                key = "SERVICE_INITIALIZED",
+                map = mapOf(
+                    "service" to "Logger"
+                )
+            )
+            this.serviceContainer = serviceContainer
         } catch (e: Exception) {
-            val message = buildMessage("Error occurred while initializing Logger : " + e.message, null)
+            val message =
+                buildMessage("Error occurred while initializing Logger : " + e.message, null)
             System.err.println(message)
         }
         return this
@@ -227,6 +261,8 @@ open class VWOBuilder(private val options: VWOInitOptions?) {
                     "correctType" to "number"
                 ),
                 mapOf("an" to ApiEnum.INIT.value),
+                true,
+                serviceContainer
             )
 
             return this
@@ -234,12 +270,14 @@ open class VWOBuilder(private val options: VWOInitOptions?) {
 
         if ((options.pollInterval ?: 0) < 1000) {
             LoggerService.errorLog(
-                "INVALID_POLLING_CONFIGURATION",
-                mapOf(
+                key = "INVALID_POLLING_CONFIGURATION",
+                data = mapOf(
                     "key" to "pollInterval",
                     "correctType" to "number >= 1000"
                 ),
-                mapOf("an" to ApiEnum.INIT.value),
+                debugData = mapOf("an" to ApiEnum.INIT.value),
+                shouldSendToVWO = true,
+                serviceContainer = serviceContainer
             )
             return this
         }
@@ -264,7 +302,8 @@ open class VWOBuilder(private val options: VWOInitOptions?) {
                 Thread.sleep(pollingInterval.toLong())
 
                 val latestSettings = getSettings(true)
-                val originalSettingsValue = originalSettings // Store in local variable for smart cast
+                // Store in local variable for smart cast
+                val originalSettingsValue = originalSettings
                 if (originalSettingsValue != null && latestSettings != null) {
                     val latestSettingJsonNode: JsonNode =
                         VWOClient.objectMapper.readTree(latestSettings)
@@ -273,28 +312,30 @@ open class VWOBuilder(private val options: VWOInitOptions?) {
                     if (!latestSettingJsonNode.equals(originalSettingsJsonNode)) {
                         setNewSettings(latestSettings)
                     } else {
-                        LoggerService.log(LogLevelEnum.INFO, "POLLING_NO_CHANGE_IN_SETTINGS", null)
+                        loggerService?.log(LogLevelEnum.INFO, "POLLING_NO_CHANGE_IN_SETTINGS", null)
                     }
                 } else if (latestSettings != null) {
                     setNewSettings(latestSettings)
                 }
             } catch (e: InterruptedException) {
                 LoggerService.errorLog(
-                    "ERROR_FETCHING_SETTINGS_WITH_POLLING",
-                    mapOf(Constants.ERR to getFormattedErrorMessage(e)),
-                    mapOf("an" to Constants.POLLING)
+                    key = "ERROR_FETCHING_SETTINGS_WITH_POLLING",
+                    data = mapOf(Constants.ERR to getFormattedErrorMessage(e)),
+                    debugData = mapOf("an" to Constants.POLLING),
+                    shouldSendToVWO = true,
+                    serviceContainer = serviceContainer
                 )
                 Thread.currentThread().interrupt()
                 break
             } catch (e: Exception) {
-                LoggerService.log(LogLevelEnum.ERROR, "Error is $e")
+                loggerService?.log(LogLevelEnum.ERROR, "Error is $e")
             }
         }
     }
 
     private fun setNewSettings(latestSettings: String?) {
         originalSettings = latestSettings
-        LoggerService.log(LogLevelEnum.INFO, "POLLING_SET_SETTINGS", null)
+        loggerService?.log(LogLevelEnum.INFO, "POLLING_SET_SETTINGS", null)
         // Update VWOClient settings
         vwoClient?.updateSettings(originalSettings)
     }
@@ -307,10 +348,13 @@ open class VWOBuilder(private val options: VWOInitOptions?) {
      * @return This VWOBuilder instance.
      */
     fun setSharePreferences(): VWOBuilder {
-        val context = options?.context ?: return this
+        val context = options.context ?: return this
 
-        StorageProvider.settingsStore = SettingsStore(context)
-        StorageProvider.gatewayStore = GatewayResponseStore(context)
+        if (StorageProvider.settingsStore == null)
+            StorageProvider.settingsStore = SettingsStore(context)
+
+        if (StorageProvider.gatewayStore == null)
+            StorageProvider.gatewayStore = GatewayResponseStore(context)
         return this
     }
 
@@ -322,30 +366,23 @@ open class VWOBuilder(private val options: VWOInitOptions?) {
      * @return This VWOBuilder instance.
      */
     fun setContext(): VWOBuilder {
-        val context = options?.context ?: return this
+        val context = options.context ?: return this
         StorageProvider.contextRef = WeakReference(context)
         StorageProvider.sdkDataManager = SdkDataManager(context)
-        BatchManager.sdkDataManager = StorageProvider.sdkDataManager
         return this
     }
 
     /**
-     * Initializes batch manager & necessary values for it.
+     * Creates a ServiceContainer instance with the current settings and options
+     * Following Java SDK pattern where ServiceContainer is created per API call
+     * @return ServiceContainer instance
      */
-    fun initBatchManager() {
-        OnlineBatchUploadManager.batchMinSize = options?.batchMinSize ?: -1
-        OnlineBatchUploadManager.batchUploadTimeInterval = options?.batchUploadTimeInterval ?: -1
-
-        val onlineBatchingAllowed = BatchManager.isOnlineBatchingAllowed()
-        val status = if(onlineBatchingAllowed) "enabled" else "disabled"
-        if (onlineBatchingAllowed) {
-            OnlineBatchUploadManager.startBatchUploader()
-        }
-        LoggerService.log(
-            LogLevelEnum.INFO,
-            "ONLINE_BATCH_PROCESSING_STATUS",
-            mapOf("status" to status)
-        )
+    fun createServiceContainer(
+        processedSettings: Settings?,
+        options: VWOInitOptions
+    ): ServiceContainer {
+        val serviceContainer =
+            ServiceContainerProvider.createServiceContainer(this, processedSettings, options)
+        return serviceContainer
     }
-
 }

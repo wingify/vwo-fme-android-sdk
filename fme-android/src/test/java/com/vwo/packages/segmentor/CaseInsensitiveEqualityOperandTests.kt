@@ -16,11 +16,11 @@
 package com.vwo.packages.segmentor
 
 import com.vwo.VWO
-import com.vwo.VWO.init
+
 import com.vwo.interfaces.IVwoInitCallback
 import com.vwo.models.user.VWOInitOptions
-import com.vwo.packages.segmentation_evaluator.core.SegmentationManager.attachEvaluator
-import com.vwo.packages.segmentation_evaluator.core.SegmentationManager.validateSegmentation
+import com.vwo.packages.segmentation_evaluator.core.SegmentationManager
+import com.vwo.ServiceContainer
 import com.vwo.utils.NetworkUtil.Companion.removeNullValues
 import org.junit.Assert
 import org.junit.Before
@@ -39,7 +39,7 @@ class CaseInsensitiveEqualityOperandTests {
         vwoInitOptions.accountId = accountId
         vwoInitOptions.isUsageStatsDisabled = true
 
-        init(vwoInitOptions, object : IVwoInitCallback {
+        VWO.init(vwoInitOptions, object : IVwoInitCallback {
             override fun vwoInitSuccess(vwo: VWO, message: String) {
                 this@CaseInsensitiveEqualityOperandTests.vwo = vwo
             }
@@ -482,9 +482,16 @@ class CaseInsensitiveEqualityOperandTests {
     }
 
     private fun verifyExpectation(dsl: String, customVariables: Map<String, Any>) {
-        attachEvaluator()
+        val segmentationManager = SegmentationManager()
+        val mockServiceContainer = ServiceContainer(
+            settingsManager = null,
+            options = VWOInitOptions(),
+            settings = null,
+            loggerService = null
+        )
+        segmentationManager.attachEvaluator(mockServiceContainer)
         Assert.assertEquals(
-            validateSegmentation(dsl, customVariables),
+            segmentationManager.validateSegmentation(dsl, customVariables),
             customVariables["expectation"]
         )
     }

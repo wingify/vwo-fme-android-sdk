@@ -41,8 +41,8 @@ internal class SettingsStore(context: Context) : LocalStorageController(context)
      *
      * @return The settings data as a string.
      */
-    fun getSettings(): String {
-        return getString(SETTINGS_KEY)
+    fun getSettings(accId: Int, sdkKey:String): String {
+        return getString(getSettingsKey(accId, sdkKey))
     }
 
     /**
@@ -50,15 +50,23 @@ internal class SettingsStore(context: Context) : LocalStorageController(context)
      *
      * @param settings The settings data to be saved.
      */
-    fun saveSettings(settings: String) {
-        saveString(SETTINGS_KEY, settings)
+    fun saveSettings(settings: String, accId: Int, sdkKey:String) {
+        saveString(getSettingsKey(accId, sdkKey), settings)
     }
 
     /**
      * Clears the settings data from local storage.
      */
-    fun clearSettings() {
-        clearData(SETTINGS_KEY)
+    fun clearSettings(accId: Int, sdkKey:String) {
+        clearData(getSettingsKey(accId, sdkKey))
+    }
+
+    private fun getSettingsKey(accId: Int, sdkKey:String):String{
+        return "$SETTINGS_KEY-$accId-$sdkKey"
+    }
+
+    private fun getSettingsExpiryKey(accId: Int, sdkKey: String): String {
+        return "$SETTINGS_EXPIRY_KEY-$accId-$sdkKey"
     }
 
     /**
@@ -66,8 +74,8 @@ internal class SettingsStore(context: Context) : LocalStorageController(context)
      *
      * @return The settings expiry time as a long value.
      */
-    fun getSettingsExpiry(): Long {
-        return getLong(SETTINGS_EXPIRY_KEY)
+    fun getSettingsExpiry(accId: Int, sdkKey: String): Long {
+        return getLong(getSettingsExpiryKey(accId, sdkKey))
     }
 
     /**
@@ -75,14 +83,14 @@ internal class SettingsStore(context: Context) : LocalStorageController(context)
      *
      * @param expiryTime The settings expiry time to be saved.
      */
-    fun saveSettingsExpiry(expiryTime: Long) {
-        saveLong(SETTINGS_EXPIRY_KEY, expiryTime)
+    fun saveSettingsExpiry(expiryTime: Long, accId: Int, sdkKey: String) {
+        saveLong(getSettingsExpiryKey(accId, sdkKey), expiryTime)
     }
 
     /**
      * Clears the settings expiry time from local storage.
      */
-    fun clearSettingsExpiry() {
-        clearData(SETTINGS_EXPIRY_KEY)
+    fun clearSettingsExpiry(accId: Int, sdkKey: String) {
+        clearData(getSettingsExpiryKey(accId, sdkKey))
     }
 }

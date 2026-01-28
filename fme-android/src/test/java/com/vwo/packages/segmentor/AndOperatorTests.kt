@@ -20,6 +20,7 @@ import com.vwo.interfaces.IVwoInitCallback
 import com.vwo.models.user.VWOInitOptions
 import com.vwo.packages.segmentation_evaluator.core.SegmentationManager
 import com.vwo.utils.NetworkUtil.Companion.removeNullValues
+import com.vwo.ServiceContainer
 import org.junit.Assert.assertEquals
 import org.junit.Before
 import org.junit.Test
@@ -176,9 +177,16 @@ class AndOperatorTests {
     }
 
     private fun verifyExpectation(dsl: String, customVariables: Map<String, Any>) {
-        SegmentationManager.attachEvaluator()
+        val segmentationManager = SegmentationManager()
+        val mockServiceContainer = ServiceContainer(
+            settingsManager = null,
+            options = VWOInitOptions(),
+            settings = null,
+            loggerService = null
+        )
+        segmentationManager.attachEvaluator(mockServiceContainer)
         assertEquals(
-            SegmentationManager.validateSegmentation(dsl, customVariables),
+            segmentationManager.validateSegmentation(dsl, customVariables),
             customVariables["expectation"]
         )
     }

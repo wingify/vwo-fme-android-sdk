@@ -15,13 +15,14 @@
  */
 package com.vwo.utils
 
+import com.vwo.ServiceContainer
 import com.vwo.enums.EventEnum
 import com.vwo.models.Settings
 import com.vwo.models.user.VWOUserContext
 import com.vwo.providers.StorageProvider
 import com.vwo.utils.CampaignUtil.getCampaignKeyFromCampaignId
-import com.vwo.utils.CampaignUtil.getVariationNameFromCampaignIdAndVariationId
 import com.vwo.utils.CampaignUtil.getCampaignTypeFromCampaignId
+import com.vwo.utils.CampaignUtil.getVariationNameFromCampaignIdAndVariationId
 import java.io.UnsupportedEncodingException
 import java.net.URLEncoder
 
@@ -46,13 +47,15 @@ object ImpressionUtil {
         settings: Settings,
         campaignId: Int,
         variationId: Int,
-        context: VWOUserContext
+        context: VWOUserContext,
+        serviceContainer: ServiceContainer
     ) {
         // Get base properties for the event
         val properties: MutableMap<String, String> = NetworkUtil.getEventsBaseProperties(
             EventEnum.VWO_VARIATION_SHOWN.value,
             encodeURIComponent(StorageProvider.userAgent),
-            StorageProvider.ipAddress
+            StorageProvider.ipAddress,
+            serviceContainer
         )
 
         // Construct payload data for tracking the user
@@ -64,23 +67,24 @@ object ImpressionUtil {
             campaignId,
             variationId,
             StorageProvider.userAgent,
-            StorageProvider.ipAddress
+            StorageProvider.ipAddress,
+            serviceContainer
         )
 
         val campaignKeyWithFeatureName = getCampaignKeyFromCampaignId(settings, campaignId)
-        val variationName = getVariationNameFromCampaignIdAndVariationId(settings, campaignId, variationId)
+        val variationName =
+            getVariationNameFromCampaignIdAndVariationId(settings, campaignId, variationId)
         val featureName = campaignKeyWithFeatureName?.split('_')?.getOrNull(0)
         val campaignKey = campaignKeyWithFeatureName?.split('_')?.getOrNull(1)
         val campaignType = getCampaignTypeFromCampaignId(settings, campaignId)
         // Send the constructed properties and payload as a POST request
         NetworkUtil.sendPostApiRequest(
-            settings,
-            properties,
-            payload,
-            StorageProvider.userAgent,
-            StorageProvider.ipAddress,
-            emptyMap(),
-            mapOf<String, Any>(
+            properties = properties,
+            payload = payload,
+            userAgent = StorageProvider.userAgent,
+            ipAddress = StorageProvider.ipAddress,
+            serviceContainer = serviceContainer,
+            campaignInfo = mapOf<String, Any>(
                 "campaignKey" to (campaignKey ?: ""),
                 "variationName" to (variationName ?: ""),
                 "featureName" to (featureName ?: ""),

@@ -17,7 +17,7 @@
 package com.vwo.e2e
 
 import com.vwo.VWO
-import com.vwo.VWO.init
+
 import com.vwo.VWOBuilder
 import com.vwo.interfaces.IVwoInitCallback
 import com.vwo.models.user.VWOUserContext
@@ -72,7 +72,7 @@ class VWOTrackEventTest {
             whenever(vwoBuilderSpy.getSettings(false)).thenReturn(settings)
         }
         vwoInitOptions.vwoBuilder = vwoBuilderSpy
-        init(vwoInitOptions, object : IVwoInitCallback {
+        VWO.init(vwoInitOptions, object : IVwoInitCallback {
             override fun vwoInitSuccess(vwoClient: VWO, message: String) {
                 this@VWOTrackEventTest.vwoClient = vwoClient
                 latch.countDown()

@@ -15,16 +15,14 @@
  */
 package com.vwo.api
 
+import com.vwo.ServiceContainer
 import com.vwo.constants.Constants
 import com.vwo.enums.ApiEnum
 import com.vwo.models.Settings
 import com.vwo.models.user.VWOUserContext
-import com.vwo.packages.logger.Logger
-import com.vwo.packages.logger.enums.LogLevelEnum
 import com.vwo.providers.StorageProvider
 import com.vwo.services.HooksManager
 import com.vwo.services.LoggerService
-import com.vwo.services.LoggerService.Companion.log
 import com.vwo.utils.FunctionUtil.doesEventBelongToAnyFeature
 import com.vwo.utils.FunctionUtil.getFormattedErrorMessage
 import com.vwo.utils.ImpressionUtil.encodeURIComponent
@@ -45,11 +43,18 @@ object TrackEventAPI {
         eventName: String,
         context: VWOUserContext,
         eventProperties: Map<String, Any>,
-        hooksManager: HooksManager
+        hooksManager: HooksManager,
+        serviceContainer: ServiceContainer
     ): Boolean {
         try {
             if (doesEventBelongToAnyFeature(eventName, settings)) {
-                createAndSendImpressionForTrack(settings, eventName, context, eventProperties)
+                createAndSendImpressionForTrack(
+                    settings,
+                    eventName,
+                    context,
+                    eventProperties,
+                    serviceContainer
+                )
                 val objectToReturn: MutableMap<String, Any> = HashMap()
                 objectToReturn["eventName"] = eventName
                 objectToReturn["api"] = ApiEnum.TRACK_EVENT.value
@@ -59,29 +64,33 @@ object TrackEventAPI {
             } else {
                 // Log an error if the event does not exist
                 LoggerService.errorLog(
-                    "EVENT_NOT_FOUND",
-                    mapOf("eventName" to eventName),
-                    mapOf(
+                    key = "EVENT_NOT_FOUND",
+                    data = mapOf("eventName" to eventName),
+                    debugData = mapOf(
                         "an" to ApiEnum.TRACK_EVENT.value,
-                        "uuid" to context.getUuid(),
+                        "uuid" to context.getUuid(serviceContainer),
                         "sId" to context.sessionId
-                    )
+                    ),
+                    shouldSendToVWO = true,
+                    serviceContainer = serviceContainer
                 )
                 return false
             }
         } catch (e: Exception) {
             LoggerService.errorLog(
-                "EXECUTION_FAILED",
-                mapOf(
+                key = "EXECUTION_FAILED",
+                data = mapOf(
                     "apiName" to ApiEnum.TRACK_EVENT.value,
                     Constants.ERR to getFormattedErrorMessage(e)
                 ),
-                mapOf(
+                debugData = mapOf(
                     "an" to ApiEnum.TRACK_EVENT.value,
-                    "uuid" to context.getUuid(),
+                    "uuid" to context.getUuid(serviceContainer),
                     "eventName" to eventName,
                     "sId" to context.sessionId
-                )
+                ),
+                shouldSendToVWO = true,
+                serviceContainer = serviceContainer
             )
             return false
         }
@@ -101,13 +110,15 @@ object TrackEventAPI {
         settings: Settings,
         eventName: String,
         context: VWOUserContext,
-        eventProperties: Map<String, Any>
+        eventProperties: Map<String, Any>,
+        serviceContainer: ServiceContainer
     ) {
         // Get base properties for the event
         val properties = NetworkUtil.getEventsBaseProperties(
             eventName,
             encodeURIComponent(StorageProvider.userAgent),
-            StorageProvider.ipAddress
+            StorageProvider.ipAddress,
+            serviceContainer
         )
 
         // Construct payload data for tracking the user
@@ -117,9 +128,16 @@ object TrackEventAPI {
             eventName,
             context,
             eventProperties,
+            serviceContainer
         )
 
         // Send the constructed properties and payload as a POST request
-        NetworkUtil.sendPostApiRequest(settings, properties, payload, StorageProvider.userAgent, StorageProvider.ipAddress)
+        NetworkUtil.sendPostApiRequest(
+            properties = properties,
+            payload = payload,
+            userAgent = StorageProvider.userAgent,
+            ipAddress = StorageProvider.ipAddress,
+            serviceContainer = serviceContainer
+        )
     }
 }

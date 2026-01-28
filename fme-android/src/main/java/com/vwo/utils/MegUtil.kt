@@ -15,8 +15,7 @@
  */
 package com.vwo.utils
 
-import com.vwo.utils.JsonProcessingException
-import com.vwo.utils.*
+import com.vwo.ServiceContainer
 import com.vwo.VWOClient
 import com.vwo.constants.Constants
 import com.vwo.decorators.StorageDecorator
@@ -30,7 +29,6 @@ import com.vwo.models.user.VWOUserContext
 import com.vwo.packages.decision_maker.DecisionMaker
 import com.vwo.packages.logger.enums.LogLevelEnum
 import com.vwo.services.CampaignDecisionService
-import com.vwo.services.LoggerService.Companion.log
 import com.vwo.services.StorageService
 import com.vwo.utils.CampaignUtil.getBucketingSeed
 import com.vwo.utils.CampaignUtil.setCampaignAllocation
@@ -42,7 +40,7 @@ import com.vwo.utils.FunctionUtil.cloneObject
  *
  * This object provides helper methods for working with MEG.
  */
-object MegUtil {
+class MegUtil {
     /**
      * Evaluates groups for a given feature and group ID.
      *
@@ -59,7 +57,8 @@ object MegUtil {
         groupId: Int,
         evaluatedFeatureMap: MutableMap<String, Any>,
         context: VWOUserContext,
-        storageService: StorageService
+        storageService: StorageService,
+        serviceContainer: ServiceContainer
     ): Variation? {
         val featureToSkip: MutableList<String?> = ArrayList()
         val campaignMap: MutableMap<String, MutableList<Campaign>> = HashMap()
@@ -84,7 +83,8 @@ object MegUtil {
                 evaluatedFeatureMap,
                 featureToSkip,
                 context,
-                storageService
+                storageService,
+                serviceContainer
             )
             if (isRolloutRulePassed) {
                 for (feature1 in settings.features) {
@@ -107,7 +107,7 @@ object MegUtil {
         }
 
         val eligibleCampaignsMap =
-            getEligibleCampaigns(settings, campaignMap, context, storageService)
+            getEligibleCampaigns(settings, campaignMap, context, storageService, serviceContainer)
         val eligibleCampaigns: List<Campaign>? =
             eligibleCampaignsMap["eligibleCampaigns"] as List<Campaign>?
         val eligibleCampaignsWithStorage: List<Campaign>? =
@@ -120,7 +120,8 @@ object MegUtil {
             eligibleCampaignsWithStorage,
             groupId,
             context,
-            storageService
+            storageService,
+            serviceContainer
         )
     }
 
@@ -155,7 +156,8 @@ object MegUtil {
     private fun isRolloutRuleForFeaturePassed(
         settings: Settings, feature: Feature, evaluatedFeatureMap: MutableMap<String, Any>,
         featureToSkip: MutableList<String?>, context: VWOUserContext,
-        storageService: StorageService
+        storageService: StorageService,
+        serviceContainer: ServiceContainer
     ): Boolean {
         val featureKey = feature.key ?: return false
         if (evaluatedFeatureMap.containsKey(featureKey) &&
@@ -178,7 +180,8 @@ object MegUtil {
                     evaluatedFeatureMap,
                     null,
                     storageService,
-                    HashMap()
+                    HashMap(),
+                    serviceContainer
                 )
                 if ((preSegmentationResult["preSegmentationResult"] as Boolean?)!!) {
                     ruleToTestForTraffic = rule
@@ -187,10 +190,11 @@ object MegUtil {
             }
 
             if (ruleToTestForTraffic != null) {
-                val variation: Variation? = DecisionUtil.evaluateTrafficAndGetVariation(
+                val variation: Variation? = DecisionUtil().evaluateTrafficAndGetVariation(
                     settings,
                     ruleToTestForTraffic,
-                    context.id
+                    context.id,
+                    serviceContainer
                 )
                 if (variation != null) {
                     val rollOutInformation: MutableMap<String, Any> = HashMap()
@@ -209,7 +213,7 @@ object MegUtil {
         }
 
         // no rollout rule, evaluate experiments
-        log(LogLevelEnum.INFO, "MEG_SKIP_ROLLOUT_EVALUATE_EXPERIMENTS",
+        serviceContainer.getLoggerService()?.log(LogLevelEnum.INFO, "MEG_SKIP_ROLLOUT_EVALUATE_EXPERIMENTS",
             object : HashMap<String?, String?>() {
                 init {
                     put("featureKey", featureKey)
@@ -228,7 +232,8 @@ object MegUtil {
      */
     private fun getEligibleCampaigns(
         settings: Settings, campaignMap: Map<String, MutableList<Campaign>>,
-        context: VWOUserContext, storageService: StorageService
+        context: VWOUserContext, storageService: StorageService,
+        serviceContainer: ServiceContainer
     ): Map<String, Any> {
         val eligibleCampaigns: MutableList<Campaign> = ArrayList<Campaign>()
         val eligibleCampaignsWithStorage: MutableList<Campaign> = ArrayList<Campaign>()
@@ -251,7 +256,7 @@ object MegUtil {
                                 storedData.experimentVariationId!!
                             )
                             if (variation != null) {
-                                log(
+                                serviceContainer.getLoggerService()?.log(
                                     LogLevelEnum.INFO,
                                     "MEG_CAMPAIGN_FOUND_IN_STORAGE",
                                     object : HashMap<String?, String?>() {
@@ -271,10 +276,10 @@ object MegUtil {
                     throw RuntimeException(e)
                 }
                 // Check if user is eligible for the campaign
-                if (CampaignDecisionService().getPreSegmentationDecision(campaign, context) &&
-                    CampaignDecisionService().isUserPartOfCampaign(context.id, campaign)
+                if (CampaignDecisionService(serviceContainer).getPreSegmentationDecision(campaign, context) &&
+                    CampaignDecisionService(serviceContainer).isUserPartOfCampaign(context.id, campaign)
                 ) {
-                    log(
+                    serviceContainer.getLoggerService()?.log(
                         LogLevelEnum.INFO,
                         "MEG_CAMPAIGN_ELIGIBLE",
                         object : HashMap<String?, String?>() {
@@ -318,7 +323,8 @@ object MegUtil {
         settings: Settings, featureKey: String?,
         eligibleCampaigns: List<Campaign>?,
         eligibleCampaignsWithStorage: List<Campaign>?,
-        groupId: Int, context: VWOUserContext, storageService: StorageService
+        groupId: Int, context: VWOUserContext, storageService: StorageService,
+        serviceContainer:ServiceContainer
     ): Variation? {
         val campaignIds = CampaignUtil.getCampaignIdsFromFeatureKey(settings, featureKey)
         var winnerCampaign: Variation? = null
@@ -345,7 +351,7 @@ object MegUtil {
                     put("groupId", groupId.toString())
                     context.id?.let { put("userId", it) }
                 }
-                log(
+                serviceContainer.getLoggerService()?.log(
                     LogLevelEnum.INFO,
                     "MEG_WINNER_CAMPAIGN",
                     map as Map<String?, String?>
@@ -356,7 +362,8 @@ object MegUtil {
                     context,
                     campaignIds,
                     groupId,
-                    storageService
+                    storageService,
+                    serviceContainer
                 )
             } else if (eligibleCampaignsWithStorage.size > 1) {
                 winnerCampaign = getCampaignUsingAdvancedAlgo(
@@ -365,7 +372,8 @@ object MegUtil {
                     context,
                     campaignIds,
                     groupId,
-                    storageService
+                    storageService,
+                    serviceContainer
                 )
             }
 
@@ -381,7 +389,7 @@ object MegUtil {
                         throw RuntimeException(e)
                     }
                     val finalWinnerCampaign1: Variation = winnerCampaign
-                    log(
+                    serviceContainer.getLoggerService()?.log(
                         LogLevelEnum.INFO,
                         "MEG_WINNER_CAMPAIGN",
                         object : HashMap<String?, String?>() {
@@ -403,7 +411,8 @@ object MegUtil {
                         context,
                         campaignIds,
                         groupId,
-                        storageService
+                        storageService,
+                        serviceContainer
                     )
                 } else if (eligibleCampaigns.size > 1) {
                     winnerCampaign = getCampaignUsingAdvancedAlgo(
@@ -412,12 +421,13 @@ object MegUtil {
                         context,
                         campaignIds,
                         groupId,
-                        storageService
+                        storageService,
+                        serviceContainer
                     )
                 }
             }
         } catch (exception: Exception) {
-            log(LogLevelEnum.ERROR,
+            serviceContainer.getLoggerService()?.log(LogLevelEnum.ERROR,
                 "MEG: error inside findWinnerCampaignAmongEligibleCampaigns$exception")
         }
         return winnerCampaign
@@ -434,7 +444,8 @@ object MegUtil {
      */
     private fun normalizeWeightsAndFindWinningCampaign(
         shortlistedCampaigns: List<Campaign>?,
-        context: VWOUserContext, calledCampaignIds: List<Int?>?, groupId: Int, storageService:StorageService
+        context: VWOUserContext, calledCampaignIds: List<Int?>?, groupId: Int, storageService:StorageService,
+        serviceContainer:ServiceContainer
     ): Variation? {
         try {
             shortlistedCampaigns?.forEach{ campaign: Campaign ->
@@ -452,7 +463,7 @@ object MegUtil {
 
 
             CampaignUtil.setCampaignAllocation(variations)
-            val winnerVariation: Variation? = CampaignDecisionService().getVariation(
+            val winnerVariation: Variation? = CampaignDecisionService(serviceContainer).getVariation(
                 variations,
                 DecisionMaker().calculateBucketValue(
                     CampaignUtil.getBucketingSeed(context.id, null, groupId)
@@ -460,7 +471,7 @@ object MegUtil {
             )
 
             if (winnerVariation != null) {
-            log(
+            serviceContainer.getLoggerService()?.log(
                 LogLevelEnum.INFO,
                 "MEG_WINNER_CAMPAIGN",
                 object : HashMap<String?, String?>() {
@@ -485,10 +496,10 @@ object MegUtil {
                     return winnerVariation
                 }
             } else {
-                log(LogLevelEnum.INFO, "No winner campaign found for MEG group: $groupId")
+                serviceContainer.getLoggerService()?.log(LogLevelEnum.INFO, "No winner campaign found for MEG group: $groupId")
             }
         } catch (exception: Exception) {
-            log(
+            serviceContainer.getLoggerService()?.log(
                 LogLevelEnum.ERROR,
                 "MEG: error inside normalizeWeightsAndFindWinningCampaign"
             )
@@ -513,7 +524,8 @@ object MegUtil {
         context: VWOUserContext,
         calledCampaignIds: List<Int?>,
         groupId: Int,
-        storageService: StorageService
+        storageService: StorageService,
+        serviceContainer: ServiceContainer
     ): Variation? {
         var winnerCampaign: Variation? = null
         var found = false
@@ -579,7 +591,7 @@ object MegUtil {
                     }
 
                 setCampaignAllocation(variations)
-                winnerCampaign = CampaignDecisionService().getVariation(
+                winnerCampaign = CampaignDecisionService(serviceContainer).getVariation(
                     variations,
                     DecisionMaker().calculateBucketValue(
                         getBucketingSeed(
@@ -595,7 +607,7 @@ object MegUtil {
 
 
             if (winnerCampaign != null) {
-                log(
+                serviceContainer.getLoggerService()?.log(
                     LogLevelEnum.INFO,
                     "MEG_WINNER_CAMPAIGN",
                     object : java.util.HashMap<String?, String?>() {
@@ -624,13 +636,13 @@ object MegUtil {
                     return winnerCampaign
                 }
             } else {
-                log(
+                serviceContainer.getLoggerService()?.log(
                     LogLevelEnum.INFO,
                     "No winner campaign found for MEG group: $groupId"
                 )
             }
         } catch (exception: java.lang.Exception) {
-            log(
+            serviceContainer.getLoggerService()?.log(
                 LogLevelEnum.ERROR,
                 "MEG: error inside getCampaignUsingAdvancedAlgo " + exception.message
             )

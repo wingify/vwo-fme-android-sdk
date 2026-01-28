@@ -15,10 +15,10 @@
  */
 package com.vwo.utils
 
-import com.vwo.models.user.VWOUserContext
+import com.vwo.ServiceContainer
 import com.vwo.models.user.VWOInitOptions
+import com.vwo.models.user.VWOUserContext
 import com.vwo.packages.logger.enums.LogLevelEnum
-import com.vwo.services.LoggerService
 
 /**
  * Utility class for managing user IDs and device IDs.
@@ -42,6 +42,7 @@ object UserIdUtil {
     fun getUserId(
         userContext: VWOUserContext?,
         options: VWOInitOptions?,
+        serviceContainer: ServiceContainer,
         deviceIdUtil: DeviceIdUtil = this.deviceIdUtil
     ): String? {
 
@@ -49,31 +50,35 @@ object UserIdUtil {
 
             if (options.gatewayService.isNotEmpty()) {
 
-                val userId = AliasIdentityManager().maybeGetAliasAwareUserIdSync(userContext)
+                val userId =
+                    AliasIdentityManager(serviceContainer).maybeGetAliasAwareUserIdSync(userContext)
                 if (userContext != null && !userId.isNullOrEmpty()) {
                     // try to use the ID from gateway, if not found fallback to existing logic
                     return userId
                 }
             } else {
 
-                LoggerService.log(LogLevelEnum.ERROR, "INVALID_GATEWAY_URL", null)
+                serviceContainer.getLoggerService()
+                    ?.log(LogLevelEnum.ERROR, "INVALID_GATEWAY_URL", null)
             }
         }
 
         if (!userContext?.id.isNullOrEmpty()) {
-            LoggerService.log(LogLevelEnum.INFO, "USER_ID_INFO", mapOf("id" to userContext?.id))
+            serviceContainer.getLoggerService()
+                ?.log(LogLevelEnum.INFO, "USER_ID_INFO", mapOf("id" to userContext?.id))
             return userContext?.id
         }
 
         // If no user ID is provided and device ID is enabled in context, generate device ID
         if (userContext?.shouldUseDeviceIdAsUserId == true && options?.context != null) {
             val deviceId = deviceIdUtil.getDeviceId(options.context!!)
-            LoggerService.log(LogLevelEnum.INFO, "USER_ID_INFO", mapOf("id" to deviceId))
+            serviceContainer.getLoggerService()
+                ?.log(LogLevelEnum.INFO, "USER_ID_INFO", mapOf("id" to deviceId))
             return deviceId
         }
 
         // Return null if no user ID is available and device ID is not enabled
-        LoggerService.log(LogLevelEnum.INFO, "USER_ID_NULL", emptyMap())
+        serviceContainer.getLoggerService()?.log(LogLevelEnum.INFO, "USER_ID_NULL", emptyMap())
         return null
     }
 
@@ -88,8 +93,9 @@ object UserIdUtil {
     fun isUserIdAvailable(
         userContext: VWOUserContext?,
         options: VWOInitOptions?,
-        deviceIdUtil: DeviceIdUtil = this.deviceIdUtil
+        deviceIdUtil: DeviceIdUtil = this.deviceIdUtil,
+        serviceContainer: ServiceContainer
     ): Boolean {
-        return getUserId(userContext, options, deviceIdUtil) != null
+        return getUserId(userContext, options, serviceContainer, deviceIdUtil) != null
     }
 } 

@@ -45,21 +45,4 @@ class Storage {
     fun getConnector(): Any? {
         return this.connector
     }
-
-    companion object {
-        /**
-         * Retrieves the singleton instance of the storage class.
-         * @return The singleton instance of the storage class.
-         */
-        @JvmStatic
-        @get:Synchronized
-        var instance: Storage? = null
-            get() {
-                if (field == null) {
-                    field = Storage()
-                }
-                return field
-            }
-            private set
-    }
 }

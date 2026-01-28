@@ -15,8 +15,8 @@
  */
 package com.vwo.packages.segmentation_evaluator.core
 
+import com.vwo.ServiceContainer
 import com.vwo.utils.JsonNode
-import com.vwo.utils.*
 import com.vwo.VWOClient
 import com.vwo.constants.Constants
 import com.vwo.enums.ApiEnum
@@ -37,7 +37,7 @@ import com.vwo.utils.GatewayServiceUtil
  *
  * This object provides methods for attaching and managing a segment evaluator, which is responsible forevaluating user segments.
  */
-object SegmentationManager {
+class SegmentationManager {
     private var evaluator: SegmentEvaluator? = null
 
     /**
@@ -52,8 +52,8 @@ object SegmentationManager {
     /**
      * Attaches a default segment evaluator.
      */
-    fun attachEvaluator() {
-        this.evaluator = SegmentEvaluator()
+    fun attachEvaluator(serviceContainer: ServiceContainer) {
+        this.evaluator = SegmentEvaluator(serviceContainer)
     }
 
     /**
@@ -62,8 +62,13 @@ object SegmentationManager {
      * @param feature   FeatureModel object containing the feature settings.
      * @param context   VWOContext object containing the user context.
      */
-    fun setContextualData(settings: Settings, feature: Feature, context: VWOUserContext) {
-        this.attachEvaluator()
+    fun setContextualData(
+        settings: Settings,
+        feature: Feature,
+        context: VWOUserContext,
+        serviceContainer: ServiceContainer
+    ) {
+        this.attachEvaluator(serviceContainer)
         evaluator?.context = context
         evaluator?.settings = settings
         evaluator?.feature = feature
@@ -83,7 +88,7 @@ object SegmentationManager {
             settings.accountId?.toString()?.let { queryParams["accountId"] = it }
 
             try {
-                val vwo = getGatewayServiceResponse(queryParams, context)
+                val vwo = getGatewayServiceResponse(queryParams, serviceContainer)
 
                 val gatewayServiceModel = vwo?.let {
                     VWOClient.objectMapper.readValue(it, GatewayService::class.java)
@@ -93,13 +98,15 @@ object SegmentationManager {
             } catch (err: Exception) {
 
                 LoggerService.errorLog(
-                    "ERROR_SETTING_SEGMENTATION_CONTEXT",
-                    mapOf(Constants.ERR to getFormattedErrorMessage(err)),
-                    mapOf(
+                    key = "ERROR_SETTING_SEGMENTATION_CONTEXT",
+                    data = mapOf(Constants.ERR to getFormattedErrorMessage(err)),
+                    debugData = mapOf(
                         "an" to ApiEnum.GET_FLAG.value,
-                        "uuid" to context.getUuid(),
+                        "uuid" to context.getUuid(serviceContainer),
                         "sId" to context.sessionId
-                    )
+                    ),
+                    shouldSendToVWO = true,
+                    serviceContainer = serviceContainer
                 )
             }
         }
@@ -107,30 +114,48 @@ object SegmentationManager {
 
     private fun getGatewayServiceResponse(
         params: MutableMap<String, String>,
-        context: VWOUserContext
+        serviceContainer: ServiceContainer
     ): String? {
-        val vwo = if (isCachedResponseValid()) {
-            StorageProvider.gatewayStore?.getGatewayResponse()
+        val vwo = if (isCachedResponseValid(serviceContainer)) {
+            StorageProvider.gatewayStore?.getGatewayResponse(
+                serviceContainer.getAccountId(),
+                serviceContainer.getSdkKey()
+            )
         } else {
             val response =
-                GatewayServiceUtil.getFromGatewayService(params, UrlEnum.GET_USER_DATA.url)
-            updateResponseCache(response)
+                GatewayServiceUtil.getFromGatewayService(
+                    params,
+                    UrlEnum.GET_USER_DATA.url,
+                    serviceContainer
+                )
+            updateResponseCache(response, serviceContainer)
             response
         }
         return vwo
     }
 
-    private fun isCachedResponseValid(): Boolean {
-        val expiryTime = StorageProvider.gatewayStore?.getGatewayResponseExpiry() ?: -1
+    private fun isCachedResponseValid(serviceContainer: ServiceContainer): Boolean {
+        val expiryTime = StorageProvider.gatewayStore?.getGatewayResponseExpiry(
+            serviceContainer.getAccountId(),
+            serviceContainer.getSdkKey()
+        ) ?: -1
         return expiryTime != -1L && System.currentTimeMillis() <= expiryTime
     }
 
-    private fun updateResponseCache(responseString: String?) {
+    private fun updateResponseCache(responseString: String?, serviceContainer: ServiceContainer) {
         if (responseString == null) return
 
-        StorageProvider.gatewayStore?.saveGatewayResponse(responseString)
+        StorageProvider.gatewayStore?.saveGatewayResponse(
+            responseString,
+            serviceContainer.getAccountId(),
+            serviceContainer.getSdkKey()
+        )
         val expiryTime = System.currentTimeMillis() + Constants.GATEWAY_USER_DATA_CACHE_DURATION
-        StorageProvider.gatewayStore?.saveGatewayResponseExpiry(expiryTime)
+        StorageProvider.gatewayStore?.saveGatewayResponseExpiry(
+            expiryTime,
+            serviceContainer.getAccountId(),
+            serviceContainer.getSdkKey()
+        )
     }
 
     /**
@@ -139,17 +164,22 @@ object SegmentationManager {
      * @param properties  Map containing the properties required for segmentation.
      * @return  Boolean value indicating whether the segmentation is valid or not.
      */
-    fun validateSegmentation(dsl: Any, properties: Map<String, Any>): Boolean {
+    fun validateSegmentation(
+        dsl: Any,
+        properties: Map<String, Any>,
+        serviceContainer: ServiceContainer? = null
+    ): Boolean {
         try {
             val dslNodes: JsonNode = if (dsl is String)
                 VWOClient.objectMapper.readTree(dsl.toString())
             else
                 VWOClient.objectMapper.valueToTree(dsl)
-            return evaluator?.isSegmentationValid(dslNodes, properties)?:false
+            return evaluator?.isSegmentationValid(dslNodes, properties) ?: false
         } catch (exception: Exception) {
-            LoggerService.log(
+            serviceContainer?.getLoggerService()?.log(
                 LogLevelEnum.ERROR,
-                "Exception occurred validate segmentation " + exception.message
+                "Exception occurred validate segmentation " + exception.message,
+                null
             )
             return false
         }

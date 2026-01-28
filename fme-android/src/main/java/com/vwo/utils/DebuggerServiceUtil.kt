@@ -16,9 +16,10 @@
 
 package com.vwo.utils
 
+import com.vwo.ServiceContainer
 import com.vwo.enums.EventEnum
-import com.vwo.utils.NetworkUtil.Companion.getEventsBaseProperties
 import com.vwo.utils.NetworkUtil.Companion.getDebuggerEventPayload
+import com.vwo.utils.NetworkUtil.Companion.getEventsBaseProperties
 import com.vwo.utils.NetworkUtil.Companion.sendMessagingEvent
 
 /**
@@ -60,16 +61,29 @@ fun extractDecisionKeys(decisionObj: Map<String, Any> = emptyMap()): Map<String,
  * Sends a debug event to VWO.
  * @param eventProps The properties for the event.
  */
-fun sendDebugEventToVWO(eventProps: Map<String, Any> = emptyMap()) {
+fun sendDebugEventToVWO(
+    eventProps: Map<String, Any> = emptyMap(),
+    serviceContainer: ServiceContainer
+) {
     try {
         // create query parameters
-        val properties = getEventsBaseProperties(EventEnum.VWO_DEBUGGER_EVENT.value, null, null)
+        val properties = getEventsBaseProperties(
+            EventEnum.VWO_DEBUGGER_EVENT.value,
+            null,
+            null,
+            serviceContainer
+        )
 
         // create payload
-        val payload = getDebuggerEventPayload(eventProps)
+        val payload = getDebuggerEventPayload(eventProps, serviceContainer)
 
         // send event
-        sendMessagingEvent(properties, payload, EventEnum.VWO_DEBUGGER_EVENT.value)
+        sendMessagingEvent(
+            properties,
+            payload,
+            serviceContainer,
+            EventEnum.VWO_DEBUGGER_EVENT.value
+        )
     } catch (e: Exception) {
         // Silently catch any exceptions to prevent disrupting normal flow
     }

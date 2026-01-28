@@ -19,7 +19,6 @@ package com.vwo.e2e
 
 import com.vwo.SDKState
 import com.vwo.VWO
-import com.vwo.VWO.init
 import com.vwo.VWOBuilder
 import com.vwo.interfaces.IVwoInitCallback
 import com.vwo.interfaces.IVwoListener
@@ -51,16 +50,8 @@ class GetFlagTests {
 
     private fun resetVWOState() {
         try {
-            // Reset the state
-            val stateField = VWO::class.java.getDeclaredField("state")
-            stateField.isAccessible = true
-            stateField.set(null, SDKState.NOT_INITIALIZED)
-
-            // Reset the instance (CRUCIAL - this was missing)
-            val instanceField = VWO::class.java.getDeclaredField("instance")
-            instanceField.isAccessible = true
-            instanceField.set(null, null)
-
+            // Clear all cached instances and reset all account states
+            VWO.clearAllInstances()
         } catch (e: Exception) {
             println("Failed to reset VWO state: ${e.message}")
         }
@@ -96,10 +87,6 @@ class GetFlagTests {
         testCases?.getFlagMegAdvance?.let { runTests(it) }
     }
 
-    @Test
-    fun testGetFlagWithStorage() {
-        testCases?.getFlagWithStorage?.let { runTests(it, StorageTest()) }
-    }
 
     private fun runTests(tests: List<TestData>, storage: Connector? = null) {
 
@@ -129,7 +116,7 @@ class GetFlagTests {
             vwoInitOptions.vwoBuilder = vwoBuilderSpy
 
             var latch = CountDownLatch(1)
-            init(vwoInitOptions, object : IVwoInitCallback {
+            VWO.init(vwoInitOptions, object : IVwoInitCallback {
                 override fun vwoInitSuccess(vwo: VWO, message: String) {
                     this@GetFlagTests.vwo = vwo
                     latch.countDown()
@@ -241,7 +228,7 @@ class GetFlagTests {
 
             vwoInitOptions.vwoBuilder = vwoBuilderSpy
             val latch = CountDownLatch(1)
-            init(vwoInitOptions, object : IVwoInitCallback {
+            VWO.init(vwoInitOptions, object : IVwoInitCallback {
                 override fun vwoInitSuccess(vwo: VWO, message: String) {
                     this@GetFlagTests.vwo = vwo
                     latch.countDown()

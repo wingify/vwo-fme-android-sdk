@@ -15,13 +15,14 @@
  */
 package com.vwo.utils
 
+import com.vwo.ServiceContainer
 import com.vwo.models.Campaign
 import com.vwo.models.Feature
 import com.vwo.models.Settings
 import com.vwo.models.Variation
 import com.vwo.models.user.VWOUserContext
 import com.vwo.packages.logger.enums.LogLevelEnum
-import com.vwo.services.LoggerService.Companion.log
+import com.vwo.services.LoggerService
 import com.vwo.services.StorageService
 
 /**
@@ -51,12 +52,13 @@ object RuleEvaluationUtil {
         evaluatedFeatureMap: MutableMap<String, Any>,
         megGroupWinnerCampaigns: MutableMap<Int, String>?,
         storageService: StorageService,
-        decision: MutableMap<String, Any>
+        decision: MutableMap<String, Any>,
+        serviceContainer: ServiceContainer
     ): Map<String, Any> {
         // Perform whitelisting and pre-segmentation checks
         try {
             // Check if the campaign satisfies the whitelisting and pre-segmentation
-            val checkResult = DecisionUtil.checkWhitelistingAndPreSeg(
+            val checkResult = DecisionUtil().checkWhitelistingAndPreSeg(
                 settings,
                 feature,
                 campaign,
@@ -64,7 +66,8 @@ object RuleEvaluationUtil {
                 evaluatedFeatureMap,
                 megGroupWinnerCampaigns,
                 storageService,
-                decision
+                decision,
+                serviceContainer
             )
 
             // Extract the results of the evaluation
@@ -85,7 +88,8 @@ object RuleEvaluationUtil {
                     settings,
                     cmpId,
                     whilistedId,
-                    context
+                    context,
+                    serviceContainer
                 )
             }
 
@@ -96,7 +100,7 @@ object RuleEvaluationUtil {
             result["updatedDecision"] = decision
             return result
         } catch (exception: Exception) {
-            log(LogLevelEnum.ERROR, "Error occurred while evaluating rule: $exception")
+            serviceContainer.getLoggerService()?.log(LogLevelEnum.ERROR, "Error occurred while evaluating rule: $exception", null)
             return HashMap()
         }
     }

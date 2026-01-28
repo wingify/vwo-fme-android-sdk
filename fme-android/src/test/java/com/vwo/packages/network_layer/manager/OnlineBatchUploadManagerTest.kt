@@ -17,6 +17,8 @@
 
 package com.vwo.packages.network_layer.manager
 
+import com.vwo.ServiceContainer
+import com.vwo.models.user.VWOInitOptions
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.mockkObject
@@ -35,15 +37,24 @@ class OnlineBatchUploadManagerTest {
     @Test
     fun `test BatchManager suspend function`() = runBlocking {
         mockkObject(BatchManager)
-        coEvery { BatchManager.start(any()) } returns true
+        
+        val mockServiceContainer = ServiceContainer(
+            settingsManager = null,
+            options = VWOInitOptions(),
+            settings = null,
+            loggerService = null
+        )
+        
+        coEvery { BatchManager.start(any(), any()) } returns true
 
-        OnlineBatchUploadManager.batchUploadTimeInterval = 1000L
-        OnlineBatchUploadManager.startBatchUploader()
+        val onlineBatchUploadManager = OnlineBatchUploadManager()
+        onlineBatchUploadManager.batchUploadTimeInterval = 1000L
+        onlineBatchUploadManager.startBatchUploader(BatchManager, mockServiceContainer)
 
         delay(2000)
 
         coVerify {
-            BatchManager.start("Online time based batch uploader")
+            BatchManager.start("Online time based batch uploader", any())
         }
     }
 } 

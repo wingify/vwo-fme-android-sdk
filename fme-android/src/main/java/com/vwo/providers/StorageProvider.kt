@@ -32,12 +32,12 @@ import java.lang.ref.WeakReference
 internal object StorageProvider {
 
     /**
-     * The instance of `SettingsStore` used to manage settingsdata.
+     * The instance of `SettingsStore` used to manage settings data.
      */
     var settingsStore: SettingsStore? = null
 
     /**
-     * The instance of `GatewayResponseStore` used to manage gateway data chaching.
+     * The instance of `GatewayResponseStore` used to manage gateway data caching.
      */
     var gatewayStore: GatewayResponseStore? = null
 

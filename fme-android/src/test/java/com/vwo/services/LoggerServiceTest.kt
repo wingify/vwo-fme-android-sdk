@@ -19,6 +19,8 @@ import android.util.Log
 import com.vwo.interfaces.logger.LogTransport
 import com.vwo.packages.logger.core.LogManager
 import com.vwo.packages.logger.enums.LogLevelEnum
+import com.vwo.ServiceContainer
+import com.vwo.models.user.VWOInitOptions
 import org.junit.Assert.*
 import org.junit.Before
 import org.junit.Test
@@ -31,6 +33,8 @@ class LoggerServiceTest {
     private val originalOut = System.out
     private lateinit var outputStream: ByteArrayOutputStream
     private val loggedMessages = mutableListOf<String>()
+    private lateinit var loggerService: LoggerService
+    private lateinit var serviceContainer: ServiceContainer
 
     @Before
     fun setUp() {
@@ -55,7 +59,17 @@ class LoggerServiceTest {
             put("level", "TRACE")
             put("transports", transports)
         }
-        LoggerService(loggerConfig)
+        
+        // Create mock ServiceContainer for testing
+        val options = VWOInitOptions()
+        serviceContainer = ServiceContainer(
+            settingsManager = null,
+            options = options,
+            settings = null,
+            loggerService = null
+        )
+        
+        loggerService = LoggerService(loggerConfig, serviceContainer)
     }
 
     @After
@@ -66,7 +80,7 @@ class LoggerServiceTest {
 
     @Test
     fun testLogWithMessage() {
-        LoggerService.log(LogLevelEnum.INFO, "Test message")
+        loggerService.log(LogLevelEnum.INFO, "Test message")
 
         assertTrue(loggedMessages.any { it.contains("Test message") })
     }
@@ -79,7 +93,7 @@ class LoggerServiceTest {
             "status" to "passed"
         )
 
-        LoggerService.log(LogLevelEnum.INFO, "SEGMENTATION_STATUS", metadata)
+        loggerService.log(LogLevelEnum.INFO, "SEGMENTATION_STATUS", metadata)
 
         assertTrue(loggedMessages.any { it.contains("Segmentation") })
         assertTrue(loggedMessages.any { it.contains("test-user") })
@@ -89,11 +103,11 @@ class LoggerServiceTest {
 
     @Test
     fun testLogWithDifferentLevels() {
-        LoggerService.log(LogLevelEnum.DEBUG, "Debug message")
-        LoggerService.log(LogLevelEnum.INFO, "Info message")
-        LoggerService.log(LogLevelEnum.WARN, "Warning message")
-        LoggerService.log(LogLevelEnum.ERROR, "Error message")
-        LoggerService.log(LogLevelEnum.TRACE, "Trace message")
+        loggerService.log(LogLevelEnum.DEBUG, "Debug message")
+        loggerService.log(LogLevelEnum.INFO, "Info message")
+        loggerService.log(LogLevelEnum.WARN, "Warning message")
+        loggerService.log(LogLevelEnum.ERROR, "Error message")
+        loggerService.log(LogLevelEnum.TRACE, "Trace message")
 
         assertTrue(loggedMessages.any { it.contains("Debug message") })
         assertTrue(loggedMessages.any { it.contains("Info message") })
@@ -104,31 +118,31 @@ class LoggerServiceTest {
 
     @Test
     fun testLogWithTraceLevel() {
-        LoggerService.log(LogLevelEnum.TRACE, "Trace message")
+        loggerService.log(LogLevelEnum.TRACE, "Trace message")
         assertTrue(loggedMessages.any { it.contains("[TRACE]") })
     }
 
     @Test
     fun testLogWithDebugLevel() {
-        LoggerService.log(LogLevelEnum.DEBUG, "Debug message")
+        loggerService.log(LogLevelEnum.DEBUG, "Debug message")
         assertTrue(loggedMessages.any { it.contains("[DEBUG]") })
     }
 
     @Test
     fun testLogWithInfoLevel() {
-        LoggerService.log(LogLevelEnum.INFO, "Info message")
+        loggerService.log(LogLevelEnum.INFO, "Info message")
         assertTrue(loggedMessages.any { it.contains("[INFO]") })
     }
 
     @Test
     fun testLogWithWarnLevel() {
-        LoggerService.log(LogLevelEnum.WARN, "Warning message")
+        loggerService.log(LogLevelEnum.WARN, "Warning message")
         assertTrue(loggedMessages.any { it.contains("[WARN]") })
     }
 
     @Test
     fun testLogWithErrorLevel() {
-        LoggerService.log(LogLevelEnum.ERROR, "Error message")
+        loggerService.log(LogLevelEnum.ERROR, "Error message")
         assertTrue(loggedMessages.any { it.contains("[ERROR]") })
     }
 
@@ -137,7 +151,7 @@ class LoggerServiceTest {
         val errorMessage = "DATABASE_ERROR"
         val errorDetails = mapOf<String?, String?>("err" to "Connection failed")
 
-        LoggerService.log(LogLevelEnum.ERROR, errorMessage, errorDetails)
+        loggerService.log(LogLevelEnum.ERROR, errorMessage, errorDetails)
 
         assertTrue(loggedMessages.any { it.contains("Error while performing database operation.") })
         assertTrue(loggedMessages.any { it.contains("Connection failed") })
@@ -151,7 +165,7 @@ class LoggerServiceTest {
             "status" to "enabled"
         )
 
-        LoggerService.log(LogLevelEnum.INFO, "IMPACT_ANALYSIS", metadata)
+        loggerService.log(LogLevelEnum.INFO, "IMPACT_ANALYSIS", metadata)
 
         assertTrue(loggedMessages.any { it.contains("Sending data for Impact Campaign") })
         assertTrue(loggedMessages.any { it.contains("test-user") })
@@ -167,7 +181,7 @@ class LoggerServiceTest {
             "count" to "10"
         )
 
-        LoggerService.log(LogLevelEnum.INFO, "BATCH_PROCESSING_FINISHED", metadata)
+        loggerService.log(LogLevelEnum.INFO, "BATCH_PROCESSING_FINISHED", metadata)
 
         assertTrue(loggedMessages.any { it.contains("Batch: Finished uploading") })
         assertTrue(loggedMessages.any { it.contains("true") })

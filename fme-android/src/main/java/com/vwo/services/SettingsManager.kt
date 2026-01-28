@@ -15,24 +15,20 @@
  */
 package com.vwo.services
 
-import com.vwo.utils.ObjectNode
-import com.vwo.utils.*
+import com.vwo.ServiceContainer
 import com.vwo.VWOClient
 import com.vwo.constants.Constants
-import com.vwo.providers.StorageProvider
+import com.vwo.enums.ApiEnum
 import com.vwo.models.Settings
 import com.vwo.models.schemas.SettingsSchema
 import com.vwo.models.user.VWOInitOptions
 import com.vwo.packages.logger.enums.LogLevelEnum
 import com.vwo.packages.network_layer.manager.NetworkManager
 import com.vwo.packages.network_layer.models.RequestModel
-import com.vwo.utils.NetworkUtil
-import com.vwo.utils.sendDebugEventToVWO
-import com.vwo.enums.DebuggerCategoryEnum
-import com.vwo.constants.Constants.V2_SETTINGS
-import com.vwo.enums.ApiEnum
+import com.vwo.providers.StorageProvider
 import com.vwo.utils.FunctionUtil.getFormattedErrorMessage
-import kotlinx.coroutines.runBlocking
+import com.vwo.utils.NetworkUtil
+import com.vwo.utils.SDKMetaUtil
 import java.net.URL
 
 /**
@@ -43,6 +39,7 @@ import java.net.URL
  * options.
  */
 class SettingsManager(internal val options: VWOInitOptions) {
+    var serviceContainer: ServiceContainer? = null
     val sdkKey = options.sdkKey
     val accountId = options.accountId
 
@@ -85,7 +82,7 @@ class SettingsManager(internal val options: VWOInitOptions) {
                     this.port = gatewayServicePort.toString().toInt()
                 }
             } catch (e: Exception) {
-                LoggerService.log(
+                serviceContainer?.getLoggerService()?.log(
                     LogLevelEnum.ERROR,
                     "Error occurred while parsing gateway service URL: " + e.message
                 )
@@ -94,7 +91,6 @@ class SettingsManager(internal val options: VWOInitOptions) {
         } else {
             this.hostname = Constants.HOST_NAME
         }
-        instance = this
     }
 
     /**
@@ -122,9 +118,11 @@ class SettingsManager(internal val options: VWOInitOptions) {
         } catch (e: Exception) {
 
             LoggerService.errorLog(
-                "ERROR_FETCHING_SETTINGS",
-                mapOf(Constants.ERR to getFormattedErrorMessage(e)),
-                mapOf("an" to Constants.MOBILE_STORAGE)
+                key = "ERROR_FETCHING_SETTINGS",
+                data = mapOf(Constants.ERR to getFormattedErrorMessage(e)),
+                debugData = mapOf("an" to Constants.MOBILE_STORAGE),
+                shouldSendToVWO = true,
+                serviceContainer = serviceContainer
             )
         }
         return null
@@ -141,22 +139,33 @@ class SettingsManager(internal val options: VWOInitOptions) {
     }
 
     private fun updateSettingsCache(responseString: String) {
-        StorageProvider.settingsStore?.saveSettings(responseString)
+        val accId = accountId
+        val sdkKeyForAccount = sdkKey
+        if (accId == null || sdkKeyForAccount == null) return
+        StorageProvider.settingsStore?.saveSettings(responseString, accId, sdkKeyForAccount)
         val expiryTime = System.currentTimeMillis() + cachedSettingsExpiryInterval
-        StorageProvider.settingsStore?.saveSettingsExpiry(expiryTime)
+        StorageProvider.settingsStore?.saveSettingsExpiry(expiryTime, accId, sdkKeyForAccount)
     }
 
     private fun getCachedSetting(): String? {
-        return StorageProvider.settingsStore?.getSettings()
+        val accId = accountId
+        val sdkKeyForAccount = sdkKey
+        if (accId == null || sdkKeyForAccount == null) return null
+
+        return StorageProvider.settingsStore?.getSettings(accId, sdkKeyForAccount)
     }
 
     private fun canUseCachedSettings(): Boolean {
-        if (cachedSettingsExpiryInterval == 0) return false
-        return isCachedSettingValid()
+        val accId = accountId
+        val sdkKeyForAccount = sdkKey
+        if (cachedSettingsExpiryInterval == 0 || accId == null || sdkKeyForAccount == null) return false
+
+        return isCachedSettingValid(accId, sdkKeyForAccount)
     }
 
-    private fun isCachedSettingValid(): Boolean {
-        val expiryTime = StorageProvider.settingsStore?.getSettingsExpiry() ?: -1
+    private fun isCachedSettingValid(accId: Int, sdkKeyForAccount: String): Boolean {
+        val expiryTime =
+            StorageProvider.settingsStore?.getSettingsExpiry(accId, sdkKeyForAccount) ?: -1
         return expiryTime != -1L && System.currentTimeMillis() <= expiryTime
     }
 
@@ -190,7 +199,20 @@ class SettingsManager(internal val options: VWOInitOptions) {
             )
             request.timeout = networkTimeout
 
-            val response = NetworkManager.get(request)
+            val service = serviceContainer ?: ServiceContainer(this, this.options, Settings(), null)
+
+            val response = NetworkManager.get(request, service)
+            if (response?.statusCode != 200) {
+                serviceContainer?.getLoggerService()?.log(
+                    LogLevelEnum.ERROR,
+                    "ERROR_FETCHING_SETTINGS",
+                    object : HashMap<String?, String?>() {
+                        init {
+                            put("err", response?.error.toString())
+                        }
+                    })
+                return null
+            }
 
             settingsFetchTime = System.currentTimeMillis() - startTime
             // Handle object instead of jsonarray
@@ -199,10 +221,11 @@ class SettingsManager(internal val options: VWOInitOptions) {
             return responseData
         } catch (e: Exception) {
             LoggerService.errorLog(
-                "ERROR_FETCHING_SETTINGS",
-                mapOf(Constants.ERR to getFormattedErrorMessage(e)),
-                mapOf("an" to ApiEnum.INIT),
-                false
+                key = "ERROR_FETCHING_SETTINGS",
+                data = mapOf(Constants.ERR to getFormattedErrorMessage(e)),
+                debugData = mapOf("an" to ApiEnum.INIT),
+                shouldSendToVWO = false,
+                serviceContainer = serviceContainer
             )
             return null
         }
@@ -239,17 +262,19 @@ class SettingsManager(internal val options: VWOInitOptions) {
      */
     fun getSettings(forceFetch: Boolean): String? {
         if (forceFetch) {
-            LoggerService.log(LogLevelEnum.INFO, "Settings: Fetched from: ServerPoll")
+            serviceContainer?.getLoggerService()
+                ?.log(LogLevelEnum.INFO, "Settings: Fetched from: ServerPoll")
             return fetchAndCacheServerSettings()
         } else {
             try {
                 val settings = fetchFromCacheOrServer()
                 if (settings == null) {
                     LoggerService.errorLog(
-                        "ERROR_FETCHING_SETTINGS",
-                        mapOf(Constants.ERR to "Settings is null"),
-                        mapOf("an" to ApiEnum.INIT.value),
-                        false
+                        key = "ERROR_FETCHING_SETTINGS",
+                        data = mapOf(Constants.ERR to "Settings is null"),
+                        debugData = mapOf("an" to ApiEnum.INIT.value),
+                        shouldSendToVWO = false,
+                        serviceContainer = serviceContainer
                     )
                     return null
                 }
@@ -260,28 +285,24 @@ class SettingsManager(internal val options: VWOInitOptions) {
                     return settings
                 } else {
                     LoggerService.errorLog(
-                        "INVALID_SETTINGS_SCHEMA",
-                        mapOf(Constants.ERR to "Setting is invalid"),
-                        mapOf("an" to ApiEnum.INIT.value),
-                        false
+                        key = "INVALID_SETTINGS_SCHEMA",
+                        data = mapOf(Constants.ERR to "Setting is invalid"),
+                        debugData = mapOf("an" to ApiEnum.INIT.value),
+                        shouldSendToVWO = false,
+                        serviceContainer = serviceContainer
                     )
                     return null
                 }
             } catch (e: Exception) {
                 LoggerService.errorLog(
-                    "INVALID_SETTINGS_SCHEMA",
-                    mapOf(Constants.ERR to getFormattedErrorMessage(e)),
-                    mapOf("an" to ApiEnum.INIT.value),
-                    false
+                    key = "INVALID_SETTINGS_SCHEMA",
+                    data = mapOf(Constants.ERR to getFormattedErrorMessage(e)),
+                    debugData = mapOf("an" to ApiEnum.INIT.value),
+                    shouldSendToVWO = false,
+                    serviceContainer = serviceContainer
                 )
                 return null
             }
         }
-    }
-
-    companion object {
-        @JvmStatic
-        var instance: SettingsManager? = null
-            private set
     }
 }

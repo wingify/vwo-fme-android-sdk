@@ -42,50 +42,62 @@ class GatewayResponseStoreTest {
     @Test
     fun testSaveGatewayResponse() {
         val gatewayResponse = "testGatewayResponse"
-        gatewayResponseStore.saveGatewayResponse(gatewayResponse)
-        val result = gatewayResponseStore.getGatewayResponse()
+        val accId = 123
+        val sdkKey = "test-sdk-key"
+        gatewayResponseStore.saveGatewayResponse(gatewayResponse, accId, sdkKey)
+        val result = gatewayResponseStore.getGatewayResponse(accId, sdkKey)
         assertEquals(gatewayResponse, result)
     }
 
     @Test
     fun testGetGatewayResponse() {
         val gatewayResponse = "testGatewayResponse"
-        gatewayResponseStore.saveGatewayResponse(gatewayResponse)
-        val result = gatewayResponseStore.getGatewayResponse()
+        val accId = 123
+        val sdkKey = "test-sdk-key"
+        gatewayResponseStore.saveGatewayResponse(gatewayResponse, accId, sdkKey)
+        val result = gatewayResponseStore.getGatewayResponse(accId, sdkKey)
         assertEquals(gatewayResponse, result)
     }
 
     @Test
     fun testClearGatewayResponse() {
         val gatewayResponse = "testGatewayResponse"
-        gatewayResponseStore.saveGatewayResponse(gatewayResponse)
-        gatewayResponseStore.clearGatewayResponse()
-        val result = gatewayResponseStore.getGatewayResponse()
+        val accId = 123
+        val sdkKey = "test-sdk-key"
+        gatewayResponseStore.saveGatewayResponse(gatewayResponse, accId, sdkKey)
+        gatewayResponseStore.clearGatewayResponse(accId, sdkKey)
+        val result = gatewayResponseStore.getGatewayResponse(accId, sdkKey)
         assertEquals("", result)
     }
 
     @Test
     fun testSaveGatewayResponseExpiry() {
         val expiryTime = 123456789L
-        gatewayResponseStore.saveGatewayResponseExpiry(expiryTime)
-        val result = gatewayResponseStore.getGatewayResponseExpiry()
+        val accId = 123
+        val sdkKey = "test-sdk-key"
+        gatewayResponseStore.saveGatewayResponseExpiry(expiryTime, accId, sdkKey)
+        val result = gatewayResponseStore.getGatewayResponseExpiry(accId, sdkKey)
         assertEquals(expiryTime, result)
     }
 
     @Test
     fun testGetGatewayResponseExpiry() {
         val expiryTime = 123456789L
-        gatewayResponseStore.saveGatewayResponseExpiry(expiryTime)
-        val result = gatewayResponseStore.getGatewayResponseExpiry()
+        val accId = 123
+        val sdkKey = "test-sdk-key"
+        gatewayResponseStore.saveGatewayResponseExpiry(expiryTime, accId, sdkKey)
+        val result = gatewayResponseStore.getGatewayResponseExpiry(accId, sdkKey)
         assertEquals(expiryTime, result)
     }
 
     @Test
     fun testClearGatewayResponseExpiry() {
         val expiryTime = 123456789L
-        gatewayResponseStore.saveGatewayResponseExpiry(expiryTime)
-        gatewayResponseStore.clearGatewayResponseExpiry()
-        val result = gatewayResponseStore.getGatewayResponseExpiry()
+        val accId = 123
+        val sdkKey = "test-sdk-key"
+        gatewayResponseStore.saveGatewayResponseExpiry(expiryTime, accId, sdkKey)
+        gatewayResponseStore.clearGatewayResponseExpiry(accId, sdkKey)
+        val result = gatewayResponseStore.getGatewayResponseExpiry(accId, sdkKey)
         assertEquals(-1L, result)
     }
 

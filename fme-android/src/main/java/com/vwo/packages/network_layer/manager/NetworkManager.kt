@@ -15,10 +15,11 @@
  */
 package com.vwo.packages.network_layer.manager
 
-import com.google.gson.Gson
+import com.vwo.ServiceContainer
+import com.vwo.constants.Constants.EVENT_BATCH_ENDPOINT
+import com.vwo.enums.EventEnum
 import com.vwo.utils.GsonUtil
 import com.vwo.interfaces.networking.NetworkClientInterface
-import com.vwo.models.Settings
 import com.vwo.packages.logger.enums.LogLevelEnum
 import com.vwo.packages.network_layer.client.NetworkClient
 import com.vwo.packages.network_layer.handlers.RequestHandler
@@ -26,12 +27,9 @@ import com.vwo.packages.network_layer.models.GlobalRequestModel
 import com.vwo.packages.network_layer.models.RequestModel
 import com.vwo.packages.network_layer.models.ResponseModel
 import com.vwo.providers.StorageProvider
-import com.vwo.services.LoggerService
 import com.vwo.services.PeriodicDataUploader
-import com.vwo.services.SettingsManager
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
@@ -87,16 +85,16 @@ object NetworkManager {
      * @param request The RequestModel containing the URL, headers, and query parameters of the GET request.
      * @return The ResponseModel containing the response data or null if an error occurs.
      */
-    fun get(request: RequestModel): ResponseModel? {
+    fun get(request: RequestModel, serviceContainer: ServiceContainer): ResponseModel? {
         try {
             val networkOptions = createRequest(request)
             return if (networkOptions == null) {
                 null
             } else {
-                client?.GET(request)
+                client?.GET(request, serviceContainer)
             }
         } catch (error: Exception) {
-            LoggerService.log(LogLevelEnum.ERROR, "Error when creating get request, error: $error")
+            serviceContainer?.getLoggerService()?.log(LogLevelEnum.ERROR, "Error when creating get request, error: $error", null)
             return null
         }
     }
@@ -107,16 +105,20 @@ object NetworkManager {
      * @param request The RequestModel containing the URL, headers, and body of the POST request.
      * @return The ResponseModel containing the response data or null if an error occurs.
      */
-    fun post(request: RequestModel): ResponseModel? {
+    fun post(request: RequestModel, serviceContainer: ServiceContainer?): ResponseModel? {
         try {
             val networkOptions = createRequest(request)
             return if (networkOptions == null) {
                 null
             } else {
-                client?.POST(request)
+                client?.POST(request, serviceContainer)
             }
         } catch (error: Exception) {
-            LoggerService.log(LogLevelEnum.ERROR, "Error when creating post request, error: $error")
+            val isNonReportableApi = request.path?.contains(EVENT_BATCH_ENDPOINT) == true
+                    || request.path?.contains(EventEnum.VWO_ERROR.value) == true
+
+            val logLevel = if (isNonReportableApi) LogLevelEnum.DEBUG else LogLevelEnum.ERROR
+            serviceContainer?.getLoggerService()?.log(logLevel, "Error when creating post request, error: $error", null)
             return null
         }
     }
@@ -126,23 +128,26 @@ object NetworkManager {
      *
      * @param request The RequestModel containing the URL, headers, and body of the POST request.
      */
-    fun postAsync(request: RequestModel) {
+    fun postAsync(request: RequestModel, serviceContainer: ServiceContainer) {
         executorService.submit {
-            if (BatchManager.isOnlineBatchingAllowed()) { // Online batching
-                addToBatch(request)
-                val count = StorageProvider.sdkDataManager?.getEntryCount() ?: 0
-                if (OnlineBatchUploadManager.batchMinSize > 0 && count >= OnlineBatchUploadManager.batchMinSize) {
+            val onlineBatchUploadManager = serviceContainer.onlineBatchUploadManager
+            if (serviceContainer.getBatchManager().isOnlineBatchingAllowed(onlineBatchUploadManager)) { // Online batching
+                addToBatch(request, serviceContainer)
+                val accountId = serviceContainer.getAccountId().toLong()
+                val sdkKey = serviceContainer.getSdkKey()
+                val count = StorageProvider.sdkDataManager?.getEventCount(accountId, sdkKey) ?: 0
+                if (onlineBatchUploadManager.batchMinSize > 0 && count >= onlineBatchUploadManager.batchMinSize) {
                     CoroutineScope(Dispatchers.IO).launch {
-                        BatchManager.start("Batch size count")
+                        serviceContainer.getBatchManager().start("Batch size count", serviceContainer)
                     }
                 }
                 StorageProvider.contextRef.get()?.let { PeriodicDataUploader().enqueue(it) }
             } else { // Offline batching
-                val response = post(request)
+                val response = post(request, serviceContainer)
                 if (StorageProvider.sdkDataManager == null) return@submit
 
                 if (response == null || response.statusCode != 200) {
-                    addToBatch(request)
+                    addToBatch(request, serviceContainer)
                     StorageProvider.contextRef.get()?.let { PeriodicDataUploader().enqueue(it) }
                 }
             }
@@ -160,12 +165,13 @@ object NetworkManager {
      * @param settings The settings containing the SDK key and account ID.
      */
     private fun addToBatch(
-        request: RequestModel
+        request: RequestModel,
+        serviceContainer: ServiceContainer
     ) {
         val requestString = GsonUtil.gson.toJson(request.body).toString()
         StorageProvider.sdkDataManager?.saveSdkData(
-            sdkKey = SettingsManager.instance?.sdkKey,
-            accountId = SettingsManager.instance?.accountId,
+            sdkKey = serviceContainer.getSdkKey(),
+            accountId = serviceContainer.getAccountId(),
             payload = requestString
         )
     }

@@ -15,12 +15,11 @@
  */
 package com.vwo.services
 
+import com.vwo.ServiceContainer
 import com.vwo.constants.Constants
 import com.vwo.enums.ApiEnum
 import com.vwo.models.user.VWOUserContext
-import com.vwo.packages.logger.enums.LogLevelEnum
 import com.vwo.packages.storage.Connector
-import com.vwo.packages.storage.Storage
 
 /**
  * Provides data storage and retrieval services.
@@ -28,7 +27,7 @@ import com.vwo.packages.storage.Storage
  * This class is responsible for managing the storage and retrieval of data used by the application,
  * such as user preferences, application state, or other persistent information.
  */
-class StorageService {
+class StorageService(private val serviceContainer: ServiceContainer? = null) {
 
     /**
      * Retrieves data from storage based on the feature key and user ID.
@@ -37,17 +36,19 @@ class StorageService {
      * @return The data retrieved or an error/storage status enum.
      */
     fun getDataInStorage(featureKey: String?, context: VWOUserContext): Map<String, Any>? {
-        val storageInstance = Storage.instance?.getConnector() ?: return null
+        val storageInstance = serviceContainer?.storage?.getConnector() ?: return null
         try {
             return (storageInstance as Connector).get(featureKey, context.id) as? Map<String, Any>
         } catch (e: Exception) {
             LoggerService.errorLog(
-                "ERROR_READING_STORED_DATA_IN_STORAGE",
-                mapOf(Constants.ERR to e.toString()),
-                mapOf(
+                key = "ERROR_READING_STORED_DATA_IN_STORAGE",
+                data = mapOf(Constants.ERR to e.toString()),
+                debugData = mapOf(
                     "an" to ApiEnum.GET_FLAG.value,
-                    "uuid" to context.getUuid()
-                )
+                    "uuid" to context.getUuid(serviceContainer = serviceContainer)
+                ),
+                shouldSendToVWO = true,
+                serviceContainer = serviceContainer
             )
             return null
         }
@@ -59,8 +60,7 @@ class StorageService {
      * @return true if data is successfully stored, otherwise false.
      */
     fun setDataInStorage(data: Map<String, Any>): Boolean {
-        val storageInstance = Storage.instance!!.getConnector() ?: return false
-
+        val storageInstance = serviceContainer?.storage?.getConnector() ?: return false
         try {
             (storageInstance as Connector).set(data)
             return true

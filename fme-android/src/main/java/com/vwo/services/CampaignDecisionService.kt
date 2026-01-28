@@ -15,6 +15,7 @@
  */
 package com.vwo.services
 
+import com.vwo.ServiceContainer
 import com.vwo.constants.Constants
 import com.vwo.enums.CampaignTypeEnum
 import com.vwo.models.Campaign
@@ -32,7 +33,7 @@ import com.vwo.utils.EventsUtils
  * This class is responsible for determining which variation of a campaign should be displayed to a
  * user based on various factors, such as targeting rules and campaign configuration.
  */
-class CampaignDecisionService {
+class CampaignDecisionService(val serviceContainer: ServiceContainer) {
     /**
      * This method is used to check if the user is part of the campaign.
      * @param userId  User ID for which the check is to be performed.
@@ -67,7 +68,7 @@ class CampaignDecisionService {
         val valueAssignedToUser = DecisionMaker().getBucketValueForUser(bucketKey)
         val isUserPart = valueAssignedToUser != 0 && valueAssignedToUser <= trafficAllocation
 
-        LoggerService.log(
+        serviceContainer.getLoggerService()?.log(
             LogLevelEnum.INFO,
             "USER_PART_OF_CAMPAIGN",
             mapOf(
@@ -133,7 +134,7 @@ class CampaignDecisionService {
         val bucketValue =
             DecisionMaker().generateBucketValue(hashValue, Constants.MAX_TRAFFIC_VALUE, multiplier)
 
-        LoggerService.log(
+        serviceContainer.getLoggerService()?.log(
             LogLevelEnum.DEBUG,
             "USER_BUCKET_TO_VARIATION",
             mapOf(
@@ -178,7 +179,7 @@ class CampaignDecisionService {
             }
         }
         if (segments.isEmpty()) {
-            LoggerService.log(
+            serviceContainer.getLoggerService()?.log(
                 LogLevelEnum.INFO,
                 "SEGMENTATION_SKIP",
                 mapOf(
@@ -193,7 +194,7 @@ class CampaignDecisionService {
         } else {
 
             val preSegmentationResult = getPreSegmentationResult(campaign, context, segments)
-            LoggerService.log(
+            serviceContainer.getLoggerService()?.log(
                 LogLevelEnum.INFO,
                 "SEGMENTATION_STATUS",
                 object : HashMap<String?, String?>() {
@@ -218,9 +219,9 @@ class CampaignDecisionService {
         segments: Map<String, Any>
     ): Boolean {
         val preSegmentationResult = if (campaign.isEventsDsl) {
-            EventsUtils().getEventsPreSegmentation(segments, context)
+            EventsUtils().getEventsPreSegmentation(segments, context, serviceContainer)
         } else {
-            SegmentationManager.validateSegmentation(
+            serviceContainer.getSegmentationManager().validateSegmentation(
                 segments, context.customVariables
             )
         }

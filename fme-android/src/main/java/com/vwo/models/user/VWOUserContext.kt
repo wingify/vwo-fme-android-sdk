@@ -15,9 +15,8 @@
  */
 package com.vwo.models.user
 
+import com.vwo.ServiceContainer
 import com.vwo.utils.DeviceIdUtil
-
-import com.vwo.services.SettingsManager
 import com.vwo.utils.UUIDUtils.getUUID
 
 /**
@@ -35,8 +34,11 @@ class VWOUserContext {
 
     var variationTargetingVariables: MutableMap<String, Any> = HashMap()
 
-    internal fun getUuid(): String {
-        return getUUID(this.id.toString(), SettingsManager.instance?.accountId?.toString())
+    internal fun getUuid(serviceContainer: ServiceContainer): String {
+        return getUUID(
+            this.id.toString(),
+            serviceContainer.getSettingsManager()?.accountId?.toString()
+        )
     }
 
     internal var sessionId: Long = FMEConfig.generateSessionId()

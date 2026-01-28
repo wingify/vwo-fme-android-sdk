@@ -16,6 +16,7 @@
 package com.vwo.packages.network_layer.client
 
 import com.google.gson.Gson
+import com.vwo.ServiceContainer
 import com.vwo.VWOClient
 import com.vwo.constants.Constants
 import com.vwo.constants.Constants.HTTP_STATUS_CODE_400
@@ -76,10 +77,11 @@ class NetworkClient : NetworkClientInterface {
      * @param request The model containing request options.
      * @return A ResponseModel with the response data.
      */
-    override fun GET(request: RequestModel): ResponseModel {
+    override fun GET(request: RequestModel, serviceContainer: ServiceContainer?): ResponseModel {
         return retryWrapper(
             request,
-            maxRetries = getMaxRetryCount(request)
+            maxRetries = getMaxRetryCount(request),
+            serviceContainer = serviceContainer
         ) { retryCount: Int, outOf: Int ->
 
             val responseModel = ResponseModel()
@@ -102,7 +104,7 @@ class NetworkClient : NetworkClientInterface {
                     val error =
                         "Invalid response. Status Code: " + statusCode + ", Response : " + connection.responseMessage
                     responseModel.error = Exception(error)
-                    LoggerService.log(
+                    serviceContainer?.getLoggerService()?.log(
                         logLevel,
                         "GET: attempt $retryCount/$outOf [${responseModel.statusCode}] $url"
                     )
@@ -121,11 +123,12 @@ class NetworkClient : NetworkClientInterface {
                 val responseData = response.toString()
                 responseModel.data = responseData
 
-                LoggerService.log(logLevel, "GET: attempt $retryCount/$outOf [$statusCode] $url")
+                serviceContainer?.getLoggerService()
+                    ?.log(logLevel, "GET: attempt $retryCount/$outOf [$statusCode] $url")
                 return@retryWrapper responseModel
             } catch (exception: Exception) {
                 responseModel.error = exception
-                LoggerService.log(
+                serviceContainer?.getLoggerService()?.log(
                     logLevel,
                     "GET: attempt $retryCount/$outOf [404] ${constructUrl(request.options)} $exception"
                 )
@@ -139,10 +142,11 @@ class NetworkClient : NetworkClientInterface {
      * @param request The model containing request options.
      * @return A ResponseModel with the response data.
      */
-    override fun POST(request: RequestModel): ResponseModel {
+    override fun POST(request: RequestModel, serviceContainer: ServiceContainer?): ResponseModel {
         return retryWrapper(
             request,
-            maxRetries = MAX_RETRY_ATTEMPTS
+            maxRetries = MAX_RETRY_ATTEMPTS,
+            serviceContainer = serviceContainer,
         ) { retryCount: Int, outOf: Int ->
             val responseModel = ResponseModel()
             var bodyArray: ByteArray? = null
@@ -200,7 +204,7 @@ class NetworkClient : NetworkClientInterface {
                     val error = "Request failed. Status Code: $statusCode, Response: $responseData"
                     responseModel.error = Exception(error)
                 }
-                LoggerService.log(
+                serviceContainer?.getLoggerService()?.log(
                     logLevel,
                     "POST: attempt $retryCount/$outOf [${responseModel.statusCode}] $url body=${
                         String(bodyArray)
@@ -210,7 +214,7 @@ class NetworkClient : NetworkClientInterface {
             } catch (exception: Exception) {
                 responseModel.error = exception
                 responseModel.statusCode = 404
-                LoggerService.log(
+                serviceContainer?.getLoggerService()?.log(
                     logLevel,
                     "POST: attempt $retryCount/$outOf [404] ${constructUrl(request.options)} $exception"
                 )
@@ -222,6 +226,7 @@ class NetworkClient : NetworkClientInterface {
     private fun retryWrapper(
         request: RequestModel,
         maxRetries: Int,
+        serviceContainer: ServiceContainer?,
         requestProcessor: (retryCount: Int, outOf: Int) -> ResponseModel,
     ): ResponseModel {
         var countOfRetries = 0
@@ -247,10 +252,11 @@ class NetworkClient : NetworkClientInterface {
                         "maxRetries" to maxRetriesForRequest
                     )
                     LoggerService.errorLog(
-                        "ATTEMPTING_RETRY_FOR_FAILED_NETWORK_CALL",
-                        data,
-                        request.getExtraInfo(),
-                        false
+                        key = "ATTEMPTING_RETRY_FOR_FAILED_NETWORK_CALL",
+                        data = data,
+                        debugData = request.getExtraInfo(),
+                        shouldSendToVWO = false,
+                        serviceContainer = serviceContainer
                     )
                 }
                 request.lastError = getFormattedErrorMessage(response.error)
@@ -271,16 +277,25 @@ class NetworkClient : NetworkClientInterface {
         response.totalAttempts = countOfRetries - 1
         if (countOfRetries > 1 && !request.eventName.contains(EventEnum.VWO_DEBUGGER_EVENT.value)) {
             val debugEventProps = createNetWorkAndRetryDebugEvent(request, response)
-            sendDebugEventToVWO(removeNullValues(debugEventProps))
+            serviceContainer?.let { sc ->
+                sendDebugEventToVWO(
+                    eventProps = removeNullValues(originalMap = debugEventProps),
+                    serviceContainer = sc
+                )
+            } // maybe handle this discuss
         }
         if (response.error != null && !request.eventName.contains(EventEnum.VWO_DEBUGGER_EVENT.value)) {
 
             LoggerService.errorLog(
-                "NETWORK_CALL_FAILURE_AFTER_MAX_RETRIES", mapOf(
+                key = "NETWORK_CALL_FAILURE_AFTER_MAX_RETRIES",
+                data = mapOf(
                     "extraData" to (request.path ?: ""),
                     "attempts" to response.totalAttempts.toString(),
                     Constants.ERR to (response.error ?: "")
-                ), request.getExtraInfo(), false
+                ),
+                debugData = request.getExtraInfo(),
+                shouldSendToVWO = false,
+                serviceContainer = serviceContainer
             )
         }
 
@@ -288,7 +303,12 @@ class NetworkClient : NetworkClientInterface {
             && (request.path?.contains(SETTINGS_ENDPOINT) == true)
         ) {
             // IMPORTANT: inform devs that they have invalid AccountID and API Key
-            LoggerService.log(LogLevelEnum.ERROR, "INVALID_CREDENTIALS")
+            LoggerService.log(
+                level = LogLevelEnum.ERROR,
+                key = "INVALID_CREDENTIALS",
+                map = emptyMap(),
+                serviceContainer = serviceContainer
+            )
         }
 
         return response

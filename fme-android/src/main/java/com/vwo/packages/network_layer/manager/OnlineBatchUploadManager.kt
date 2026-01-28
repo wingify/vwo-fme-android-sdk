@@ -17,6 +17,7 @@
 
 package com.vwo.packages.network_layer.manager
 
+import com.vwo.ServiceContainer
 import com.vwo.constants.Constants.DEFAULT_BATCH_UPLOAD_INTERVAL
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -28,7 +29,7 @@ import kotlinx.coroutines.launch
  * This object is responsible for periodically triggering the batch upload of events that have been stored offline.
  * It uses a coroutine to run the upload process in the background at a configurable interval.
  */
-object OnlineBatchUploadManager {
+class OnlineBatchUploadManager {
 
     /**
      * The time interval, in milliseconds,between batch uploads.
@@ -51,7 +52,10 @@ object OnlineBatchUploadManager {
      * The interval between uploads is determined by the `batchUploadTimeInterval` property, or the
      * default interval if it is not set.
      */
-    fun startBatchUploader() {
+    internal fun startBatchUploader(
+        batchManager: BatchManager,
+        serviceContainer: ServiceContainer
+    ) {
         CoroutineScope(Dispatchers.IO).launch {
             while (true) {
                 val timeDelay = if (batchUploadTimeInterval > 0)
@@ -60,7 +64,7 @@ object OnlineBatchUploadManager {
                     DEFAULT_BATCH_UPLOAD_INTERVAL
 
                 delay(timeDelay)
-                BatchManager.start("Online time based batch uploader")
+                batchManager.start("Online time based batch uploader", serviceContainer)
             }
         }
     }

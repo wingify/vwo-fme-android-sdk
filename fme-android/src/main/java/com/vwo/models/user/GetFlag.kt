@@ -58,12 +58,6 @@ class GetFlag(val context: VWOUserContext) {
     fun getVariable(key: String?, defaultValue: Any): Any {
         for (variable in variablesValue) {
             if (variable.key.equals(key)) {
-                if (variable.type.equals(VariableTypeEnum.RECOMMENDATION.value,true)) {
-                    // Return a Recommendation Object if type is RECOMMENDATION
-                    val value = variable.value.toString().toIntOrNull()?:0
-                    return Recommendation(value, context)
-                }
-
                 return variable.value?:defaultValue
             }
         }

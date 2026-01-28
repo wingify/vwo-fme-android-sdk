@@ -15,6 +15,7 @@
  */
 package com.vwo.api
 
+import com.vwo.ServiceContainer
 import com.vwo.VWOClient
 import com.vwo.constants.Constants
 import com.vwo.constants.Constants.FEATURE_KEY
@@ -30,12 +31,11 @@ import com.vwo.models.Variation
 import com.vwo.models.user.GetFlag
 import com.vwo.models.user.VWOUserContext
 import com.vwo.packages.logger.enums.LogLevelEnum
-import com.vwo.packages.segmentation_evaluator.core.SegmentationManager
 import com.vwo.services.HooksManager
 import com.vwo.services.LoggerService
 import com.vwo.services.StorageService
 import com.vwo.utils.CampaignUtil.getVariationFromCampaignKey
-import com.vwo.utils.DecisionUtil.evaluateTrafficAndGetVariation
+import com.vwo.utils.DecisionUtil
 import com.vwo.utils.FunctionUtil.getAllExperimentRules
 import com.vwo.utils.FunctionUtil.getFeatureFromKey
 import com.vwo.utils.FunctionUtil.getSpecificRulesBasedOnType
@@ -57,6 +57,7 @@ object GetFlagAPI {
         featureKey: String,
         settings: Settings,
         context: VWOUserContext,
+        serviceContainer: ServiceContainer,
         hookManager: HooksManager,
     ): GetFlag {
         val getFlag = GetFlag(context)
@@ -71,7 +72,7 @@ object GetFlagAPI {
         // Initialize debug event properties
         val debugEventProps = mutableMapOf<String, Any>(
             "an" to ApiEnum.GET_FLAG.value,
-            "uuid" to context.getUuid(),
+            "uuid" to context.getUuid(serviceContainer),
             FEATURE_KEY to featureKey,
             "sId" to context.sessionId
         )
@@ -87,7 +88,7 @@ object GetFlagAPI {
             put("api", ApiEnum.GET_FLAG.value)
         }
 
-        val storageService = StorageService()
+        val storageService = StorageService(serviceContainer)
         val storedDataMap: Map<String, Any>? =
             StorageDecorator().getFeatureFromStorage(featureKey, context, storageService)
 
@@ -109,7 +110,7 @@ object GetFlagAPI {
                     )
                     // If variation is found in settings, return the variation
                     if (variation != null) {
-                        LoggerService.log(
+                        serviceContainer.getLoggerService()?.log(
                             LogLevelEnum.INFO,
                             "STORED_VARIATION_FOUND",
                             object : HashMap<String?, String?>() {
@@ -127,7 +128,8 @@ object GetFlagAPI {
                     }
                 }
             } else if (storedData?.rolloutKey != null && storedData.rolloutKey!!.isNotEmpty()
-                && storedData.rolloutId != null && storedData.rolloutId.toString().isNotEmpty()) {
+                && storedData.rolloutId != null && storedData.rolloutId.toString().isNotEmpty()
+            ) {
 
                 val variation: Variation? = getVariationFromCampaignKey(
                     settings,
@@ -136,7 +138,7 @@ object GetFlagAPI {
                 )
                 // If variation is found in settings, evaluate experiment rules
                 if (variation != null) {
-                    LoggerService.log(
+                    serviceContainer.getLoggerService()?.log(
                         LogLevelEnum.INFO,
                         "STORED_VARIATION_FOUND",
                         object : HashMap<String?, String?>() {
@@ -148,7 +150,7 @@ object GetFlagAPI {
                             }
                         })
 
-                    LoggerService.log(
+                    serviceContainer.getLoggerService()?.log(
                         LogLevelEnum.DEBUG,
                         "EXPERIMENTS_EVALUATION_WHEN_ROLLOUT_PASSED",
                         object : HashMap<String?, String?>() {
@@ -172,7 +174,8 @@ object GetFlagAPI {
                 }
             }
         } catch (e: Exception) {
-            LoggerService.log(LogLevelEnum.DEBUG, "Error parsing stored data: " + e.message)
+            serviceContainer.getLoggerService()
+                ?.log(LogLevelEnum.DEBUG, "Error parsing stored data: " + e.message, null)
         }
 
         /**
@@ -180,15 +183,19 @@ object GetFlagAPI {
          */
         if (feature == null) {
             LoggerService.errorLog(
-                "FEATURE_NOT_FOUND",
-                mapOf("featureKey" to featureKey),
-                debugEventProps,
+
+                key = "FEATURE_NOT_FOUND",
+                data = mapOf("featureKey" to featureKey),
+                debugData = debugEventProps,
+                shouldSendToVWO = true,
+                serviceContainer = serviceContainer
             )
             getFlag.setIsEnabled(false)
             return getFlag
         }
 
-        SegmentationManager.setContextualData(settings, feature, context)
+        serviceContainer.getSegmentationManager()
+            .setContextualData(settings, feature, context, serviceContainer)
 
         /**
          * get all the rollout rules for the feature and evaluate them
@@ -207,7 +214,8 @@ object GetFlagAPI {
                     evaluatedFeatureMap,
                     HashMap(),
                     storageService,
-                    decision
+                    decision,
+                    serviceContainer
                 )
                 val preSegmentationResult =
                     evaluateRuleResult["preSegmentationResult"] as Boolean
@@ -231,10 +239,11 @@ object GetFlagAPI {
             if (rolloutRulesToEvaluate.isNotEmpty()) {
                 val passedRolloutCampaign: Campaign = rolloutRulesToEvaluate[0]
                 val variation: Variation? =
-                    evaluateTrafficAndGetVariation(
+                    DecisionUtil().evaluateTrafficAndGetVariation(
                         settings,
                         passedRolloutCampaign,
-                        context.id
+                        context.id,
+                        serviceContainer
                     )
                 if (variation != null) {
                     getFlag.setIsEnabled(true)
@@ -250,13 +259,14 @@ object GetFlagAPI {
                         settings,
                         passedRolloutCampaign.id ?: 0,
                         variation.id ?: 0,
-                        context
+                        context,
+                        serviceContainer
                     )
                 }
             }
         } else {
             if (rollOutRules.isEmpty()) {
-                LoggerService.log(
+                serviceContainer.getLoggerService()?.log(
                     LogLevelEnum.DEBUG,
                     "EXPERIMENTS_EVALUATION_WHEN_NO_ROLLOUT_PRESENT",
                     null
@@ -284,7 +294,8 @@ object GetFlagAPI {
                     evaluatedFeatureMap,
                     megGroupWinnerCampaigns,
                     storageService,
-                    decision
+                    decision,
+                    serviceContainer
                 )
                 val preSegmentationResult =
                     evaluateRuleResult["preSegmentationResult"] as Boolean
@@ -313,7 +324,12 @@ object GetFlagAPI {
             if (experimentRulesToEvaluate.isNotEmpty()) {
                 val campaign: Campaign = experimentRulesToEvaluate[0]
                 val variation: Variation? =
-                    evaluateTrafficAndGetVariation(settings, campaign, context.id)
+                    DecisionUtil().evaluateTrafficAndGetVariation(
+                        settings,
+                        campaign,
+                        context.id,
+                        serviceContainer
+                    )
                 if (variation != null) {
                     getFlag.setIsEnabled(true)
                     getFlag.setVariables(variation.variables)
@@ -327,7 +343,8 @@ object GetFlagAPI {
                         settings,
                         campaign.id ?: 0,
                         variation.id ?: 0,
-                        context
+                        context,
+                        serviceContainer
                     )
                 }
             }
@@ -353,10 +370,10 @@ object GetFlagAPI {
             debugEventProps["cg"] = DebuggerCategoryEnum.DECISION.key
             debugEventProps["lt"] = com.vwo.enums.LogLevelEnum.INFO.name
             debugEventProps["msg_t"] = Constants.FLAG_DECISION_GIVEN
-            debugEventProps["uuid"] = context.getUuid()
+            debugEventProps["uuid"] = context.getUuid(serviceContainer)
             // Update debug event props with decision keys
             updateDebugEventProps(debugEventProps, decision)
-            sendDebugEventToVWO(debugEventProps)
+            sendDebugEventToVWO(debugEventProps, serviceContainer)
         }
 
         /**
@@ -366,7 +383,7 @@ object GetFlagAPI {
         if (feature.impactCampaign.campaignId != null && feature.impactCampaign.campaignId.toString()
                 .isNotEmpty()
         ) {
-            LoggerService.log(
+            serviceContainer.getLoggerService()?.log(
                 LogLevelEnum.INFO,
                 "IMPACT_ANALYSIS",
                 object : HashMap<String?, String?>() {
@@ -381,7 +398,8 @@ object GetFlagAPI {
                     settings,
                     it,
                     if (getFlag.isEnabled()) 2 else 1,
-                    context
+                    context,
+                    serviceContainer
                 )
             }
         }
@@ -418,7 +436,10 @@ object GetFlagAPI {
      * @param debugEventProps Debug event props
      * @param decision Decision
      */
-    private fun updateDebugEventProps(debugEventProps: MutableMap<String, Any>, decision: MutableMap<String, Any>) {
+    private fun updateDebugEventProps(
+        debugEventProps: MutableMap<String, Any>,
+        decision: MutableMap<String, Any>
+    ) {
         val decisionKeys = extractDecisionKeys(decision)
 
         val featureKey = decision["featureKey"] as? String ?: ""
