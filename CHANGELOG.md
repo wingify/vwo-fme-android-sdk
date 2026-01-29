@@ -5,7 +5,7 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [1.11.0] - 2026-01-15
+## [1.11.0] - 2026-01-29
 
 ### Added
 
@@ -21,56 +21,70 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- Fixed issue where `getVariable()` and `getVariables()` returned fallback/empty values when fetching user data from storage for rollout rule.
+- Fixed issue where `getVariable()` and `getVariables()` returned fallback/empty values when
+  fetching user data from storage for rollout rule.
 
 ## [1.10.2] - 2025-11-27
 
 ### Added
 
-- Enhanced Logging capabilities at VWO by sending `vwo_sdkDebug` event with additional debug properties.
+- Enhanced Logging capabilities at VWO by sending `vwo_sdkDebug` event with additional debug
+  properties.
 
 ## [1.10.1] - 2025-10-28
 
 ### Changed
+
 - Commit reverted for v1.10.0(logging capabilities)
 
 ## [1.9.2] - 2025-10-01
 
 ### Added
+
 - Bugfix for user count not increasing on dashboard
 
 ## [1.9.1] - 2025-09-20
 
 ### Added
+
 - Bugfix and handling crashes when `VWO.init` is called multiple times
 
 ## [1.9.0] - 2025-09-10
 
 ### Added
+
 - Support to use Device ID if `context.id` is not available
+
 ```java
 // Java
 VWOUserContext context = new VWOUserContext();
-context.setId(""); // Empty ID to trigger device ID fallback
-context.setShouldUseDeviceIdAsUserId(true); // Use device ID as user ID
+context.
+
+setId(""); // Empty ID to trigger device ID fallback
+context.
+
+setShouldUseDeviceIdAsUserId(true); // Use device ID as user ID
 ```
 
 - Add support for user aliasing (will work after gateway has been setup)
+
 ```java
 // Java
 VWOInitOptions options = new VWOInitOptions();
-options.isAliasingEnabled = true;
+options.isAliasingEnabled =true;
 
 VWOUserContext context = new VWOUserContext();
-context.id = "temp_id";
-VWO.setAlias(context, "user_alias");
+context.id ="temp_id";
+        VWO.
+
+setAlias(context, "user_alias");
 ```
 
 ## [1.8.0] - 2025-08-29
 
 ### Added
 
--  Attribute Support: Use custom variables in pre/post-segmentation.
+- Attribute Support: Use custom variables in pre/post-segmentation.
 
 ### Changed
 
@@ -78,7 +92,8 @@ VWO.setAlias(context, "user_alias");
 
 [1.7.0] - 2025-08-05
 
-- Added support for sending a one-time SDK initialization event to VWO server as part of health-check milestones.
+- Added support for sending a one-time SDK initialization event to VWO server as part of
+  health-check milestones.
 
 ## [1.6.4] - 2025-07-25
 
@@ -171,7 +186,9 @@ VWO.setAlias(context, "user_alias");
 
 ### Added
 
-- The SDK now supports storing impression events while the device is offline, ensuring no data loss. These events are batched and seamlessly synchronized with VWO servers once the device reconnects to the internet.
+- The SDK now supports storing impression events while the device is offline, ensuring no data loss.
+  These events are batched and seamlessly synchronized with VWO servers once the device reconnects
+  to the internet.
 
 ### Changed
 
@@ -188,8 +205,10 @@ VWO.setAlias(context, "user_alias");
 ### Added
 
 - Added support for Personalise rules within `Mutually Exclusive Groups`.
-- Settings cache: Cached settings will be used till it expires. Client can set the expiry time of cache.
-- Storage support: Built-in local storage will be used by default if client doesn't provide their own. Client’s storage will be used if it is provided.
+- Settings cache: Cached settings will be used till it expires. Client can set the expiry time of
+  cache.
+- Storage support: Built-in local storage will be used by default if client doesn't provide their
+  own. Client’s storage will be used if it is provided.
 - Call backs added to avoid busy waiting for server call to complete.
 - Changed variable access to method access for Flag - setIsEnabled & isEnabled
 
@@ -247,4 +266,4 @@ VWO.setAlias(context, "user_alias");
 
 - **Error handling**
 
-  - Gracefully handle any kind of error - TypeError, NetworkError, etc.
+    - Gracefully handle any kind of error - TypeError, NetworkError, etc.
