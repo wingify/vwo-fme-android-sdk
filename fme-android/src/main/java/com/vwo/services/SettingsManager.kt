@@ -30,10 +30,10 @@ import com.vwo.providers.StorageProvider
 import com.vwo.utils.FunctionUtil.getFormattedErrorMessage
 import com.vwo.utils.NetworkUtil
 import com.vwo.utils.SDKMetaUtil
-import kotlinx.coroutines.CoroutineExceptionHandler
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
 import java.net.URL
 
 /**
@@ -47,6 +47,10 @@ class SettingsManager(internal val options: VWOInitOptions) {
     var serviceContainer: ServiceContainer? = null
     val sdkKey = options.sdkKey
     val accountId = options.accountId
+
+    private val fetchMutex = Mutex()
+
+    private val coroutineScope = CoroutineScope(Dispatchers.IO)
 
     private val cachedSettingsExpiryInterval = options.cachedSettingsExpiryTime
     private val networkTimeout = Constants.SETTINGS_TIMEOUT.toInt()
@@ -99,26 +103,6 @@ class SettingsManager(internal val options: VWOInitOptions) {
     }
 
     /**
-     * Fetch setting from server only if cached settings has expired based on configured time.
-     */
-    internal fun fetchSettingsFromServerIfCacheHasExpired() {
-
-        val exceptionHandler = CoroutineExceptionHandler { _, throwable ->
-            serviceContainer?.getLoggerService()?.log(
-                level = LogLevelEnum.ERROR,
-                key = "ERROR_FETCHING_SETTINGS",
-                map = mapOf("err" to "${throwable.message} in get flag.")
-            )
-        }
-
-        if (!canUseCachedSettings()) {
-            CoroutineScope(Dispatchers.IO + exceptionHandler).launch {
-                fetchAndCacheServerSettings()
-            }
-        }
-    }
-
-    /**
      * Fetches settings from the server
      */
     private fun fetchFromCacheOrServer(): String? {
@@ -129,6 +113,19 @@ class SettingsManager(internal val options: VWOInitOptions) {
                 responseString = getCachedSetting()
                 if (responseString.isNullOrEmpty()) {
                     responseString = fetchAndCacheServerSettings()
+                } else {
+                    // async fetch settings doesn't care about cacheExpiry time
+                    if (fetchMutex.tryLock()) {
+                        coroutineScope.launch {
+                            try {
+                                fetchSettings()?.let { settings ->
+                                    updateSettingsCache(responseString = settings)
+                                }
+                            } finally {
+                                fetchMutex.unlock()
+                            }
+                        }
+                    }
                 }
             } else {
                 responseString = fetchSettings()
@@ -180,7 +177,7 @@ class SettingsManager(internal val options: VWOInitOptions) {
         return StorageProvider.settingsStore?.getSettings(accId, sdkKeyForAccount)
     }
 
-    internal fun canUseCachedSettings(): Boolean {
+    private fun canUseCachedSettings(): Boolean {
         val accId = accountId
         val sdkKeyForAccount = sdkKey
         if (cachedSettingsExpiryInterval == 0 || accId == null || sdkKeyForAccount == null) return false

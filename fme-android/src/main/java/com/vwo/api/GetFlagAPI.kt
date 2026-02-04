@@ -60,9 +60,6 @@ object GetFlagAPI {
         serviceContainer: ServiceContainer,
         hookManager: HooksManager,
     ): GetFlag {
-
-        serviceContainer.getSettingsManager()?.fetchSettingsFromServerIfCacheHasExpired()
-
         val getFlag = GetFlag(context)
         var shouldCheckForExperimentsRules = false
 
