@@ -28,6 +28,7 @@
 -keeppackagenames doNotKeepAThing
 
 -keep class com.vwo.VWO { *; }
+-keep class com.vwo.VWO, com.vwo.VWO$Companion { public protected *; }
 -keep class com.vwo.interfaces.IVwoInitCallback { *; }
 -keep class com.vwo.interfaces.IVwoListener { *; }
 -keep class com.vwo.interfaces.logger.LogTransport { *; }
