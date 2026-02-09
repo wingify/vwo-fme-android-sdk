@@ -15,7 +15,6 @@
  */
 package com.vwo.services
 
-import android.R.attr.port
 import com.vwo.ServiceContainer
 import com.vwo.VWOClient
 import com.vwo.constants.Constants
@@ -152,7 +151,7 @@ class SettingsManager(internal val options: VWOInitOptions) {
 
     private fun cachedSettingsAllowed() = cachedSettingsExpiryInterval != 0
 
-    internal fun fetchAndCacheServerSettings(): String? {
+    private fun fetchAndCacheServerSettings(): String? {
         val response: String? = fetchSettings()
         if (response != null) {
             updateSettingsCache(response)
