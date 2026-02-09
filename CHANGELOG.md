@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- VWO.init() is not visible on prod
+- Fixed an issue where the VWO.init() method was stripped or missing from production builds.
 
 ## [1.11.0] - 2026-01-29
 
