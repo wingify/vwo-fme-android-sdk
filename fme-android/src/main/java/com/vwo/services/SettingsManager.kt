@@ -117,9 +117,7 @@ class SettingsManager(internal val options: VWOInitOptions) {
                     if (fetchMutex.tryLock()) {
                         coroutineScope.launch {
                             try {
-                                fetchSettings()?.let { settings ->
-                                    updateSettingsCache(responseString = settings)
-                                }
+                                fetchAndCacheServerSettings()
                             } finally {
                                 fetchMutex.unlock()
                             }
