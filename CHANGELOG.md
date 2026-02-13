@@ -11,7 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Fetch settings parallelly even when cache is not expired
 
-## [1.11.1] - 2026-01-29
+## [1.11.1] - 2026-02-09
 
 ### Fixed
 
