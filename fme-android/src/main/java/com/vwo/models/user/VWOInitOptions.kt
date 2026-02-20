@@ -58,12 +58,13 @@ class VWOInitOptions {
     var cachedSettingsExpiryTime: Int = 0
 
     /**
-     * Optional: Duration in milliseconds for which stored Get Flag decisions remain valid.
-     * If 0 or not set, stored decisions are valid indefinitely.
+     * Maximum time (in milliseconds) for which a stored GetFlag decision remains valid.
+     *
+     * When a positive value is set, any cached decision older than this duration is treated
+     * as expired and re-evaluated on the next GetFlag call. A value of `0` (the default)
+     * means decisions never expire and remain valid indefinitely.
      */
     var cachedDecisionExpiryTime: Int = 0
-
-
 
     /**
      * The name of the SDK.

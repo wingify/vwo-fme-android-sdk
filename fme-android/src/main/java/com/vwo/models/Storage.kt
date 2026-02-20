@@ -33,8 +33,13 @@ class Storage {
     var decisionExpiryTime: Long? = null
 
     /**
-     * @return true if this stored decision has a positive expiry timestamp that is now in the past.
-     *         Missing or non-positive values mean "valid forever" (backward compatible).
+     * Checks whether this stored decision has expired.
+     *
+     * A decision is considered expired when its [decisionExpiryTime] is a positive timestamp
+     * that falls before the current time. If the expiry is null or non-positive, the decision
+     * is treated as valid indefinitely (for backward compatibility).
+     *
+     * @return `true` if the decision has expired, `false` otherwise.
      */
     fun isDecisionExpired(): Boolean {
         val expiry = decisionExpiryTime ?: return false
