@@ -285,7 +285,10 @@ class VWO private constructor(settings: String?, options: VWOInitOptions, vwoBui
      *
      * @param sdkInitTime The timestamp (in milliseconds) marking the completion of the SDK's initialization process.
      */
-    fun sendSdkInitEvent(sdkInitTime: Long, serviceContainer: ServiceContainer) {
+    fun sendSdkInitEvent(sdkInitTime: Long, serviceContainer: ServiceContainer? = null) {
+
+        val serviceContainer = serviceContainer ?: createServiceContainer()
+
         val wasInitializedEarlier = this.processedSettings?.sdkMetaInfo?.wasInitializedEarlier
 
         if (this.isSettingsValid && wasInitializedEarlier != true) {
