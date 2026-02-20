@@ -84,6 +84,7 @@ class VWOInitOptionsTest {
         assertTrue(initOptions.gatewayService.isEmpty()) // gatewayService should be an empty map by default
         assertNull(initOptions.context)
         assertEquals(0, initOptions.cachedSettingsExpiryTime)
+        assertEquals(0, initOptions.cachedDecisionExpiryTime)
         assertEquals(Constants.SDK_NAME, initOptions.sdkName) // Assert default sdkName
         assertEquals(BuildConfig.SDK_VERSION, initOptions.sdkVersion) // Assert default sdkVersion
         assertEquals(-1, initOptions.batchMinSize) // Assert default batchMinSize
@@ -175,6 +176,13 @@ class VWOInitOptionsTest {
     }
 
     @Test
+    fun `test setting and getting cachedDecisionExpiryTime`() {
+        val testExpiryTime = 60000
+        initOptions.cachedDecisionExpiryTime = testExpiryTime
+        assertEquals(testExpiryTime, initOptions.cachedDecisionExpiryTime)
+    }
+
+    @Test
     fun `test setting and getting sdkName`() {
         val testSdkName = "react-native"
         initOptions.sdkName = testSdkName
@@ -235,6 +243,7 @@ class VWOInitOptionsTest {
             gatewayService = testGatewayService
             context = mockContext
             cachedSettingsExpiryTime = 7200
+            cachedDecisionExpiryTime = 60000
             sdkName = "android-native"
             sdkVersion = "3.0.0"
             batchMinSize = 100
@@ -255,6 +264,7 @@ class VWOInitOptionsTest {
         assertEquals(testGatewayService, initOptions.gatewayService)
         assertEquals(mockContext, initOptions.context)
         assertEquals(7200, initOptions.cachedSettingsExpiryTime)
+        assertEquals(60000, initOptions.cachedDecisionExpiryTime)
         assertEquals("android-native", initOptions.sdkName)
         assertEquals("3.0.0", initOptions.sdkVersion)
         assertEquals(100, initOptions.batchMinSize)

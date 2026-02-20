@@ -16,7 +16,9 @@
 package com.vwo.models
 
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -42,6 +44,7 @@ class StorageTest {
         assertNull(storage.experimentId)
         assertNull(storage.experimentKey)
         assertNull(storage.experimentVariationId)
+        assertNull(storage.decisionExpiryTime)
     }
 
     @Test
@@ -101,6 +104,43 @@ class StorageTest {
     }
 
     @Test
+    fun `test setting and getting decisionExpiryTime`() {
+        val testExpiryTime = System.currentTimeMillis() + 60000L
+        storage.decisionExpiryTime = testExpiryTime
+        assertEquals(testExpiryTime, storage.decisionExpiryTime)
+    }
+
+    @Test
+    fun `test isDecisionExpired returns false when decisionExpiryTime is null`() {
+        storage.decisionExpiryTime = null
+        assertFalse(storage.isDecisionExpired())
+    }
+
+    @Test
+    fun `test isDecisionExpired returns false when decisionExpiryTime is zero`() {
+        storage.decisionExpiryTime = 0L
+        assertFalse(storage.isDecisionExpired())
+    }
+
+    @Test
+    fun `test isDecisionExpired returns false when decisionExpiryTime is negative`() {
+        storage.decisionExpiryTime = -1L
+        assertFalse(storage.isDecisionExpired())
+    }
+
+    @Test
+    fun `test isDecisionExpired returns false when decisionExpiryTime is in the future`() {
+        storage.decisionExpiryTime = System.currentTimeMillis() + 60000L
+        assertFalse(storage.isDecisionExpired())
+    }
+
+    @Test
+    fun `test isDecisionExpired returns true when decisionExpiryTime is in the past`() {
+        storage.decisionExpiryTime = System.currentTimeMillis() - 1000L
+        assertTrue(storage.isDecisionExpired())
+    }
+
+    @Test
     fun `test setting and getting all properties`() {
         val testFeatureKey = "test_feature_key"
         val testUser = "test_user"
@@ -110,6 +150,7 @@ class StorageTest {
         val testExperimentId = 789
         val testExperimentKey = "test_experiment_key"
         val testExperimentVariationId = 101112
+        val testDecisionExpiryTime = System.currentTimeMillis() + 60000L
 
         storage.apply {
             featureKey = testFeatureKey
@@ -120,6 +161,7 @@ class StorageTest {
             experimentId = testExperimentId
             experimentKey = testExperimentKey
             experimentVariationId = testExperimentVariationId
+            decisionExpiryTime = testDecisionExpiryTime
         }
 
         assertEquals(testFeatureKey, storage.featureKey)
@@ -130,5 +172,6 @@ class StorageTest {
         assertEquals(testExperimentId, storage.experimentId)
         assertEquals(testExperimentKey, storage.experimentKey)
         assertEquals(testExperimentVariationId, storage.experimentVariationId)
+        assertEquals(testDecisionExpiryTime, storage.decisionExpiryTime)
     }
 }
