@@ -1,1 +1,6 @@
-{}
+{
+  "ATTRIBUTES_NOT_FOUND": "{key} passed to the {apiName} API is empty. Please provide {expectedFormat}.",
+  "DECISION_EXPIRED": "Stored decision expired for feature: {featureKey} and user: {id}, re-evaluating.",
+  "MEG_DECISION_EXPIRED": "Stored MEG decision expired for group: {groupId} and user: {id}, re-evaluating.",
+  "MEG_FEATURE_DECISION_EXPIRED": "Stored MEG decision expired for feature: {featureKey} and user: {id}, re-evaluating."
+}
