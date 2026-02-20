@@ -246,7 +246,13 @@ class MegUtil {
                 try {
                     val storageMapAsString: String = VWOClient.objectMapper.writeValueAsString(storedDataMap ?: emptyMap<String, Any>())
                     val storedData: Storage? = VWOClient.objectMapper.readValue(storageMapAsString, Storage::class.java)
-                    if (storedData?.experimentVariationId != null
+                    if (storedData != null && storedData.isDecisionExpired()) {
+                        serviceContainer.getLoggerService()?.log(
+                            level = LogLevelEnum.WARN,
+                            key = "MEG_FEATURE_DECISION_EXPIRED",
+                            map = mapOf( "featureKey" to featureKey, "id" to "${context.id}")
+                        )
+                    } else if (storedData?.experimentVariationId != null
                         && storedData.experimentVariationId.toString().isNotEmpty()) {
 
                         if (!storedData.experimentKey.isNullOrEmpty() && storedData.experimentKey == campaign.key) {
@@ -490,6 +496,12 @@ class MegUtil {
                 storageMap["experimentKey"] = winnerVariation.key?:""
                 storageMap["experimentVariationId"] = if (winnerVariation.type.equals(CampaignTypeEnum.PERSONALIZE.value)) winnerVariation.variations[0].id?:-1 else -1
                 storageMap["context"] = context
+
+                val cachedDecisionExpiryTime = serviceContainer.getVWOInitOptions().cachedDecisionExpiryTime
+                if (cachedDecisionExpiryTime > 0) {
+                    storageMap["decisionExpiryTime"] = System.currentTimeMillis() + cachedDecisionExpiryTime
+                }
+
                 StorageDecorator().setDataInStorage(storageMap, storageService)
 
                 if (calledCampaignIds!!.contains(winnerVariation.id)) {
@@ -630,6 +642,12 @@ class MegUtil {
                 storageMap["experimentVariationId"] =
                     if (winnerCampaign.type == CampaignTypeEnum.PERSONALIZE.value) winnerCampaign.variations[0].id?:-1 else -1
                 storageMap["context"] = context
+
+                val cachedDecisionExpiryTime = serviceContainer.getVWOInitOptions().cachedDecisionExpiryTime
+                if (cachedDecisionExpiryTime > 0) {
+                    storageMap["decisionExpiryTime"] = System.currentTimeMillis() + cachedDecisionExpiryTime
+                }
+
                 StorageDecorator().setDataInStorage(storageMap, storageService)
 
                 if (calledCampaignIds.contains(winnerCampaign.id)) {

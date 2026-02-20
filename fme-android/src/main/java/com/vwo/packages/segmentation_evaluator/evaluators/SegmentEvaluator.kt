@@ -362,6 +362,10 @@ class SegmentEvaluator(val serviceContainer: ServiceContainer) {
             val storedData: Storage? =
                 VWOClient.objectMapper.readValue(storageMapAsString, Storage::class.java)
 
+            if (storedData != null && storedData.isDecisionExpired()) {
+                return false
+            }
+
             return storedData != null && (storedDataMap?.size ?: 0) > 1
         } catch (exception: Exception) {
             serviceContainer.getLoggerService()?.log(

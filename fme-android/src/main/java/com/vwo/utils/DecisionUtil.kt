@@ -28,7 +28,6 @@ import com.vwo.models.Variation
 import com.vwo.models.user.VWOUserContext
 import com.vwo.packages.decision_maker.DecisionMaker
 import com.vwo.packages.logger.enums.LogLevelEnum
-import com.vwo.packages.segmentation_evaluator.core.SegmentationManager
 import com.vwo.services.CampaignDecisionService
 import com.vwo.services.StorageService
 import com.vwo.utils.CampaignUtil.getGroupDetailsIfCampaignPartOfIt
@@ -167,7 +166,16 @@ class DecisionUtil {
                         storageMapAsString,
                         Storage::class.java
                     )
-                    if (storedData != null && storedData.experimentId != null && storedData.experimentKey != null) {
+                    if (storedData != null && storedData.isDecisionExpired()) {
+                        serviceContainer.getLoggerService()?.log(
+                            level = LogLevelEnum.WARN,
+                            key = "MEG_DECISION_EXPIRED",
+                            map = mapOf(
+                                "groupId" to groupId,
+                                "id" to "${context.id}"
+                            )
+                        )
+                    } else if (storedData != null && storedData.experimentId != null && storedData.experimentKey != null) {
                         serviceContainer.getLoggerService()?.log(
                             LogLevelEnum.INFO,
                             "MEG_CAMPAIGN_FOUND_IN_STORAGE",

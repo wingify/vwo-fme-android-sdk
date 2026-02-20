@@ -81,6 +81,7 @@ class MobileDefaultStorage(private val initOptions: VWOInitOptions) : Connector(
 
         data["rolloutId"]?.let { value["rolloutId"] = it }
         data["experimentId"]?.let { value["experimentId"] = it }
+        data["decisionExpiryTime"]?.let { value["decisionExpiryTime"] = it }
 
         val jsonValue = JSONObject(value)
         // Store the value in the storage

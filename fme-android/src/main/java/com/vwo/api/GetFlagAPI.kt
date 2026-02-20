@@ -100,7 +100,14 @@ object GetFlagAPI {
                 VWOClient.objectMapper.writeValueAsString(storedDataMap ?: emptyMap<String, Any>())
             val storedData: Storage? =
                 VWOClient.objectMapper.readValue(storageMapAsString, Storage::class.java)
-            if (storedData?.experimentVariationId?.toString()?.isNotEmpty() == true) {
+
+            if (storedData != null && storedData.isDecisionExpired()) {
+                serviceContainer.getLoggerService()?.log(
+                    key = "DECISION_EXPIRED",
+                    level = LogLevelEnum.WARN,
+                    map = mapOf("featureKey" to featureKey, "id" to "${context.id}")
+                )
+            } else if (storedData?.experimentVariationId?.toString()?.isNotEmpty() == true) {
 
                 if (storedData.experimentKey != null && storedData.experimentKey!!.isNotEmpty()) {
                     val variation: Variation? = getVariationFromCampaignKey(
@@ -357,6 +364,13 @@ object GetFlagAPI {
             context.id?.let { storageMap["userId"] = it }
             storageMap["context"] = context
             storageMap.putAll(passedRulesInformation)
+
+            val cachedDecisionExpiryTime =
+                serviceContainer.getVWOInitOptions().cachedDecisionExpiryTime
+            if (cachedDecisionExpiryTime > 0) {
+                storageMap["decisionExpiryTime"] =
+                    System.currentTimeMillis() + cachedDecisionExpiryTime
+            }
 
             StorageDecorator().setDataInStorage(storageMap, storageService)
         }

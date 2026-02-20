@@ -30,4 +30,16 @@ class Storage {
     var experimentId: Int? = null
     var experimentKey: String? = null
     var experimentVariationId: Int? = null
+    var decisionExpiryTime: Long? = null
+
+    /**
+     * @return true if this stored decision has a positive expiry timestamp that is now in the past.
+     *         Missing or non-positive values mean "valid forever" (backward compatible).
+     */
+    fun isDecisionExpired(): Boolean {
+        val expiry = decisionExpiryTime ?: return false
+        if (expiry <= 0L) return false
+        return System.currentTimeMillis() > expiry
+    }
+
 }

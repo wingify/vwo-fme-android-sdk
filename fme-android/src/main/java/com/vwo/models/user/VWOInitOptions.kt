@@ -57,6 +57,12 @@ class VWOInitOptions {
      */
     var cachedSettingsExpiryTime: Int = 0
 
+    /**
+     * Optional: Duration in milliseconds for which stored Get Flag decisions remain valid.
+     * If 0 or not set, stored decisions are valid indefinitely.
+     */
+    var cachedDecisionExpiryTime: Int = 0
+
 
 
     /**
