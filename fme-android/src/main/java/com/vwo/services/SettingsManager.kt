@@ -29,6 +29,10 @@ import com.vwo.providers.StorageProvider
 import com.vwo.utils.FunctionUtil.getFormattedErrorMessage
 import com.vwo.utils.NetworkUtil
 import com.vwo.utils.SDKMetaUtil
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
 import java.net.URL
 
 /**
@@ -42,6 +46,10 @@ class SettingsManager(internal val options: VWOInitOptions) {
     var serviceContainer: ServiceContainer? = null
     val sdkKey = options.sdkKey
     val accountId = options.accountId
+
+    private val fetchMutex = Mutex()
+
+    private val coroutineScope = CoroutineScope(Dispatchers.IO)
 
     private val cachedSettingsExpiryInterval = options.cachedSettingsExpiryTime
     private val networkTimeout = Constants.SETTINGS_TIMEOUT.toInt()
@@ -104,6 +112,17 @@ class SettingsManager(internal val options: VWOInitOptions) {
                 responseString = getCachedSetting()
                 if (responseString.isNullOrEmpty()) {
                     responseString = fetchAndCacheServerSettings()
+                } else {
+                    // async fetch settings doesn't care about cacheExpiry time
+                    if (fetchMutex.tryLock()) {
+                        coroutineScope.launch {
+                            try {
+                                fetchAndCacheServerSettings()
+                            } finally {
+                                fetchMutex.unlock()
+                            }
+                        }
+                    }
                 }
             } else {
                 responseString = fetchSettings()
