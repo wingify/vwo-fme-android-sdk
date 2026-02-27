@@ -95,10 +95,11 @@ object GetFlagAPI {
         /**
          * If feature is found in the storage, return the stored variation
          */
+        var storedData: Storage? = null
         try {
             val storageMapAsString: String =
                 VWOClient.objectMapper.writeValueAsString(storedDataMap ?: emptyMap<String, Any>())
-            val storedData: Storage? =
+            storedData =
                 VWOClient.objectMapper.readValue(storageMapAsString, Storage::class.java)
 
             if (storedData != null && storedData.isDecisionExpired()) {
@@ -368,8 +369,14 @@ object GetFlagAPI {
             val cachedDecisionExpiryTime =
                 serviceContainer.getVWOInitOptions().cachedDecisionExpiryTime
             if (cachedDecisionExpiryTime > 0) {
+                // Only set a new expiry when we made a fresh decision; preserve existing expiry
+                val existingExpiry = if (storedData != null && !storedData.isDecisionExpired()) {
+                    storedData.decisionExpiryTime
+                } else {
+                    null
+                }
                 storageMap["decisionExpiryTime"] =
-                    System.currentTimeMillis() + cachedDecisionExpiryTime
+                    existingExpiry ?: (System.currentTimeMillis() + cachedDecisionExpiryTime)
             }
 
             StorageDecorator().setDataInStorage(storageMap, storageService)
