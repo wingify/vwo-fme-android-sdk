@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- Decision expiry not working as intended when only a single rollout was defined 
+- Improved decision caching logic to ensure rollout expirations are respected in single-rollout configurations.
 
 ## [1.11.3] - 2026-02-25
 

@@ -369,14 +369,11 @@ object GetFlagAPI {
             val cachedDecisionExpiryTime =
                 serviceContainer.getVWOInitOptions().cachedDecisionExpiryTime
             if (cachedDecisionExpiryTime > 0) {
-                // Only set a new expiry when we made a fresh decision; preserve existing expiry
-                val existingExpiry = if (storedData != null && !storedData.isDecisionExpired()) {
-                    storedData.decisionExpiryTime
-                } else {
-                    null
+                val isAlreadyValid = (storedData != null) && !storedData.isDecisionExpired()
+
+                if (!isAlreadyValid) {
+                    storageMap["decisionExpiryTime"] = System.currentTimeMillis() + cachedDecisionExpiryTime
                 }
-                storageMap["decisionExpiryTime"] =
-                    existingExpiry ?: (System.currentTimeMillis() + cachedDecisionExpiryTime)
             }
 
             StorageDecorator().setDataInStorage(storageMap, storageService)
