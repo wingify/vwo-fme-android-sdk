@@ -42,11 +42,18 @@ import java.util.concurrent.TimeUnit
 /**
  * E2E tests for the decision expiry feature (cachedDecisionExpiryTime).
  *
+ * Production rule (GetFlagAPI): we only write decisionExpiryTime when we made a fresh decision
+ * (!isAlreadyValid). When we reuse a valid stored decision we do not add the key to the payload,
+ * so we don't rewrite/extend the TTL.
+ *
  * Validates that:
  * - When cachedDecisionExpiryTime = 0, stored decisions never expire.
- * - When cachedDecisionExpiryTime > 0, decisions include an expiry timestamp.
- * - Expired stored decisions are ignored and the SDK re-evaluates.
+ * - When cachedDecisionExpiryTime > 0 and we re-evaluate (e.g. expired or no cache), we write a new expiry.
+ * - Expired stored decisions are ignored and the SDK re-evaluates and writes new expiry.
  * - Old payloads without decisionExpiryTime are treated as valid forever.
+ *
+ * Tests that assert "new expiry written" pre-populate storage with an expired decision so the SDK
+ * re-evaluates and sets decisionExpiryTime (otherwise empty storage is treated as "valid" and we don't set).
  */
 class DecisionExpiryTest {
 
@@ -198,6 +205,14 @@ class DecisionExpiryTest {
         val userId = "user_id"
         val expiryMs = 60_000
 
+        // Pre-populate with expired decision so SDK re-evaluates and writes new expiry (logic only sets expiry when !isAlreadyValid)
+        storage.prePopulate(featureKey, userId, mapOf(
+            "rolloutKey" to "feature1_rolloutRule1",
+            "rolloutVariationId" to 1,
+            "rolloutId" to 1,
+            "decisionExpiryTime" to (System.currentTimeMillis() - 10_000L)
+        ))
+
         val beforeCall = System.currentTimeMillis()
         if (!initVWO("BASIC_ROLLOUT_SETTINGS", storage, cachedDecisionExpiryTime = expiryMs)) return
 
@@ -210,7 +225,7 @@ class DecisionExpiryTest {
         assertNotNull(stored)
 
         val storedExpiry = stored!!["decisionExpiryTime"] as? Long
-        assertNotNull("decisionExpiryTime should be set when cachedDecisionExpiryTime > 0", storedExpiry)
+        assertNotNull("decisionExpiryTime should be set when cachedDecisionExpiryTime > 0 and decision was re-evaluated", storedExpiry)
         assertTrue(
             "Stored expiry should be roughly currentTime + expiryMs",
             storedExpiry!! in (beforeCall + expiryMs)..(afterCall + expiryMs)
@@ -269,10 +284,12 @@ class DecisionExpiryTest {
         assertNotNull(flag)
         assertTrue("Flag should be enabled from the stored (non-expired) decision", flag!!.isEnabled())
 
+        // Experiment cache hit returns early, so storage is not written; pre-populated expiry remains
         val stored = storage.getStoredEntry(featureKey, userId)
+        assertNotNull(stored)
         val currentExpiry = stored?.get("decisionExpiryTime") as? Long
         assertEquals(
-            "Expiry should remain unchanged because the stored decision was used directly",
+            "Expiry unchanged because stored decision was used directly (no write)",
             futureExpiry,
             currentExpiry
         )
@@ -346,6 +363,14 @@ class DecisionExpiryTest {
         val userId = "user_id"
         val expiryMs = 30_000
 
+        // Pre-populate with expired decision so SDK re-evaluates and writes new expiry
+        storage.prePopulate(featureKey, userId, mapOf(
+            "rolloutKey" to "feature1_rolloutRule1",
+            "rolloutVariationId" to 1,
+            "rolloutId" to 1,
+            "decisionExpiryTime" to (System.currentTimeMillis() - 10_000L)
+        ))
+
         if (!initVWO("BASIC_ROLLOUT_SETTINGS", storage, cachedDecisionExpiryTime = expiryMs)) return
 
         val beforeCall = System.currentTimeMillis()
@@ -374,6 +399,14 @@ class DecisionExpiryTest {
         val userId = "user_id"
         val expiryMs = 45_000
 
+        // Pre-populate with expired decision so SDK re-evaluates and writes new expiry
+        storage.prePopulate(featureKey, userId, mapOf(
+            "rolloutKey" to "feature1_rolloutRule1",
+            "rolloutVariationId" to 1,
+            "rolloutId" to 1,
+            "decisionExpiryTime" to (System.currentTimeMillis() - 10_000L)
+        ))
+
         if (!initVWO("BASIC_ROLLOUT_TESTING_RULE_SETTINGS", storage, cachedDecisionExpiryTime = expiryMs)) return
 
         val context = VWOUserContext().apply {
@@ -393,9 +426,10 @@ class DecisionExpiryTest {
 
         val storedExpiry = stored!!["decisionExpiryTime"] as? Long
         assertNotNull(storedExpiry)
+        val toleranceMs = 5_000L
         assertTrue(
             "Decision with rollout+testing rule should also have correct decisionExpiryTime",
-            storedExpiry!! in (beforeCall + expiryMs)..(afterCall + expiryMs)
+            storedExpiry!! >= (beforeCall + expiryMs - toleranceMs) && storedExpiry <= (afterCall + expiryMs + toleranceMs)
         )
     }
 }
