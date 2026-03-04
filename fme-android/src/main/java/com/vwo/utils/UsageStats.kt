@@ -137,7 +137,7 @@ class UsageStats {
         if (!initOptions.isUsageStatsDisabled) {
             collectStats(serviceContainer)
         }
-        serviceContainer.getLoggerService()?.log(LogLevelEnum.INFO, "Usage stats: $stats", null)
+        serviceContainer.getLoggerService()?.log(LogLevelEnum.INFO, "Usage stats: $stats")
         return stats.toMap()
     }
 

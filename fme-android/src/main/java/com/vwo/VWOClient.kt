@@ -17,12 +17,16 @@ package com.vwo
 
 import android.content.Context
 import com.google.gson.Gson
+import com.google.gson.JsonDeserializationContext
+import com.google.gson.JsonDeserializer
+import com.google.gson.JsonElement
 import com.vwo.api.GetFlagAPI
 import com.vwo.api.SetAttributeAPI.setAttribute
 import com.vwo.api.TrackEventAPI
 import com.vwo.constants.Constants
 import com.vwo.constants.Constants.FEATURE_KEY
 import com.vwo.enums.ApiEnum
+import com.vwo.models.HoldoutGroup
 import com.vwo.models.Settings
 import com.vwo.models.schemas.SettingsSchema
 import com.vwo.models.user.GetFlag
@@ -40,6 +44,7 @@ import com.vwo.utils.FunctionUtil.getFormattedErrorMessage
 import com.vwo.utils.GsonUtil
 import com.vwo.utils.SettingsUtil
 import com.vwo.utils.UserIdUtil
+import java.lang.reflect.Type
 
 /**
  * Client class for interacting with the VWO SDK.
@@ -67,12 +72,12 @@ open class VWOClient(
             if (settings != null) {
                 this.settings = settings
                 this.processedSettings = gson.fromJson(settings, Settings::class.java)
-                this.processedSettings?.let {
-                    SettingsUtil.processSettings(it)
-                }
                 // init SDKMetaUtil and set sdkVersion
                 //SDKMetaUtil.init()
                 val serviceContainer = createServiceContainer()
+                this.processedSettings?.let {
+                    SettingsUtil.processSettings(it, serviceContainer)
+                }
                 serviceContainer?.getLoggerService()
                     ?.log(LogLevelEnum.INFO, "CLIENT_INITIALIZED", null)
             }
@@ -503,6 +508,25 @@ open class VWOClient(
         // Gson-based ObjectMapper replacement for API compatibility
         @JvmStatic
         val objectMapper = GsonObjectMapper()
+    }
+
+    class HoldoutGroupAdapter : JsonDeserializer<List<HoldoutGroup>> {
+        override fun deserialize(
+            json: JsonElement,
+            typeOfT: Type,
+            context: JsonDeserializationContext
+        ): List<HoldoutGroup> {
+            // If the server sends [], it's a JsonArray
+            if (json.isJsonArray) {
+                val list = mutableListOf<HoldoutGroup>()
+                json.asJsonArray.forEach {
+                    list.add(context.deserialize(it, HoldoutGroup::class.java))
+                }
+                return list
+            }
+            // If the server sends {} (empty object), return an empty list
+            return emptyList()
+        }
     }
 
     // Companion class for ObjectMapper replacement

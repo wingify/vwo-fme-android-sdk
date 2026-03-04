@@ -19,11 +19,8 @@ import com.google.gson.Gson
 import com.vwo.enums.CampaignTypeEnum
 import com.vwo.models.Campaign
 import com.vwo.models.Feature
-import com.vwo.models.Metric
 import com.vwo.models.Settings
 import org.json.JSONObject
-import java.util.function.Predicate
-import java.util.stream.Collectors
 
 /**
  * Utility object for functional operations.
@@ -114,6 +111,25 @@ object FunctionUtil {
                 metric.identifier == eventName
             } ?: false
         }
+    }
+
+    /**
+     * Checks if an event is tracked as a metric in any holdout group defined in the settings.
+     *
+     * Holdout groups are used to exclude a portion of traffic from experimentation; this helper
+     * scans all configured holdout groups and their metrics to determine whether the provided
+     * event name is referenced.
+     *
+     * @param eventName The name of the event to search for within holdout metrics.
+     * @param settings The settings containing holdout group and metric configuration.
+     * @return `true` if at least one holdout group tracks the event, `false` otherwise.
+     */
+    fun doesEventBelongToAnyHoldout(eventName: String, settings: Settings): Boolean {
+        return settings.holdoutGroups?.any { holdout ->
+            holdout.metrics?.any { metric ->
+                metric.identifier == eventName
+            } ?: false
+        } ?: false
     }
 
     /**

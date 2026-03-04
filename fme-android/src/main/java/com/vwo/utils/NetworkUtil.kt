@@ -18,6 +18,7 @@ package com.vwo.utils
 import com.vwo.ServiceContainer
 import com.vwo.VWOClient
 import com.vwo.constants.Constants
+import com.vwo.constants.Constants.IMPRESSION_NO_FEATURE_ID
 import com.vwo.constants.Constants.PRODUCT_NAME
 import com.vwo.constants.Constants.VWO_FS_ENVIRONMENT
 import com.vwo.enums.EventEnum
@@ -289,21 +290,25 @@ class NetworkUtil {
             variationId: Int,
             visitorUserAgent: String?,
             ipAddress: String?,
+            featureId: Int?,
             serviceContainer: ServiceContainer
         ): Map<String, Any> {
-            val properties =
-                getEventBasePayload(
-                    settings,
-                    context,
-                    userId,
-                    eventName,
-                    visitorUserAgent,
-                    ipAddress,
-                    serviceContainer
-                )
+            val properties = getEventBasePayload(
+                settings,
+                context,
+                userId,
+                eventName,
+                visitorUserAgent,
+                ipAddress,
+                serviceContainer
+            )
             properties.d!!.event!!.props!!.id = campaignId
             properties.d!!.event!!.props!!.variation = variationId.toString()
             properties.d!!.event!!.props!!.setFirst(1)
+
+            if (featureId != null && featureId != IMPRESSION_NO_FEATURE_ID) {
+                properties.d?.event?.props?.fId = featureId
+            }
 
             if (eventName == EventEnum.VWO_VARIATION_SHOWN.value) {
                 properties.d?.event?.props?.setIsMII(FMEConfig.isMISdkLinked)

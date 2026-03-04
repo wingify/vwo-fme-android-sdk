@@ -20,9 +20,9 @@ import com.vwo.models.Campaign
 import com.vwo.models.Feature
 import com.vwo.models.Settings
 import com.vwo.models.Variation
+import com.vwo.models.impression.ImpressionPayload
 import com.vwo.models.user.VWOUserContext
 import com.vwo.packages.logger.enums.LogLevelEnum
-import com.vwo.services.LoggerService
 import com.vwo.services.StorageService
 
 /**
@@ -78,16 +78,17 @@ object RuleEvaluationUtil {
             val whilistedId = whitelistedObject?.id
             if (preSegmentationResult && whilistedId != null) {
                 // Update the decision object with campaign and variation details
-                val cmpId = campaign.id?:0
+                val cmpId = campaign.id ?: 0
                 decision["experimentId"] = cmpId
-                decision["experimentKey"] = campaign.key?:""
+                decision["experimentKey"] = campaign.key ?: ""
                 decision["experimentVariationId"] = whilistedId
 
                 // Send an impression for the variation shown
+                val impressionPayload = ImpressionPayload()
+                impressionPayload.add(campaignId = cmpId, variationId = whilistedId)
                 ImpressionUtil.createAndSendImpressionForVariationShown(
-                    settings,
-                    cmpId,
-                    whilistedId,
+                    settings = settings,
+                    impressionPayload = impressionPayload,
                     context,
                     serviceContainer
                 )
@@ -100,7 +101,8 @@ object RuleEvaluationUtil {
             result["updatedDecision"] = decision
             return result
         } catch (exception: Exception) {
-            serviceContainer.getLoggerService()?.log(LogLevelEnum.ERROR, "Error occurred while evaluating rule: $exception", null)
+            serviceContainer.getLoggerService()
+                ?.log(LogLevelEnum.ERROR, "Error occurred while evaluating rule: $exception", null)
             return HashMap()
         }
     }

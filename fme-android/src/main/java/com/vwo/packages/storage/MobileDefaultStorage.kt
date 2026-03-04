@@ -83,6 +83,13 @@ class MobileDefaultStorage(private val initOptions: VWOInitOptions) : Connector(
         data["experimentId"]?.let { value["experimentId"] = it }
         data["decisionExpiryTime"]?.let { value["decisionExpiryTime"] = it }
 
+        data[Constants.Holdouts.KEY_STORAGE_HOLDOUT_IDS]?.let {
+            value[Constants.Holdouts.KEY_STORAGE_HOLDOUT_IDS] = it
+        }
+        data[Constants.Holdouts.KEY_STORAGE_NOT_IN_HOLDOUT_IDS]?.let {
+            value[Constants.Holdouts.KEY_STORAGE_NOT_IN_HOLDOUT_IDS] = it
+        }
+
         val jsonValue = JSONObject(value)
         // Store the value in the storage
         storage?.saveFeatureKey(key, jsonValue.toString())

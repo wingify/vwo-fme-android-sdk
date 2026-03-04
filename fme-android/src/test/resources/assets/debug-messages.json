@@ -9,5 +9,22 @@
 
   "IMPRESSION_FOR_TRACK_USER": "Impression built for vwo_variationShown event for Account ID:{accountId}, User ID:{userId}, and experiment ID:{campaignId}",
   "IMPRESSION_FOR_TRACK_GOAL": "Impression built for {eventName} event for Account ID:{accountId}, and user ID:{userId}",
-  "IMPRESSION_FOR_SYNC_VISITOR_PROP": "Impression built for {eventName} event for Account ID:{accountId}, and user ID:{userId}"
+  "IMPRESSION_FOR_GET_RECOMMENDATION": "Getting Recommendations for Account ID:{accountId}, and user ID:{userId}",
+  "IMPRESSION_FOR_SYNC_VISITOR_PROP": "Impression built for {eventName} event for Account ID:{accountId}, and user ID:{userId}",
+  "NETWORK_CALL_FAILED": "Error occurred while sending {method} request. Error: {err}",
+
+  "HOLDOUT_GROUP_EVALUATION": "Evaluating holdout group {holdoutGroupId} for user {userId} and feature {featureId}",
+  "HOLDOUT_GROUP_BUCKETED": "User {userId} bucketed into holdout group {holdoutGroupId} with bucket value {bucketValue} and threshold {threshold}",
+  "HOLDOUT_GROUP_FOUND_IN_STORAGE": "Holdout group assignment found in storage for user {userId} in holdout group {holdoutName} for feature {featureKey}",
+
+  "HOLDOUT_SEGMENTATION_FAIL": "User: {userId} did not qualify segmentation for Holdout: {holdoutGroupName}",
+  "HOLDOUT_SHOULD_NOT_EXCLUDE_USER": "User {userId} is NOT part of HOLDOUT named {holdoutGroupName}.",
+  "HOLDOUT_NOT_CONFIGURED": "Holdout configuration was not found in the received server settings.",
+  "HOLDOUT_SETTINGS_INVALID": "Invalid value detected in holdout settings, review configuration in App",
+
+  "STORED_HOLDOUT_DECISION_FOUND": "User id: {userId} already part of holdout id: {holdoutId} feature key: {featureKey}.",
+
+  "PART_OF_HOLDOUT_IN_MEG": "MEG: User id {userId} is part of holdout: {holdoutId} for feature key: {featureKey}.",
+  "HOLDOUT_SKIP_EVALUATION": "Skip holdout reevaluation for holdout id : {holdoutName} because {reason}",
+  "SAVE_NOT_IN_HOLDOUT": "User id: {userId} was not part of any applicable holdout: {holdoutIds}"
 }

@@ -29,11 +29,11 @@ import com.vwo.models.user.VWOUserContext
 import com.vwo.packages.decision_maker.DecisionMaker
 import com.vwo.packages.logger.enums.LogLevelEnum
 import com.vwo.services.CampaignDecisionService
+import com.vwo.services.HoldoutGroupService
 import com.vwo.services.StorageService
 import com.vwo.utils.CampaignUtil.getBucketingSeed
 import com.vwo.utils.CampaignUtil.setCampaignAllocation
 import com.vwo.utils.FunctionUtil.cloneObject
-
 
 /**
  * Utility object for MEG-related operations.
@@ -60,13 +60,18 @@ class MegUtil {
         storageService: StorageService,
         serviceContainer: ServiceContainer
     ): Variation? {
+
         val featureToSkip: MutableList<String?> = ArrayList()
         val campaignMap: MutableMap<String, MutableList<Campaign>> = HashMap()
 
         // get all feature keys and all campaignIds from the groupId
         val featureKeysAndGroupCampaignIds = getFeatureKeysFromGroup(settings, groupId)
         val featureKeys = featureKeysAndGroupCampaignIds["featureKeys"] as List<String>?
-        val groupCampaignIds:List<String>? = featureKeysAndGroupCampaignIds["groupCampaignIds"] as List<String>?
+        val groupCampaignIds: List<String>? =
+            featureKeysAndGroupCampaignIds["groupCampaignIds"] as List<String>?
+
+        // get stored holdouts
+        val storageService = StorageService()
 
         for (featureKey in featureKeys!!) {
             val currentFeature = FunctionUtil.getFeatureFromKey(settings, featureKey)
@@ -76,34 +81,100 @@ class MegUtil {
                 continue
             }
 
-            // evaluate the feature rollout rules
-            val isRolloutRulePassed = isRolloutRuleForFeaturePassed(
-                settings,
-                currentFeature,
-                evaluatedFeatureMap,
-                featureToSkip,
-                context,
-                storageService,
-                serviceContainer
+            val storedDataMap: Map<String, Any>? =
+                StorageDecorator().getFeatureFromStorage(featureKey, context, storageService)
+            val storageMapAsString: String = VWOClient.objectMapper.writeValueAsString(
+                storedDataMap?.toMap() ?: emptyMap<String, Any>()
             )
-            if (isRolloutRulePassed) {
-                for (feature1 in settings.features) {
-                    if (feature1.key == featureKey) {
-                        for (campaign in feature1.rulesLinkedCampaign) {
-                            if (groupCampaignIds!!.contains(campaign.id.toString())
-                                || groupCampaignIds.contains(campaign.id.toString()
-                                        + "_" + campaign.variations!![0].id)) {
+            val storedData: Storage? =
+                VWOClient.objectMapper.readValue(storageMapAsString, Storage::class.java)
 
-                                campaignMap.getOrPut(featureKey) { mutableListOf() }
-                                val campaigns = campaignMap[featureKey]
-                                if (campaigns!!.none { it.ruleKey == campaign.ruleKey }) {
-                                    campaigns.add(campaign)
+            val isInHoldout = (storedData?.holdoutIds != null)
+                    && storedData.holdoutIds?.values.isNullOrEmpty().not()
+            val holdoutId = storedData?.holdoutIds?.values
+
+            if (isInHoldout && holdoutId.isNullOrEmpty().not()) {
+                featureToSkip.add(featureKey)
+                serviceContainer.getLoggerService()?.log(
+                    level = LogLevelEnum.DEBUG,
+                    key = "PART_OF_HOLDOUT_IN_MEG",
+                    map = mapOf(
+                        "featureKey" to featureKey,
+                        "userId" to "${context.id}",
+                        "holdoutId" to "$holdoutId",
+                    )
+                )
+                continue
+            }
+
+            // check for holdout
+            val hgs = HoldoutGroupService(DecisionMaker(), serviceContainer)
+            val (holdoutGroups, _) = hgs.getHoldoutsFor(
+                settings = settings,
+                feature = currentFeature,
+                context = context,
+                storageService = storageService
+            )
+
+            if (holdoutGroups.isNotEmpty()) {
+                featureToSkip.add(featureKey)
+
+                val holdoutStorageMap = mutableMapOf<String, Any>()
+                holdoutStorageMap["featureKey"] = featureKey
+                context.id?.let { holdoutStorageMap["userId"] = it }
+
+                holdoutStorageMap["holdoutId"] = holdoutGroups.map { it.id }
+
+                holdoutStorageMap["holdout"] = true
+                StorageDecorator().setDataInStorage(holdoutStorageMap, storageService)
+
+                serviceContainer.getLoggerService()?.log(
+                    level = LogLevelEnum.DEBUG,
+                    key = "PART_OF_HOLDOUT_IN_MEG",
+                    map = mapOf(
+                        "featureKey" to featureKey,
+                        "userId" to "${context.id}",
+                        "holdoutId" to holdoutGroups.joinToString(
+                            separator = ",",
+                            prefix = "[",
+                            postfix = "]",
+                            transform = { "${it.id}" }),
+                    )
+                )
+            } else {
+                // evaluate the feature rollout rules
+                val isRolloutRulePassed = isRolloutRuleForFeaturePassed(
+                    settings,
+                    currentFeature,
+                    evaluatedFeatureMap,
+                    featureToSkip,
+                    context,
+                    storageService,
+                    serviceContainer
+                )
+                if (isRolloutRulePassed) {
+                    for (feature1 in settings.features) {
+                        if (feature1.key == featureKey) {
+                            for (campaign in feature1.rulesLinkedCampaign) {
+                                if (groupCampaignIds!!.contains(campaign.id.toString())
+                                    || groupCampaignIds.contains(
+                                        campaign.id.toString()
+                                                + "_" + campaign.variations!![0].id
+                                    )
+                                ) {
+
+                                    campaignMap.getOrPut(featureKey) { mutableListOf() }
+                                    val campaigns = campaignMap[featureKey]
+                                    if (campaigns!!.none { it.ruleKey == campaign.ruleKey }) {
+                                        campaigns.add(campaign)
+                                    }
                                 }
                             }
                         }
                     }
                 }
             }
+
         }
 
         val eligibleCampaignsMap =
@@ -213,7 +284,8 @@ class MegUtil {
         }
 
         // no rollout rule, evaluate experiments
-        serviceContainer.getLoggerService()?.log(LogLevelEnum.INFO, "MEG_SKIP_ROLLOUT_EVALUATE_EXPERIMENTS",
+        serviceContainer.getLoggerService()?.log(
+            LogLevelEnum.INFO, "MEG_SKIP_ROLLOUT_EVALUATE_EXPERIMENTS",
             object : HashMap<String?, String?>() {
                 init {
                     put("featureKey", featureKey)
@@ -244,6 +316,7 @@ class MegUtil {
                 val storedDataMap: Map<String, Any>? =
                     StorageDecorator().getFeatureFromStorage(featureKey, context, storageService)
                 try {
+
                     val storageMapAsString: String = VWOClient.objectMapper.writeValueAsString(storedDataMap ?: emptyMap<String, Any>())
                     val storedData: Storage? = VWOClient.objectMapper.readValue(storageMapAsString, Storage::class.java)
                     if (storedData != null && storedData.isDecisionExpired()) {
@@ -282,8 +355,14 @@ class MegUtil {
                     throw RuntimeException(e)
                 }
                 // Check if user is eligible for the campaign
-                if (CampaignDecisionService(serviceContainer).getPreSegmentationDecision(campaign, context) &&
-                    CampaignDecisionService(serviceContainer).isUserPartOfCampaign(context.id, campaign)
+                if (CampaignDecisionService(serviceContainer).getPreSegmentationDecision(
+                        campaign,
+                        context
+                    ) &&
+                    CampaignDecisionService(serviceContainer).isUserPartOfCampaign(
+                        context.id,
+                        campaign
+                    )
                 ) {
                     serviceContainer.getLoggerService()?.log(
                         LogLevelEnum.INFO,
@@ -330,7 +409,7 @@ class MegUtil {
         eligibleCampaigns: List<Campaign>?,
         eligibleCampaignsWithStorage: List<Campaign>?,
         groupId: Int, context: VWOUserContext, storageService: StorageService,
-        serviceContainer:ServiceContainer
+        serviceContainer: ServiceContainer
     ): Variation? {
         val campaignIds = CampaignUtil.getCampaignIdsFromFeatureKey(settings, featureKey)
         var winnerCampaign: Variation? = null
@@ -400,7 +479,8 @@ class MegUtil {
                         "MEG_WINNER_CAMPAIGN",
                         object : HashMap<String?, String?>() {
                             init {
-                                put("campaignKey",
+                                put(
+                                    "campaignKey",
                                     if (finalWinnerCampaign1.type.equals(CampaignTypeEnum.AB.value))
                                         finalWinnerCampaign1.key
                                     else
@@ -433,8 +513,10 @@ class MegUtil {
                 }
             }
         } catch (exception: Exception) {
-            serviceContainer.getLoggerService()?.log(LogLevelEnum.ERROR,
-                "MEG: error inside findWinnerCampaignAmongEligibleCampaigns$exception")
+            serviceContainer.getLoggerService()?.log(
+                LogLevelEnum.ERROR,
+                "MEG: error inside findWinnerCampaignAmongEligibleCampaigns$exception"
+            )
         }
         return winnerCampaign
     }
@@ -450,11 +532,14 @@ class MegUtil {
      */
     private fun normalizeWeightsAndFindWinningCampaign(
         shortlistedCampaigns: List<Campaign>?,
-        context: VWOUserContext, calledCampaignIds: List<Int?>?, groupId: Int, storageService:StorageService,
-        serviceContainer:ServiceContainer
+        context: VWOUserContext,
+        calledCampaignIds: List<Int?>?,
+        groupId: Int,
+        storageService: StorageService,
+        serviceContainer: ServiceContainer
     ): Variation? {
         try {
-            shortlistedCampaigns?.forEach{ campaign: Campaign ->
+            shortlistedCampaigns?.forEach { campaign: Campaign ->
                 campaign.weight = Math.round(100.0 / shortlistedCampaigns.size) * 10000 / 10000.0
             }
 
@@ -469,32 +554,38 @@ class MegUtil {
 
 
             CampaignUtil.setCampaignAllocation(variations)
-            val winnerVariation: Variation? = CampaignDecisionService(serviceContainer).getVariation(
-                variations,
-                DecisionMaker().calculateBucketValue(
-                    CampaignUtil.getBucketingSeed(context.id, null, groupId)
+            val winnerVariation: Variation? =
+                CampaignDecisionService(serviceContainer).getVariation(
+                    variations,
+                    DecisionMaker().calculateBucketValue(
+                        CampaignUtil.getBucketingSeed(context.id, null, groupId)
+                    )
                 )
-            )
 
             if (winnerVariation != null) {
-            serviceContainer.getLoggerService()?.log(
-                LogLevelEnum.INFO,
-                "MEG_WINNER_CAMPAIGN",
-                object : HashMap<String?, String?>() {
-                    init {
-                        put("campaignKey", if(winnerVariation.type==CampaignTypeEnum.AB.value) winnerVariation.key else winnerVariation.name + "_" + winnerVariation.ruleKey)
-                        put("groupId", groupId.toString())
-                        put("userId", context.id)
-                        put("algo", "using random algorithm")
-                    }
-                })
+                serviceContainer.getLoggerService()?.log(
+                    LogLevelEnum.INFO,
+                    "MEG_WINNER_CAMPAIGN",
+                    object : HashMap<String?, String?>() {
+                        init {
+                            put(
+                                "campaignKey",
+                                if (winnerVariation.type == CampaignTypeEnum.AB.value) winnerVariation.key else winnerVariation.name + "_" + winnerVariation.ruleKey
+                            )
+                            put("groupId", groupId.toString())
+                            put("userId", context.id)
+                            put("algo", "using random algorithm")
+                        }
+                    })
 
                 val storageMap: MutableMap<String, Any> = java.util.HashMap()
                 storageMap["featureKey"] = Constants.VWO_META_MEG_KEY + groupId
-                storageMap["userId"] = context.id?:0
-                storageMap["experimentId"] = winnerVariation.id?:0
-                storageMap["experimentKey"] = winnerVariation.key?:""
-                storageMap["experimentVariationId"] = if (winnerVariation.type.equals(CampaignTypeEnum.PERSONALIZE.value)) winnerVariation.variations[0].id?:-1 else -1
+                storageMap["userId"] = context.id ?: 0
+                storageMap["experimentId"] = winnerVariation.id ?: 0
+                storageMap["experimentKey"] = winnerVariation.key ?: ""
+                storageMap["experimentVariationId"] =
+                    if (winnerVariation.type.equals(CampaignTypeEnum.PERSONALIZE.value)) winnerVariation.variations[0].id
+                        ?: -1 else -1
                 storageMap["context"] = context
 
                 val cachedDecisionExpiryTime = serviceContainer.getVWOInitOptions().cachedDecisionExpiryTime
@@ -508,7 +599,8 @@ class MegUtil {
                     return winnerVariation
                 }
             } else {
-                serviceContainer.getLoggerService()?.log(LogLevelEnum.INFO, "No winner campaign found for MEG group: $groupId")
+                serviceContainer.getLoggerService()
+                    ?.log(LogLevelEnum.INFO, "No winner campaign found for MEG group: $groupId")
             }
         } catch (exception: Exception) {
             serviceContainer.getLoggerService()?.log(
@@ -590,7 +682,8 @@ class MegUtil {
                     }
                 }
 
-                val variations = participatingCampaignList.filterNotNull().map { campaign: Campaign ->
+                val variations =
+                    participatingCampaignList.filterNotNull().map { campaign: Campaign ->
                         try {
                             val campaignModel = VWOClient.objectMapper.writeValueAsString(campaign)
                             return@map VWOClient.objectMapper.readValue<Variation>(
@@ -636,11 +729,12 @@ class MegUtil {
 
                 val storageMap: MutableMap<String, Any> = java.util.HashMap()
                 storageMap["featureKey"] = Constants.VWO_META_MEG_KEY + groupId
-                storageMap["userId"] = context.id?:0
-                storageMap["experimentId"] = winnerCampaign.id?:0
-                storageMap["experimentKey"] = winnerCampaign.key?:""
+                storageMap["userId"] = context.id ?: 0
+                storageMap["experimentId"] = winnerCampaign.id ?: 0
+                storageMap["experimentKey"] = winnerCampaign.key ?: ""
                 storageMap["experimentVariationId"] =
-                    if (winnerCampaign.type == CampaignTypeEnum.PERSONALIZE.value) winnerCampaign.variations[0].id?:-1 else -1
+                    if (winnerCampaign.type == CampaignTypeEnum.PERSONALIZE.value) winnerCampaign.variations[0].id
+                        ?: -1 else -1
                 storageMap["context"] = context
 
                 val cachedDecisionExpiryTime = serviceContainer.getVWOInitOptions().cachedDecisionExpiryTime

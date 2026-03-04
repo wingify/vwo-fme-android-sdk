@@ -77,8 +77,13 @@ class SegmentationManager {
         if (StorageProvider.userAgent.isEmpty()) {
             return
         }
+
+        val isGatewayServiceRequiredForHoldouts = !settings.holdoutGroups
+            ?.filter { it.isGatewayServiceRequired == true }
+            .isNullOrEmpty()
+
         // If gateway service is required and the base URL is not the default one, fetch the data from the gateway service
-        if (feature.isGatewayServiceRequired && context.vwo == null) {
+        if ((feature.isGatewayServiceRequired || isGatewayServiceRequiredForHoldouts) && context.vwo == null) {
 
             val queryParams: MutableMap<String, String> = HashMap()
             if (StorageProvider.userAgent.isEmpty()) {

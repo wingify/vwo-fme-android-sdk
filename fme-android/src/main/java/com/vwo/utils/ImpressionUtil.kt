@@ -17,12 +17,22 @@ package com.vwo.utils
 
 import com.vwo.ServiceContainer
 import com.vwo.enums.EventEnum
+import com.vwo.enums.UrlEnum
 import com.vwo.models.Settings
+import com.vwo.models.impression.ImpressionPayload
 import com.vwo.models.user.VWOUserContext
-import com.vwo.providers.StorageProvider
+import com.vwo.packages.network_layer.manager.BatchManager
+import com.vwo.packages.network_layer.manager.NetworkManager
+import com.vwo.packages.network_layer.models.RequestModel
+import com.vwo.providers.StorageProvider.ipAddress
+import com.vwo.providers.StorageProvider.userAgent
 import com.vwo.utils.CampaignUtil.getCampaignKeyFromCampaignId
 import com.vwo.utils.CampaignUtil.getCampaignTypeFromCampaignId
 import com.vwo.utils.CampaignUtil.getVariationNameFromCampaignIdAndVariationId
+import com.vwo.utils.NetworkUtil.Companion.createHeaders
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 import java.io.UnsupportedEncodingException
 import java.net.URLEncoder
 
@@ -33,64 +43,90 @@ import java.net.URLEncoder
  * impression events, calculating impression counts, or handling impression-related data.
  */
 object ImpressionUtil {
+
     /**
-     * Creates and sends an impression for a variation shown event.
-     * This function constructs the necessary properties and payload for the event
-     * and uses the NetworkUtil to send a POST API request.
+     * Creates and sends impressions for multiple variation shown events.
+     * This is the main implementation that handles multiple campaigns and variations
+     * in a single batch operation. It constructs the necessary properties and payload
+     * for each event and adds them to the batch queue for processing.
      *
      * @param settings   The settings model containing configuration.
-     * @param campaignId The ID of the campaign.
-     * @param variationId The ID of the variation shown to the user.
+     * @param campaignIds The list of campaign IDs.
+     * @param variationIds The list of variation IDs shown to the user.
      * @param context    The user context model containing user-specific data.
      */
     fun createAndSendImpressionForVariationShown(
         settings: Settings,
-        campaignId: Int,
-        variationId: Int,
+        impressionPayload: ImpressionPayload,
         context: VWOUserContext,
         serviceContainer: ServiceContainer
     ) {
+
+        if (impressionPayload.hasNoValidData()) return
+
         // Get base properties for the event
         val properties: MutableMap<String, String> = NetworkUtil.getEventsBaseProperties(
-            EventEnum.VWO_VARIATION_SHOWN.value,
-            encodeURIComponent(StorageProvider.userAgent),
-            StorageProvider.ipAddress,
-            serviceContainer
+            eventName = EventEnum.VWO_VARIATION_SHOWN.value,
+            visitorUserAgent = encodeURIComponent(value = userAgent),
+            ipAddress = ipAddress,
+            serviceContainer = serviceContainer
         )
 
         // Construct payload data for tracking the user
-        val payload: Map<String, Any> = NetworkUtil.getTrackUserPayloadData(
-            settings,
-            context,
-            context.id,
-            EventEnum.VWO_VARIATION_SHOWN.value,
-            campaignId,
-            variationId,
-            StorageProvider.userAgent,
-            StorageProvider.ipAddress,
-            serviceContainer
-        )
+        for (index in 0 until impressionPayload.size()) {
+            val impression = impressionPayload.get(index)
 
-        val campaignKeyWithFeatureName = getCampaignKeyFromCampaignId(settings, campaignId)
-        val variationName =
-            getVariationNameFromCampaignIdAndVariationId(settings, campaignId, variationId)
-        val featureName = campaignKeyWithFeatureName?.split('_')?.getOrNull(0)
-        val campaignKey = campaignKeyWithFeatureName?.split('_')?.getOrNull(1)
-        val campaignType = getCampaignTypeFromCampaignId(settings, campaignId)
-        // Send the constructed properties and payload as a POST request
-        NetworkUtil.sendPostApiRequest(
-            properties = properties,
-            payload = payload,
-            userAgent = StorageProvider.userAgent,
-            ipAddress = StorageProvider.ipAddress,
-            serviceContainer = serviceContainer,
-            campaignInfo = mapOf<String, Any>(
+            val campaignId = impression.campaignId
+            val variationId = impression.variationId
+            val featureId = impression.featureId
+
+            val payload = NetworkUtil.getTrackUserPayloadData(
+                settings = settings,
+                context = context,
+                userId = context.id,
+                eventName = EventEnum.VWO_VARIATION_SHOWN.value,
+                campaignId = campaignId,
+                variationId = variationId,
+                visitorUserAgent = userAgent,
+                ipAddress = ipAddress,
+                featureId = featureId,
+                serviceContainer = serviceContainer
+            )
+
+            val headers = createHeaders(userAgent, ipAddress)
+            val request = RequestModel(
+                serviceContainer.getBaseUrl(),
+                "POST",
+                UrlEnum.EVENTS.url,
+                properties,
+                payload,
+                headers,
+                serviceContainer.getSettingsManager()!!.protocol,
+                serviceContainer.getSettingsManager()!!.port,
+            )
+
+            val campaignKeyWithFeatureName = getCampaignKeyFromCampaignId(settings, campaignId)
+            val variationName =
+                getVariationNameFromCampaignIdAndVariationId(settings, campaignId, variationId)
+            val featureName = campaignKeyWithFeatureName?.split('_')?.getOrNull(0)
+            val campaignKey = campaignKeyWithFeatureName?.split('_')?.getOrNull(1)
+            val campaignType = getCampaignTypeFromCampaignId(settings, campaignId)
+
+            request.campaignInfo = mapOf<String, Any>(
                 "campaignKey" to (campaignKey ?: ""),
                 "variationName" to (variationName ?: ""),
                 "featureName" to (featureName ?: ""),
                 "campaignType" to (campaignType ?: "")
             )
-        )
+            NetworkManager.addToBatch(request, serviceContainer)
+        }
+
+        if (serviceContainer.onlineBatchUploadManager.isBatchingDisabled()) {
+            // if batching is disabled then send all data immediately
+            CoroutineScope(Dispatchers.IO).launch {
+                BatchManager.start("Send GetFlag Impression", serviceContainer)
+            }
+        }
     }
 
     /**

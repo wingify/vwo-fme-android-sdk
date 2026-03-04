@@ -16,6 +16,7 @@
 package com.vwo.utils
 
 import com.vwo.ServiceContainer
+import com.vwo.constants.Constants
 import com.vwo.enums.CampaignTypeEnum
 import com.vwo.models.Campaign
 import com.vwo.models.Rule
@@ -69,27 +70,28 @@ object SettingsUtil {
     private fun addLinkedCampaignsToSettings(settings: Settings) {
         // Create a map for quick access to campaigns by ID
 
-        val campaignMap: Map<Int, Campaign> = settings.campaigns?.associateBy {it.id?:0}.orEmpty()
-        if(settings.features==null) return
+        val campaignMap: Map<Int, Campaign> =
+            settings.campaigns?.associateBy { it.id ?: 0 }.orEmpty()
+        if (settings.features == null) return
         // Loop over all features
         for (feature in settings.features!!) {
-            val rulesLinkedCampaignModel: List<Campaign>? = feature.rules?.map{ rule: Rule ->
-                    val originalCampaign: Campaign = campaignMap[rule.campaignId] ?: return@map null
-                    originalCampaign.ruleKey = rule.ruleKey
-                    val campaign: Campaign = Campaign()
-                    campaign.setModelFromDictionary(originalCampaign)
+            val rulesLinkedCampaignModel: List<Campaign>? = feature.rules?.map { rule: Rule ->
+                val originalCampaign: Campaign = campaignMap[rule.campaignId] ?: return@map null
+                originalCampaign.ruleKey = rule.ruleKey
+                val campaign: Campaign = Campaign()
+                campaign.setModelFromDictionary(originalCampaign)
 
-                    // If a variationId is specified, find and add the variation
-                    if (rule.variationId != null) {
-                        val variation = campaign.variations
-                            ?.firstOrNull { v: Variation -> v.id == rule.variationId }
-                        variation?.let { campaign.variations = listOf(it) }
-                    }
-                    campaign
-                }?.filterNotNull()
+                // If a variationId is specified, find and add the variation
+                if (rule.variationId != null) {
+                    val variation = campaign.variations
+                        ?.firstOrNull { v: Variation -> v.id == rule.variationId }
+                    variation?.let { campaign.variations = listOf(it) }
+                }
+                campaign
+            }?.filterNotNull()
 
             // Assign the linked campaigns to the feature
-            feature.rulesLinkedCampaign = rulesLinkedCampaignModel?: emptyList()
+            feature.rulesLinkedCampaign = rulesLinkedCampaignModel ?: emptyList()
         }
     }
 
@@ -98,46 +100,61 @@ object SettingsUtil {
      * @param settings  - The settings file to modify.
      */
     private fun addIsGatewayServiceRequiredFlag(settings: Settings) {
+
         // Updated pattern without using lookbehind
-        val patternString =
-            "\\b(country|region|city|os|device_type|browser_string|ua)\\b|\"custom_variable\"\\s*:\\s*\\{\\s*\"name\"\\s*:\\s*\"inlist\\([^)]*\\)\""
+        val patternString = Constants.REGEX_SEGMENTATION_FULL
         val pattern = Pattern.compile(patternString)
 
+        // for FEATURE
         for (feature in settings.features) {
             val rules: List<Campaign> = feature.rulesLinkedCampaign
             for (rule in rules) {
-                var segments: Map<String, Any>? =
-                    if (rule.type == CampaignTypeEnum.ROLLOUT.value || rule.type == CampaignTypeEnum.PERSONALIZE.value) {
-                        rule.variations?.get(0)?.segments
-                    } else {
-                        rule.segments
-                    }
-                if (segments != null) {
-                    val jsonSegments: String = GsonUtil.gson.toJson(segments)
-                    val matcher = pattern.matcher(jsonSegments)
-                    var foundMatch = false
-
-                    while (matcher.find()) {
-                        val match = matcher.group()
-                        if (match.matches("\\b(country|region|city|os|device_type|browser_string|ua)\\b".toRegex())) {
-                            // Check if within "custom_variable" block
-                            if (!isWithinCustomVariable(matcher.start(), jsonSegments)) {
-                                foundMatch = true
-                                break
-                            }
-                        } else {
-                            foundMatch = true
-                            break
-                        }
-                    }
-
-                    if (foundMatch) {
-                        feature.isGatewayServiceRequired=true
-                        break
-                    }
+                val isRollout = rule.type == CampaignTypeEnum.ROLLOUT.value
+                val isPersonalize = rule.type == CampaignTypeEnum.PERSONALIZE.value
+                val segments: Map<String, Any>? = if (isRollout || isPersonalize) {
+                    rule.variations?.get(0)?.segments
+                } else {
+                    rule.segments
+                }
+                if (segments != null && requiresGatewayService(segments, pattern)) {
+                    feature.isGatewayServiceRequired = true
+                    break
                 }
             }
         }
+
+        // for Holdouts
+        for (holdout in (settings.holdoutGroups ?: emptyList())) {
+            val segments: Map<String, Any>? = holdout.segments
+            if (segments != null && requiresGatewayService(segments, pattern)) {
+                holdout.isGatewayServiceRequired = true
+                break
+            }
+        }
+    }
+
+    /**
+     * Checks if the given segments require gateway service based on pattern matching.
+     * @param segments - The segments map to check.
+     * @param pattern - The compiled pattern to match against.
+     * @return true if gateway service is required, false otherwise.
+     */
+    private fun requiresGatewayService(segments: Map<String, Any>, pattern: Pattern): Boolean {
+        val jsonSegments: String = GsonUtil.gson.toJson(segments)
+        val matcher = pattern.matcher(jsonSegments)
+
+        while (matcher.find()) {
+            val match = matcher.group()
+            if (match.matches(Constants.REGEX_REQUIRES_GATEWAY_SERVICE.toRegex())) {
+                // Check if within "custom_variable" block
+                if (!isWithinCustomVariable(matcher.start(), jsonSegments)) {
+                    return true
+                }
+            } else {
+                return true
+            }
+        }
+        return false
     }
 
     private fun addIsHistoricalEventDSL(settings: Settings) {

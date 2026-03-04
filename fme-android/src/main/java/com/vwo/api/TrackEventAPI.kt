@@ -24,6 +24,7 @@ import com.vwo.providers.StorageProvider
 import com.vwo.services.HooksManager
 import com.vwo.services.LoggerService
 import com.vwo.utils.FunctionUtil.doesEventBelongToAnyFeature
+import com.vwo.utils.FunctionUtil.doesEventBelongToAnyHoldout
 import com.vwo.utils.FunctionUtil.getFormattedErrorMessage
 import com.vwo.utils.ImpressionUtil.encodeURIComponent
 import com.vwo.utils.NetworkUtil
@@ -47,14 +48,8 @@ object TrackEventAPI {
         serviceContainer: ServiceContainer
     ): Boolean {
         try {
-            if (doesEventBelongToAnyFeature(eventName, settings)) {
-                createAndSendImpressionForTrack(
-                    settings,
-                    eventName,
-                    context,
-                    eventProperties,
-                    serviceContainer
-                )
+            if (doesEventBelongToAnyFeature(eventName, settings) || doesEventBelongToAnyHoldout(eventName, settings)) {
+                createAndSendImpressionForTrack(settings, eventName, context, eventProperties,serviceContainer)
                 val objectToReturn: MutableMap<String, Any> = HashMap()
                 objectToReturn["eventName"] = eventName
                 objectToReturn["api"] = ApiEnum.TRACK_EVENT.value

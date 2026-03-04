@@ -30,6 +30,16 @@ class Storage {
     var experimentId: Int? = null
     var experimentKey: String? = null
     var experimentVariationId: Int? = null
+    var holdoutIds: JsonArrayWrapper? = null
+    var notInHoldoutIds: JsonArrayWrapper? = null
+
+    // ---
+    // MAJOR WORKAROUND because Gson and Jackson is being used simultaneously,
+    // other solutions requires some refactoring and might cause side effects in existing behavior
+    class JsonArrayWrapper {
+        var values: List<Int>? = null
+    }
+
     var decisionExpiryTime: Long? = null
 
     /**

@@ -7,6 +7,7 @@
   "INVALID_POLLING_CONFIGURATION": "Invalid {key} passed in options. Should be of type: {correctType} and greater than equal to 1000",
 
   "ERROR_FETCHING_SETTINGS": "Settings could not be fetched. Error: {err}",
+  "BATCH_UPLOAD_ERROR": "Event batch could not be uploaded. Error: {err}",
   "INVALID_SETTINGS_SCHEMA": "Settings are not valid. Failed schema validation",
 
   "POLLING_FETCH_SETTINGS_FAILED": "Error while fetching VWO settings with polling",
@@ -23,6 +24,10 @@
   "INVALID_GATEWAY_URL": "Invalid URL for VWO Gateway Service while initializing the SDK",
 
   "NETWORK_CALL_FAILED": "Error occurred while sending {method} request. Error: {err}",
+
+  "RECOMMENDATION_ERROR": "Error occurred while fetching recommendations. Error: {err}",
+
+  "PARSING_ERROR": "Error while parsing request data, it is not in the expected format. Error: {err}",
   "DATABASE_ERROR": "Error while performing database operation. Error: {err}",
   "SET_ALIAS_ERROR": "The call to set alias did not succeed. Error: {err}",
   "GET_ALIAS_ERROR": "The call to get alias did not succeed. Error: {err}",
@@ -58,5 +63,7 @@
   "INVALID_ATTRIBUTE_LIST_FORMAT": "Invalid inList operand format",
   "ERROR_FETCHING_SETTINGS_WITH_POLLING": "Settings could not be fetched with polling. Error:{err}",
 
-  "INVALID_CREDENTIALS": "Invalid Account ID, SDK Key, or both provided during initialization."
+  "INVALID_CREDENTIALS": "Invalid Account ID, SDK Key, or both provided during initialization.",
+
+  "HOLDOUT_FEATURE_ID_NULL": "While evaluating holdouts, featureId = null, only checking global holdouts."
 }

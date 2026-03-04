@@ -18,6 +18,7 @@ package com.vwo.services
 import com.vwo.ServiceContainer
 import com.vwo.constants.Constants
 import com.vwo.enums.ApiEnum
+import com.vwo.models.Feature
 import com.vwo.models.user.VWOUserContext
 import com.vwo.packages.storage.Connector
 
@@ -67,5 +68,31 @@ class StorageService(private val serviceContainer: ServiceContainer? = null) {
         } catch (e: Exception) {
             return false
         }
+    }
+
+    fun updateDataInStorage(
+        feature: Feature?,
+        context: VWOUserContext,
+        data: Map<String, Any>
+    ): Boolean {
+        if (feature == null) return false
+
+        // get and map existing data
+        val existingData =
+            getDataInStorage(featureKey = feature.key, context = context)?.toMutableMap()
+                ?: return false
+
+        // required keys
+        existingData["featureKey"] = "${feature.key}"
+        existingData["userId"] = "${context.id}"
+
+        data.keys.forEach { key ->
+            val value = data[key]
+            if (value != null) existingData[key] = value
+        }
+
+        setDataInStorage(existingData)
+
+        return true
     }
 }

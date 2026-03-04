@@ -38,6 +38,7 @@ object Constants {
     const val VWO_FS_ENVIRONMENT: String = "vwo_fs_environment"
     const val HTTPS_PROTOCOL: String = "https"
     const val VWO_META_MEG_KEY: String = "_vwo_meta_meg_"
+    const val VWO_META_HOLDOUT_KEY: String = "_vwo_meta_holdout_"
 
     const val VWO_APP_URL: String = "app.vwo.com"
 
@@ -65,16 +66,43 @@ object Constants {
     const val V2_SETTINGS = "v2-settings"
     const val POLLING = "polling"
     const val MOBILE_STORAGE = "MobileDefaultStorage"
-    const val FLAG_DECISION_GIVEN= "FLAG_DECISION_GIVEN"
+    const val FLAG_DECISION_GIVEN = "FLAG_DECISION_GIVEN"
     const val NETWORK_CALL_FAILURE_AFTER_MAX_RETRIES = "NETWORK_CALL_FAILURE_AFTER_MAX_RETRIES"
     const val NETWORK_CALL_SUCCESS_WITH_RETRIES = "NETWORK_CALL_SUCCESS_WITH_RETRIES"
     const val END_POINT = "endPoint"
     const val ERR = "err"
     const val FEATURE_KEY = "fk"
 
+    const val VARIATION_KEY = "variationKey"
+    const val USER_ID = "userId"
+    const val KEY_EXPERIMENT_TYPE = "experimentType"
+    const val KEY_EXPERIMENT_KEY = "experimentKey"
+
+    const val IMPRESSION_NO_FEATURE_ID = -1
+
     const val SETTINGS_MAX_RETRY_ATTEMPTS = 1
 
     const val HTTP_STATUS_CODE_400 = 400
 
     const val HTTP_STATUS_CODE_401 = 401
+
+    const val REGEX_REQUIRES_GATEWAY_SERVICE =
+        "\\b(country|region|city|os|device_type|browser_string|ua)\\b"
+
+    const val REGEX_SEGMENTATION_FULL =
+        "$REGEX_REQUIRES_GATEWAY_SERVICE|\"custom_variable\"\\s*:\\s*\\{\\s*\"name\"\\s*:\\s*\"inlist\\([^)]*\\)\""
+
+    const val KEY_DECISION_IS_USER_PART_OF_CAMPAIGN = "isUserPartOfCampaign"
+
+    object Holdouts {
+
+        const val VARIATION_IS_PART_OF_HOLDOUT = 1
+
+        const val VARIATION_NOT_PART_OF_HOLDOUT = 2
+
+        const val KEY_STORAGE_HOLDOUT_IDS = "holdoutIds"
+        const val KEY_STORAGE_NOT_IN_HOLDOUT_IDS = "notInHoldoutIds"
+
+    }
+
 }

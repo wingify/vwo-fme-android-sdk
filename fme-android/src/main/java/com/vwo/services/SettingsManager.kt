@@ -237,6 +237,7 @@ class SettingsManager(internal val options: VWOInitOptions) {
             // Handle object instead of jsonarray
             var responseData = response?.data
             responseData = setFeaturesIfEmpty(responseData)
+
             return responseData
         } catch (e: Exception) {
             LoggerService.errorLog(

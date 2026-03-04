@@ -15,8 +15,15 @@
  */
 package com.vwo.models.schemas
 
-import com.vwo.models.*
-import kotlin.Boolean
+import com.vwo.models.Campaign
+import com.vwo.models.Feature
+import com.vwo.models.HoldoutGroup
+import com.vwo.models.Metric
+import com.vwo.models.Rule
+import com.vwo.models.Settings
+import com.vwo.models.Variable
+import com.vwo.packages.logger.enums.LogLevelEnum
+import com.vwo.services.LoggerService
 
 /**
  * Validates the structure and content of VWO settings.
@@ -53,6 +60,15 @@ class SettingsSchema {
         for (feature in settings.features) {
             if (!isValidFeature(feature)) {
                 return false
+            }
+        }
+
+        val holdoutGroups = settings.holdoutGroups
+        if (holdoutGroups != null && holdoutGroups.isNotEmpty()) {
+            for (holdoutGroup in holdoutGroups) {
+                if (!isValidHoldoutGroup(holdoutGroup)) {
+                    return false
+                }
             }
         }
 
@@ -175,5 +191,23 @@ class SettingsSchema {
      */
     private fun isValidRule(rule: Rule): Boolean {
         return rule.type != null && rule.ruleKey != null && rule.campaignId != null
+    }
+
+    /**
+     * Checks if a holdout group object is valid.
+     *
+     * Validates that required fields (id, trafficPercent, isGlobal) are present.
+     * Traffic percentage range validation is handled by the backend.
+     *
+     * @param holdoutGroup The holdout group object to validate.
+     * @return `true` if the holdout group is valid, `false` otherwise.
+     */
+    private fun isValidHoldoutGroup(holdoutGroup: HoldoutGroup): Boolean {
+
+        if (holdoutGroup.id == null || holdoutGroup.trafficPercent == null) return false
+
+        if (holdoutGroup.isGlobal == null || holdoutGroup.segments == null) return false
+
+        return true
     }
 }

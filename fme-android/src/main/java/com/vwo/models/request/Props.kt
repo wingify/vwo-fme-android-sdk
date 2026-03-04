@@ -34,6 +34,9 @@ class Props {
     var variation: String? = null
     var id: Int? = null
 
+    @SerializedName("fId")
+    var fId: Int? = null
+
     @SerializedName("isFirst")
     private var isFirst: Int? = null
 

@@ -68,4 +68,12 @@ class OnlineBatchUploadManager {
             }
         }
     }
+
+    fun isBatchingEnabled(): Boolean {
+        return (batchMinSize != -1) || (batchUploadTimeInterval != -1L)
+    }
+
+    fun isBatchingDisabled(): Boolean {
+        return !isBatchingEnabled()
+    }
 }

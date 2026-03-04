@@ -15,7 +15,9 @@
  */
 package com.vwo.models
 
+import com.google.gson.annotations.JsonAdapter
 import com.google.gson.annotations.SerializedName
+import com.vwo.VWOClient
 
 /**
  * Represents VWO settings.
@@ -58,4 +60,8 @@ class Settings {
 
     @SerializedName("usageStatsAccountId")
     var usageStatsAccountId: Int? = null
+
+    @JsonAdapter(VWOClient.HoldoutGroupAdapter::class)
+    @SerializedName("holdouts")
+    var holdoutGroups: List<HoldoutGroup>? = null
 }

@@ -29,6 +29,7 @@
   "RECOMMENDATION_ERROR": "Error occurred while fetching recommendations. Error: {err}",
 
   "PARSING_ERROR": "Error while parsing request data, it is not in the expected format. Error: {err}",
+  "DATABASE_ERROR": "Error while performing database operation. Error: {err}",
   "SET_ALIAS_ERROR": "The call to set alias did not succeed. Error: {err}",
   "GET_ALIAS_ERROR": "The call to get alias did not succeed. Error: {err}",
   "ALIAS_NETWORK_SDK_ERROR": "Could not send request to server. Error: {err}",
@@ -61,5 +62,9 @@
   "ATTEMPTING_RETRY_FOR_FAILED_NETWORK_CALL": "Request failed for {endPoint}. Error: {err}. Retrying in {delay} seconds, attempt {attempt} of {maxRetries}",
   "ERROR_SETTING_SEGMENTATION_CONTEXT": "Error in setting contextual data for segmentation. Error: {err}",
   "INVALID_ATTRIBUTE_LIST_FORMAT": "Invalid inList operand format",
-  "ERROR_FETCHING_SETTINGS_WITH_POLLING": "Settings could not be fetched with polling. Error:{err}"
+  "ERROR_FETCHING_SETTINGS_WITH_POLLING": "Settings could not be fetched with polling. Error:{err}",
+
+  "INVALID_CREDENTIALS": "Invalid Account ID, SDK Key, or both provided during initialization.",
+
+  "HOLDOUT_FEATURE_ID_NULL": "While evaluating holdouts, featureId = null, only checking global holdouts."
 }

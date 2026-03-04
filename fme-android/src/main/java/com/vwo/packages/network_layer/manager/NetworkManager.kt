@@ -34,7 +34,6 @@ import kotlinx.coroutines.launch
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
 
-
 /**
  * Manages network requests and client configuration.
  *
@@ -94,7 +93,7 @@ object NetworkManager {
                 client?.GET(request, serviceContainer)
             }
         } catch (error: Exception) {
-            serviceContainer?.getLoggerService()?.log(LogLevelEnum.ERROR, "Error when creating get request, error: $error", null)
+            serviceContainer.getLoggerService()?.log(LogLevelEnum.ERROR, "Error when creating get request, error: $error", null)
             return null
         }
     }
@@ -164,7 +163,7 @@ object NetworkManager {
      * @param request The request to be added to the batch.
      * @param settings The settings containing the SDK key and account ID.
      */
-    private fun addToBatch(
+    fun addToBatch(
         request: RequestModel,
         serviceContainer: ServiceContainer
     ) {
