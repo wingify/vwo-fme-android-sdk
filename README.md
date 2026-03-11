@@ -263,6 +263,71 @@ If neither a user ID is provided nor device ID is enabled, the SDK will log an e
 
 This feature is particularly useful for anonymous users or scenarios where explicit user identification is not available.
 
+### Custom Bucketing Seed
+
+The `bucketingSeed` property in `VWOUserContext` lets you enforce consistent feature flag decisions across different users. When a seed is provided, the SDK uses it as the bucketing identifier instead of the user ID, so any two users sharing the same seed will always land on the same variation.
+
+Common use-cases:
+- **Household / account-level consistency** – everyone in the same household or account gets the same experience.
+- **Cross-device consistency** – the same logical identity resolves to the same variation regardless of the device user ID.
+
+#### Parameters
+
+| **Parameter**   | **Description**                                                                                    | **Required** | **Type** | **Example**         |
+| --------------- | -------------------------------------------------------------------------------------------------- | ------------ | -------- | ------------------- |
+| `bucketingSeed` | Seed used for bucketing instead of user ID. Falls back to `context.id` if `null` or empty string. | No           | String   | `"household-123"`   |
+
+#### Behaviour
+
+- If `bucketingSeed` is set (non-null, non-empty) it takes priority over `context.id` for bucketing.
+- If `bucketingSeed` is `null` or `""`, the SDK falls back to `context.id`.
+- Forced variations (whitelisted users) always take precedence over the bucketing seed.
+
+#### Example
+
+Kotlin usage:
+```kotlin
+// Two different users sharing the same seed will receive the same variation
+val context1 = VWOUserContext().apply {
+    id = "user_alice"
+    bucketingSeed = "household-123"
+}
+val context2 = VWOUserContext().apply {
+    id = "user_bob"
+    bucketingSeed = "household-123"
+}
+
+vwoClient.getFlag("feature_key", context1, object : IVwoListener {
+    override fun onSuccess(data: Any) {
+        val flag = data as? GetFlag
+        // alice and bob will receive the same variation
+        val isEnabled = flag?.isEnabled()
+    }
+    override fun onFailure(message: String) {}
+})
+```
+
+Java usage:
+```java
+// Two different users sharing the same seed will receive the same variation
+VWOUserContext context1 = new VWOUserContext();
+context1.setId("user_alice");
+context1.setBucketingSeed("household-123");
+
+VWOUserContext context2 = new VWOUserContext();
+context2.setId("user_bob");
+context2.setBucketingSeed("household-123");
+
+vwoClient.getFlag("feature_key", context1, new IVwoListener() {
+    public void onSuccess(Object data) {
+        GetFlag flag = (GetFlag) data;
+        // alice and bob will receive the same variation
+        boolean isEnabled = flag != null && flag.isEnabled();
+    }
+    public void onFailure(String message) {}
+});
+```
+
 ### Basic Feature Flagging
 
 Feature Flags serve as the foundation for all testing, personalization, and rollout rules within FME.

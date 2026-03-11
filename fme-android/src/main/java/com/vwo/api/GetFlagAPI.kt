@@ -506,9 +506,13 @@ object GetFlagAPI {
             // Evaluate the passed rollout rule traffic and get the variation
             if (rolloutRulesToEvaluate.isNotEmpty()) {
                 val passedRolloutCampaign: Campaign = rolloutRulesToEvaluate[0]
-                val variation: Variation? = DecisionUtil().evaluateTrafficAndGetVariation(
-                    settings, passedRolloutCampaign, context.id, serviceContainer
-                )
+                val variation: Variation? =
+                    DecisionUtil().evaluateTrafficAndGetVariation(
+                        settings,
+                        passedRolloutCampaign,
+                        context,
+                        serviceContainer
+                    )
                 if (variation != null) {
                     getFlag.setIsEnabled(true)
                     getFlag.setVariables(variation.variables)
@@ -580,9 +584,13 @@ object GetFlagAPI {
             // Evaluate the passed experiment rule traffic and get the variation
             if (experimentRulesToEvaluate.isNotEmpty()) {
                 val campaign: Campaign = experimentRulesToEvaluate[0]
-                val variation: Variation? = DecisionUtil().evaluateTrafficAndGetVariation(
-                    settings, campaign, context.id, serviceContainer
-                )
+                val variation: Variation? =
+                    DecisionUtil().evaluateTrafficAndGetVariation(
+                        settings,
+                        campaign,
+                        context,
+                        serviceContainer
+                    )
                 if (variation != null) {
                     getFlag.setIsEnabled(true)
                     decision[Constants.KEY_DECISION_IS_USER_PART_OF_CAMPAIGN] = true

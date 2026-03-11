@@ -23,9 +23,8 @@ import com.vwo.models.Variation
 import com.vwo.models.user.VWOUserContext
 import com.vwo.packages.decision_maker.DecisionMaker
 import com.vwo.packages.logger.enums.LogLevelEnum
-import com.vwo.packages.segmentation_evaluator.core.SegmentationManager
+import com.vwo.utils.BucketingIdResolver
 import com.vwo.utils.EventsUtils
-
 
 /**
  * Provides decision-making logic for campaigns.
@@ -34,16 +33,30 @@ import com.vwo.utils.EventsUtils
  * user based on various factors, such as targeting rules and campaign configuration.
  */
 class CampaignDecisionService(val serviceContainer: ServiceContainer) {
+
     /**
-     * This method is used to check if the user is part of the campaign.
+     * This method is used to check if the user is part of the campaign with custom bucketing support.
      * @param userId  User ID for which the check is to be performed.
      * @param campaign CampaignModel object containing the campaign settings.
+     * @param context VWOUserContext object for custom bucketing seed resolution.
      * @return  boolean value indicating if the user is part of the campaign.
      */
-    fun isUserPartOfCampaign(userId: String?, campaign: Campaign?): Boolean {
+    fun isUserPartOfCampaign(
+        userId: String?,
+        campaign: Campaign?,
+        context: VWOUserContext?
+    ): Boolean {
+
         if (campaign == null || userId == null) {
             return false
         }
+
+        // Resolve bucketing ID using two-level safety check
+        val bucketingId = BucketingIdResolver.resolve(
+            userId,
+            context
+        ) ?: userId
+
         val trafficAllocation: Double
         // Check if the campaign is of type ROLLOUT or PERSONALIZE
         // If yes, set the traffic allocation to the weight of the first variation
@@ -60,19 +73,23 @@ class CampaignDecisionService(val serviceContainer: ServiceContainer) {
             campaign.percentTraffic!!.toDouble()
 
         // Generate bucket key using salt if available, otherwise use campaign ID
+        // Use bucketingId instead of userId for bucketing calculation
         val bucketKey = if (salt.isNullOrEmpty())
-            campaign.id.toString() + "_" + userId
+            campaign.id.toString() + "_" + bucketingId
         else
-            salt + "_" + userId
+            salt + "_" + bucketingId
 
         val valueAssignedToUser = DecisionMaker().getBucketValueForUser(bucketKey)
         val isUserPart = valueAssignedToUser != 0 && valueAssignedToUser <= trafficAllocation
+
+        // Format userId for logging - shows seed if custom bucketing is used
+        val logUserId = BucketingIdResolver.formatUserIdForLogging(userId, bucketingId)
 
         serviceContainer.getLoggerService()?.log(
             LogLevelEnum.INFO,
             "USER_PART_OF_CAMPAIGN",
             mapOf(
-                "userId" to userId,
+                "userId" to logUserId,
                 "campaignKey" to campaign.ruleKey,
                 "notPart" to if (isUserPart) "" else "not"
             )
@@ -109,36 +126,53 @@ class CampaignDecisionService(val serviceContainer: ServiceContainer) {
     }
 
     /**
-     * This method is used to bucket the user to a variation based on the bucket value.
+     * This method is used to bucket the user to a variation based on the bucket value with custom bucketing support.
      * @param userId  User ID for which the bucketing is to be performed.
      * @param accountId  Account ID for which the bucketing is to be performed.
      * @param campaign  CampaignModel object containing the campaign settings.
+     * @param context VWOUserContext object for custom bucketing seed resolution.
      * @return  VariationModel object containing the variation allotted to the user.
      */
-    fun bucketUserToVariation(userId: String?, accountId: String, campaign: Campaign?): Variation? {
+    fun bucketUserToVariation(
+        userId: String?,
+        accountId: String,
+        campaign: Campaign?,
+        context: VWOUserContext?
+    ): Variation? {
+
         if (campaign == null || userId == null) {
             return null
         }
+
+        // Resolve bucketing ID using two-level safety check
+        val bucketingId = BucketingIdResolver.resolve(
+            userId,
+            context
+        ) ?: userId
 
         val multiplier = if (campaign.percentTraffic != 0) 1 else 0
         val percentTraffic = campaign.percentTraffic!!
         // get salt from campaign
         val salt = campaign.salt
         // if salt is not null and not empty, use salt else use campaign id
+        // Use bucketingId instead of userId for bucketing calculation
         val bucketKey = if (salt.isNullOrEmpty()) {
-            campaign.id.toString() + "_" + accountId + "_" + userId
+            campaign.id.toString() + "_" + accountId + "_" + bucketingId
         } else {
-            salt + "_" + accountId + "_" + userId
+            salt + "_" + accountId + "_" + bucketingId
         }
         val hashValue = DecisionMaker().generateHashValue(bucketKey)
         val bucketValue =
             DecisionMaker().generateBucketValue(hashValue, Constants.MAX_TRAFFIC_VALUE, multiplier)
 
+        // Format userId for logging - shows seed if custom bucketing is used
+        val logUserId = BucketingIdResolver.formatUserIdForLogging(userId, bucketingId)
+
         serviceContainer.getLoggerService()?.log(
             LogLevelEnum.DEBUG,
             "USER_BUCKET_TO_VARIATION",
             mapOf(
-                "userId" to userId,
+                "userId" to logUserId,
                 "campaignKey" to campaign.ruleKey,
                 "percentTraffic" to percentTraffic.toString(),
                 "bucketValue" to bucketValue.toString(),
@@ -170,13 +204,14 @@ class CampaignDecisionService(val serviceContainer: ServiceContainer) {
         if (!segmentsEvents.isNullOrEmpty()) {
             segments = mapOf("cnds" to segmentsEvents)
         } else {
-            segments = if (campaignType == CampaignTypeEnum.ROLLOUT.value || campaignType == CampaignTypeEnum.PERSONALIZE.value) {
-                campaign.variations!![0].segments
-            } else if (campaignType == CampaignTypeEnum.AB.value) {
-                campaign.segments ?: emptyMap()
-            } else {
-                emptyMap()
-            }
+            segments =
+                if (campaignType == CampaignTypeEnum.ROLLOUT.value || campaignType == CampaignTypeEnum.PERSONALIZE.value) {
+                    campaign.variations!![0].segments
+                } else if (campaignType == CampaignTypeEnum.AB.value) {
+                    campaign.segments ?: emptyMap()
+                } else {
+                    emptyMap()
+                }
         }
         if (segments.isEmpty()) {
             serviceContainer.getLoggerService()?.log(
@@ -200,7 +235,8 @@ class CampaignDecisionService(val serviceContainer: ServiceContainer) {
                 object : HashMap<String?, String?>() {
                     init {
                         put("userId", context.id)
-                        put("campaignKey",
+                        put(
+                            "campaignKey",
                             if (campaign.type.equals(CampaignTypeEnum.AB.value))
                                 campaign.key
                             else
@@ -229,18 +265,24 @@ class CampaignDecisionService(val serviceContainer: ServiceContainer) {
     }
 
     /**
-     * This method is used to get the variation allotted to the user in the campaign.
+     * This method is used to get the variation allotted to the user in the campaign with custom bucketing support.
      * @param userId  User ID for which the variation is to be allotted.
      * @param accountId  Account ID for which the variation is to be allotted.
      * @param campaign  CampaignModel object containing the campaign settings.
+     * @param context VWOUserContext object for custom bucketing seed resolution.
      * @return  VariationModel object containing the variation allotted to the user.
      */
-    fun getVariationAllotted(userId: String?, accountId: String, campaign: Campaign): Variation? {
-        val isUserPart = isUserPartOfCampaign(userId, campaign)
+    fun getVariationAllotted(
+        userId: String?,
+        accountId: String,
+        campaign: Campaign,
+        context: VWOUserContext?
+    ): Variation? {
+        val isUserPart = isUserPartOfCampaign(userId, campaign, context)
         return if (campaign.type == CampaignTypeEnum.ROLLOUT.value || campaign.type == CampaignTypeEnum.PERSONALIZE.value) {
             if (isUserPart) campaign.variations!![0] else null
         } else {
-            if (isUserPart) bucketUserToVariation(userId, accountId, campaign) else null
+            if (isUserPart) bucketUserToVariation(userId, accountId, campaign, context) else null
         }
     }
 }

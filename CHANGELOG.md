@@ -5,6 +5,39 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.13.0] - 2026-03-11
+
+### Added
+
+- Added support for custom bucketing logic to ensure consistent decisioning across sessions.
+
+  Set `bucketingSeed` on `VWOUserContext` to ensure different users sharing the same seed always receive the same variation.
+
+  ```kotlin
+  // Kotlin — household-level consistency
+  val context1 = VWOUserContext().apply {
+      id = "user_alice"
+      bucketingSeed = "household-123"
+  }
+  val context2 = VWOUserContext().apply {
+      id = "user_bob"
+      bucketingSeed = "household-123"
+  }
+  // alice and bob will receive the same variation
+  ```
+
+  ```java
+  // Java — household-level consistency
+  VWOUserContext context1 = new VWOUserContext();
+  context1.setId("user_alice");
+  context1.setBucketingSeed("household-123");
+
+  VWOUserContext context2 = new VWOUserContext();
+  context2.setId("user_bob");
+  context2.setBucketingSeed("household-123");
+  // alice and bob will receive the same variation
+  ```
+
 ## [1.12.0] - 2026-03-04
 
 ### Added

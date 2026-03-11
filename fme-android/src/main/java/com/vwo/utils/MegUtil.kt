@@ -70,9 +70,6 @@ class MegUtil {
         val groupCampaignIds: List<String>? =
             featureKeysAndGroupCampaignIds["groupCampaignIds"] as List<String>?
 
-        // get stored holdouts
-        val storageService = StorageService()
-
         for (featureKey in featureKeys!!) {
             val currentFeature = FunctionUtil.getFeatureFromKey(settings, featureKey)
 
@@ -264,7 +261,7 @@ class MegUtil {
                 val variation: Variation? = DecisionUtil().evaluateTrafficAndGetVariation(
                     settings,
                     ruleToTestForTraffic,
-                    context.id,
+                    context,
                     serviceContainer
                 )
                 if (variation != null) {
@@ -317,16 +314,20 @@ class MegUtil {
                     StorageDecorator().getFeatureFromStorage(featureKey, context, storageService)
                 try {
 
-                    val storageMapAsString: String = VWOClient.objectMapper.writeValueAsString(storedDataMap ?: emptyMap<String, Any>())
-                    val storedData: Storage? = VWOClient.objectMapper.readValue(storageMapAsString, Storage::class.java)
+                    val storageMapAsString: String = VWOClient.objectMapper.writeValueAsString(
+                        storedDataMap ?: emptyMap<String, Any>()
+                    )
+                    val storedData: Storage? =
+                        VWOClient.objectMapper.readValue(storageMapAsString, Storage::class.java)
                     if (storedData != null && storedData.isDecisionExpired()) {
                         serviceContainer.getLoggerService()?.log(
                             level = LogLevelEnum.WARN,
                             key = "MEG_FEATURE_DECISION_EXPIRED",
-                            map = mapOf( "featureKey" to featureKey, "id" to "${context.id}")
+                            map = mapOf("featureKey" to featureKey, "id" to "${context.id}")
                         )
                     } else if (storedData?.experimentVariationId != null
-                        && storedData.experimentVariationId.toString().isNotEmpty()) {
+                        && storedData.experimentVariationId.toString().isNotEmpty()
+                    ) {
 
                         if (!storedData.experimentKey.isNullOrEmpty() && storedData.experimentKey == campaign.key) {
                             val variation: Variation? = CampaignUtil.getVariationFromCampaignKey(
@@ -361,7 +362,8 @@ class MegUtil {
                     ) &&
                     CampaignDecisionService(serviceContainer).isUserPartOfCampaign(
                         context.id,
-                        campaign
+                        campaign,
+                        context
                     )
                 ) {
                     serviceContainer.getLoggerService()?.log(
@@ -553,12 +555,17 @@ class MegUtil {
             } ?: emptyList()
 
 
-            CampaignUtil.setCampaignAllocation(variations)
+            setCampaignAllocation(variations)
+            // Use custom bucketing seed if enabled
+            val bucketingId = BucketingIdResolver.resolve(
+                context.id,
+                context
+            )
             val winnerVariation: Variation? =
                 CampaignDecisionService(serviceContainer).getVariation(
                     variations,
                     DecisionMaker().calculateBucketValue(
-                        CampaignUtil.getBucketingSeed(context.id, null, groupId)
+                        CampaignUtil.getBucketingSeed(bucketingId, null, groupId)
                     )
                 )
 
@@ -588,9 +595,11 @@ class MegUtil {
                         ?: -1 else -1
                 storageMap["context"] = context
 
-                val cachedDecisionExpiryTime = serviceContainer.getVWOInitOptions().cachedDecisionExpiryTime
+                val cachedDecisionExpiryTime =
+                    serviceContainer.getVWOInitOptions().cachedDecisionExpiryTime
                 if (cachedDecisionExpiryTime > 0) {
-                    storageMap["decisionExpiryTime"] = System.currentTimeMillis() + cachedDecisionExpiryTime
+                    storageMap["decisionExpiryTime"] =
+                        System.currentTimeMillis() + cachedDecisionExpiryTime
                 }
 
                 StorageDecorator().setDataInStorage(storageMap, storageService)
@@ -696,11 +705,16 @@ class MegUtil {
                     }
 
                 setCampaignAllocation(variations)
+                // Use custom bucketing seed if enabled
+                val bucketingId = BucketingIdResolver.resolve(
+                    context.id,
+                    context
+                )
                 winnerCampaign = CampaignDecisionService(serviceContainer).getVariation(
                     variations,
                     DecisionMaker().calculateBucketValue(
                         getBucketingSeed(
-                            context.id,
+                            bucketingId,
                             null,
                             groupId
                         )
@@ -737,9 +751,11 @@ class MegUtil {
                         ?: -1 else -1
                 storageMap["context"] = context
 
-                val cachedDecisionExpiryTime = serviceContainer.getVWOInitOptions().cachedDecisionExpiryTime
+                val cachedDecisionExpiryTime =
+                    serviceContainer.getVWOInitOptions().cachedDecisionExpiryTime
                 if (cachedDecisionExpiryTime > 0) {
-                    storageMap["decisionExpiryTime"] = System.currentTimeMillis() + cachedDecisionExpiryTime
+                    storageMap["decisionExpiryTime"] =
+                        System.currentTimeMillis() + cachedDecisionExpiryTime
                 }
 
                 StorageDecorator().setDataInStorage(storageMap, storageService)

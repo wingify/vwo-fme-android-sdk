@@ -83,7 +83,8 @@ class DecisionUtil {
 
             // check if the campaign satisfies the whitelisting
             if (campaign.isForcedVariationEnabled == true) {
-                val whitelistedVariation = checkCampaignWhitelisting(campaign, context, serviceContainer)
+                val whitelistedVariation =
+                    checkCampaignWhitelisting(campaign, context, serviceContainer)
                 if (whitelistedVariation != null) {
                     return object : HashMap<String, Any?>() {
                         init {
@@ -93,12 +94,15 @@ class DecisionUtil {
                     }
                 }
             } else {
-                serviceContainer.getLoggerService()?.log(LogLevelEnum.INFO, "WHITELISTING_SKIP", object : HashMap<String?, String?>() {
-                    init {
-                        put("userId", context.id)
-                        put("campaignKey", campaign.ruleKey)
-                    }
-                })
+                serviceContainer.getLoggerService()?.log(
+                    LogLevelEnum.INFO,
+                    "WHITELISTING_SKIP",
+                    object : HashMap<String?, String?>() {
+                        init {
+                            put("userId", context.id)
+                            put("campaignKey", campaign.ruleKey)
+                        }
+                    })
             }
         }
 
@@ -115,12 +119,14 @@ class DecisionUtil {
         decision["customVariables"] = context.customVariables // for integration
 
         // Check if RUle being evaluated is part of Mutually Exclusive Group
-        val id = if (campaign.type == CampaignTypeEnum.PERSONALIZE.value) campaign.variations?.get(0)?.id?:-1 else -1
-            val groupId = getGroupDetailsIfCampaignPartOfIt(
-                settings,
-                campaign.id!!,
-                id
-            )["groupId"]
+        val id =
+            if (campaign.type == CampaignTypeEnum.PERSONALIZE.value) campaign.variations?.get(0)?.id
+                ?: -1 else -1
+        val groupId = getGroupDetailsIfCampaignPartOfIt(
+            settings,
+            campaign.id!!,
+            id
+        )["groupId"]
         if (groupId != null && !groupId.isEmpty()) {
             // check if the group is already evaluated for the user
             val groupWinnerCampaignId = megGroupWinnerCampaigns?.get(groupId.toInt())
@@ -161,7 +167,9 @@ class DecisionUtil {
                     storageService!!
                 )
                 try {
-                    val storageMapAsString: String = VWOClient.objectMapper.writeValueAsString(storedDataMap ?: emptyMap<String, Any>())
+                    val storageMapAsString: String = VWOClient.objectMapper.writeValueAsString(
+                        storedDataMap ?: emptyMap<String, Any>()
+                    )
                     val storedData: Storage? = VWOClient.objectMapper.readValue(
                         storageMapAsString,
                         Storage::class.java
@@ -188,7 +196,7 @@ class DecisionUtil {
                         if (storedData.experimentId === campaignId) {
                             if (campaign.type == CampaignTypeEnum.PERSONALIZE.value) {
                                 // if personalise then check if the reqeusted variation is the winner
-                                if (storedData.experimentVariationId==campaign.variations!![0].id) {
+                                if (storedData.experimentVariationId == campaign.variations!![0].id) {
                                     return object : HashMap<String, Any?>() {
                                         init {
                                             put("preSegmentationResult", true)
@@ -197,7 +205,8 @@ class DecisionUtil {
                                     }
                                 } else {
                                     // store the campaign in local cache, so that it can be used later without looking into user storage again
-                                    megGroupWinnerCampaigns?.set(groupId.toInt(),
+                                    megGroupWinnerCampaigns?.set(
+                                        groupId.toInt(),
                                         "${storedData.experimentId}_${storedData.experimentVariationId}"
                                     )
                                     return object : HashMap<String, Any?>() {
@@ -219,12 +228,14 @@ class DecisionUtil {
                         }
                         // if experimentId is not -1 then campaign is personalise campaign, store the details and return
                         if (storedData.experimentVariationId !== -1) {
-                            megGroupWinnerCampaigns?.set(groupId.toInt(),
+                            megGroupWinnerCampaigns?.set(
+                                groupId.toInt(),
                                 "${storedData.experimentId}_${storedData.experimentVariationId}"
                             )
                         } else {
                             // else store the campaignId only and return
-                            megGroupWinnerCampaigns?.set(groupId.toInt(),
+                            megGroupWinnerCampaigns?.set(
+                                groupId.toInt(),
                                 java.lang.String.valueOf(storedData.experimentId)
                             )
                         }
@@ -266,7 +277,7 @@ class DecisionUtil {
             // for personalise campaign, all personalise variations have same campaignId, so we check for campaignId_variationId
             if (variationModel?.id != null && variationModel.id == campaignId) {
                 // if campaign is AB then return true
-                if (variationModel.type== CampaignTypeEnum.AB.value) {
+                if (variationModel.type == CampaignTypeEnum.AB.value) {
                     return object : HashMap<String, Any?>() {
                         init {
                             put("preSegmentationResult", true)
@@ -284,7 +295,8 @@ class DecisionUtil {
                         }
                     } else {
                         // store the campaign in local cache, so that it can be used later
-                        megGroupWinnerCampaigns?.set(groupId.toInt(),
+                        megGroupWinnerCampaigns?.set(
+                            groupId.toInt(),
                             variationModel.id.toString() + "_" + variationModel.variations[0].id
                         )
                         return object : HashMap<String, Any?>() {
@@ -296,12 +308,13 @@ class DecisionUtil {
                     }
                 }
             } else if (variationModel?.id != null) { // when there is a winner but not the current campaign
-                if (variationModel.type==CampaignTypeEnum.AB.value) {
+                if (variationModel.type == CampaignTypeEnum.AB.value) {
                     // if campaign is AB then store only the campaignId
                     megGroupWinnerCampaigns?.set(groupId.toInt(), variationModel.id.toString())
                 } else {
                     // if campaign is personalise then store the campaignId_variationId
-                    megGroupWinnerCampaigns?.set(groupId.toInt(),
+                    megGroupWinnerCampaigns?.set(
+                        groupId.toInt(),
                         variationModel.id.toString() + "_" + variationModel.variations[0].id
                     )
                 }
@@ -339,23 +352,50 @@ class DecisionUtil {
     fun evaluateTrafficAndGetVariation(
         settings: Settings,
         campaign: Campaign,
-        userId: String?,
-        serviceContainer:ServiceContainer
+        serviceContainer: ServiceContainer
+    ): Variation? {
+        return evaluateTrafficAndGetVariation(settings, campaign, null, serviceContainer)
+    }
+
+    /**
+     * This method is used to evaluate the traffic for a given campaign and get the variation with custom bucketing support.
+     * @param settings  SettingsModel object containing the account settings.
+     * @param campaign  CampaignModel object containing the campaign settings.
+     * @param userId   String containing the user ID.
+     * @param context  VWOUserContext object for custom bucketing seed resolution.
+     * @return  VariationModel object containing the variation details.
+     */
+    fun evaluateTrafficAndGetVariation(
+        settings: Settings,
+        campaign: Campaign,
+        context: VWOUserContext?,
+        serviceContainer: ServiceContainer
     ): Variation? {
         // Get the variation allotted to the user
+
+        val userId = context?.id
 
         val variation = CampaignDecisionService(serviceContainer).getVariationAllotted(
             userId,
             settings.accountId.toString(),
-            campaign
+            campaign,
+            context
         )
+
+        // Resolve bucketing ID for logging purposes
+        val bucketingId = BucketingIdResolver.resolve(
+            userId,
+            context
+        )
+        val logUserId = BucketingIdResolver.formatUserIdForLogging(userId, bucketingId)
+
         if (variation == null) {
             serviceContainer.getLoggerService()?.log(
                 LogLevelEnum.INFO,
                 "USER_CAMPAIGN_BUCKET_INFO",
                 object : HashMap<String?, String?>() {
                     init {
-                        put("userId", userId)
+                        put("userId", logUserId)
                         put(
                             "campaignKey",
                             if (campaign.type.equals(CampaignTypeEnum.AB.value))
@@ -369,13 +409,16 @@ class DecisionUtil {
             return null
         }
 
-        serviceContainer.getLoggerService()?.log(LogLevelEnum.INFO, "USER_CAMPAIGN_BUCKET_INFO", object : HashMap<String?, String?>() {
-            init {
-                put("userId", userId)
-                put("campaignKey", campaign.ruleKey)
-                put("status", "got variation: " + variation.name)
-            }
-        })
+        serviceContainer.getLoggerService()?.log(
+            LogLevelEnum.INFO,
+            "USER_CAMPAIGN_BUCKET_INFO",
+            object : HashMap<String?, String?>() {
+                init {
+                    put("userId", logUserId)
+                    put("campaignKey", campaign.ruleKey)
+                    put("status", "got variation: " + variation.name)
+                }
+            })
         return variation
     }
 
@@ -388,26 +431,27 @@ class DecisionUtil {
     private fun checkCampaignWhitelisting(
         campaign: Campaign,
         context: VWOUserContext,
-        serviceContainer:ServiceContainer
+        serviceContainer: ServiceContainer
     ): Map<String, Any?>? {
         val whitelistingResult = evaluateWhitelisting(campaign, context, serviceContainer)
         val status = if (whitelistingResult != null) StatusEnum.PASSED else StatusEnum.FAILED
         val variationString =
             if (whitelistingResult != null) whitelistingResult["variationName"] as String? else ""
-        serviceContainer.getLoggerService()?.log(LogLevelEnum.INFO, "WHITELISTING_STATUS", object : HashMap<String?, String?>() {
-            init {
-                put("userId", context.id)
-                put(
-                    "campaignKey",
-                    if (campaign.type.equals(CampaignTypeEnum.AB.value))
-                        campaign.key
-                    else
-                        campaign.name + "_" + campaign.ruleKey
-                )
-                put("status", status.status)
-                put("variationString", variationString)
-            }
-        })
+        serviceContainer.getLoggerService()
+            ?.log(LogLevelEnum.INFO, "WHITELISTING_STATUS", object : HashMap<String?, String?>() {
+                init {
+                    put("userId", context.id)
+                    put(
+                        "campaignKey",
+                        if (campaign.type.equals(CampaignTypeEnum.AB.value))
+                            campaign.key
+                        else
+                            campaign.name + "_" + campaign.ruleKey
+                    )
+                    put("status", status.status)
+                    put("variationString", variationString)
+                }
+            })
         return whitelistingResult
     }
 
@@ -417,36 +461,44 @@ class DecisionUtil {
      * @param context  Context object containing user information
      * @return  Whitelisted variation or null if not whitelisted
      */
-    private fun evaluateWhitelisting(campaign: Campaign, context: VWOUserContext, serviceContainer: ServiceContainer): Map<String, Any?>? {
+    private fun evaluateWhitelisting(
+        campaign: Campaign,
+        context: VWOUserContext,
+        serviceContainer: ServiceContainer
+    ): Map<String, Any?>? {
         val targetedVariations: MutableList<Variation> = ArrayList()
 
         for (variation in campaign.variations!!) {
             if (variation.segments.isEmpty()) {
-                serviceContainer.getLoggerService()?.log(LogLevelEnum.INFO, "WHITELISTING_SKIP", object : HashMap<String?, String?>() {
-                    init {
-                        put("userId", context.id)
-                        put(
-                            "campaignKey",
-                            if (campaign.type.equals(CampaignTypeEnum.AB.value))
-                                campaign.key
-                            else
-                                campaign.name + "_" + campaign.ruleKey
-                        )
-                        put(
-                            "variation",
-                            if (variation.name?.isNotEmpty() == true) "for variation: " + variation.name else ""
-                        )
-                    }
-                })
+                serviceContainer.getLoggerService()?.log(
+                    LogLevelEnum.INFO,
+                    "WHITELISTING_SKIP",
+                    object : HashMap<String?, String?>() {
+                        init {
+                            put("userId", context.id)
+                            put(
+                                "campaignKey",
+                                if (campaign.type.equals(CampaignTypeEnum.AB.value))
+                                    campaign.key
+                                else
+                                    campaign.name + "_" + campaign.ruleKey
+                            )
+                            put(
+                                "variation",
+                                if (variation.name?.isNotEmpty() == true) "for variation: " + variation.name else ""
+                            )
+                        }
+                    })
                 continue
             }
 
             // Check for segmentation and evaluate
             if (variation.segments != null) {
-                val segmentationResult = serviceContainer.getSegmentationManager().validateSegmentation(
-                    variation.segments,
-                    context.variationTargetingVariables
-                )
+                val segmentationResult =
+                    serviceContainer.getSegmentationManager().validateSegmentation(
+                        variation.segments,
+                        context.variationTargetingVariables
+                    )
 
                 if (segmentationResult) {
                     targetedVariations.add(FunctionUtil.cloneObject(variation) as Variation)
@@ -464,11 +516,16 @@ class DecisionUtil {
                 stepFactor = CampaignUtil.assignRangeValues(variation, currentAllocation)
                 currentAllocation += stepFactor
             }
+            // Use custom bucketing seed if enabled
+            val bucketingId = BucketingIdResolver.resolve(
+                context.id,
+                context
+            )
             whitelistedVariation = CampaignDecisionService(serviceContainer).getVariation(
                 targetedVariations,
                 DecisionMaker().calculateBucketValue(
                     CampaignUtil.getBucketingSeed(
-                        context.id,
+                        bucketingId,
                         campaign,
                         null
                     )

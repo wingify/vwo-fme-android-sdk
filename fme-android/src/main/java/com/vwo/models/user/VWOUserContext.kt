@@ -53,6 +53,20 @@ class VWOUserContext {
     var shouldUseDeviceIdAsUserId: Boolean = false
 
     /**
+     * Custom bucketing seed to control variation assignment independently of userId.
+     *
+     * When isCustomBucketingSeed is enabled in VWOInitOptions and this value is provided,
+     * the SDK will use this seed for bucketing decisions instead of userId.
+     *
+     * Use cases:
+     * - Household consistency: Use familyId to assign same variation to all family members
+     * - Account-level testing: Use accountId for all users under same account
+     * - Device consistency: Use deviceId for same variation across user's devices
+     * - Session-based testing: Use sessionId to maintain consistency within a session
+     */
+    var bucketingSeed: String? = null
+
+    /**
      * The user might want to use the device id instead of temp id.
      *
      * @return [String] - the qualified id picked from either [id] or [DeviceIdUtil]::getDeviceId()
