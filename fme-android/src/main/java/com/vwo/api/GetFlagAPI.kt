@@ -236,7 +236,7 @@ object GetFlagAPI {
 
             }
 
-            if (storedData != null && storedData.isDecisionExpired()) {
+            if (storedData.isDecisionExpiryTimeFoundInStorage() && storedData.isDecisionExpired()) {
                 serviceContainer.getLoggerService()?.log(
                     key = "DECISION_EXPIRED",
                     level = LogLevelEnum.WARN,
@@ -618,16 +618,24 @@ object GetFlagAPI {
             val cachedDecisionExpiryTime =
                 serviceContainer.getVWOInitOptions().cachedDecisionExpiryTime
             if (cachedDecisionExpiryTime > 0) {
+
                 // Decision expiry: only set when we made a fresh decision (re-evaluated).
                 // - When stored decision is valid and not expired (isAlreadyValid): we reuse it and do
                 //   not add decisionExpiryTime to the write, so we don't overwrite/rewrite the TTL.
                 // - When stored is null or expired (!isAlreadyValid): we re-evaluated, so set new
                 //   expiry (now + cachedDecisionExpiryTime).
-                val isAlreadyValid = (storedData != null) && !storedData.isDecisionExpired()
 
-                if (!isAlreadyValid) {
-                    storageMap["decisionExpiryTime"] =
-                        System.currentTimeMillis() + cachedDecisionExpiryTime
+                val decisionHasNotExpired = (storedData?.isDecisionExpired() != true)
+                val decisionExpiryTimeFoundInStorage =
+                    (storedData?.isDecisionExpiryTimeFoundInStorage() == true)
+
+                val isDecisionValid = (decisionExpiryTimeFoundInStorage && decisionHasNotExpired)
+
+                if (!isDecisionValid) {
+                    val expiresAt = System.currentTimeMillis() + cachedDecisionExpiryTime
+                    storageMap["decisionExpiryTime"] = expiresAt
+                } else {
+                    storageMap["decisionExpiryTime"] = storedData?.decisionExpiryTime ?: 0
                 }
             }
 

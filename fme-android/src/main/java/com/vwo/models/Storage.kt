@@ -57,4 +57,8 @@ class Storage {
         return System.currentTimeMillis() > expiry
     }
 
+    fun isDecisionExpiryTimeFoundInStorage(): Boolean {
+        return decisionExpiryTime != null
+    }
+
 }
