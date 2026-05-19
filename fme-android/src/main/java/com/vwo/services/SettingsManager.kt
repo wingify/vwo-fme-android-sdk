@@ -34,6 +34,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import java.net.URL
+import kotlin.collections.set
 
 /**
  * Manages settings for the VWO SDK.
@@ -125,10 +126,8 @@ class SettingsManager(internal val options: VWOInitOptions) {
                     }
                 }
             } else {
-                responseString = fetchSettings()
-                if (!responseString.isNullOrEmpty()) {
-                    updateSettingsCache(responseString)
-                } else if (cachedSettingsAllowed()) {
+                responseString = fetchAndCacheServerSettings()
+                if (responseString == null && cachedSettingsAllowed()) {
                     //Return settings even if it is expired - SDK should work as long as there is setting in cache.
                     responseString = getCachedSetting()
                 }
@@ -151,10 +150,20 @@ class SettingsManager(internal val options: VWOInitOptions) {
 
     private fun fetchAndCacheServerSettings(): String? {
         val response: String? = fetchSettings()
-        if (response != null) {
+        if (response != null && isJSONValidSettings(response)) {
             updateSettingsCache(response)
+            return response
         }
-        return response
+        return null
+    }
+
+    private fun isJSONValidSettings(response: String): Boolean {
+        return try {
+            val settings = VWOClient.objectMapper.readValue(response, Settings::class.java)
+            SettingsSchema().isSettingsValid(settings)
+        } catch (_: Exception) {
+            false
+        }
     }
 
     private fun updateSettingsCache(responseString: String) {
@@ -203,6 +212,7 @@ class SettingsManager(internal val options: VWOInitOptions) {
         }
         options["sn"] = SDKMetaUtil.sdkName
         options["sv"] = SDKMetaUtil.sdkVersion
+        options["pt"] = Constants.PLATFORM
 
         try {
             val startTime = System.currentTimeMillis()

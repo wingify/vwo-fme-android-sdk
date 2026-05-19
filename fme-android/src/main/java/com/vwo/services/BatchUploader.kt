@@ -35,19 +35,7 @@ internal object BatchUploader {
     /**
      * The network timeout for requests, in milliseconds.
      */
-    private val networkTimeout = Constants.SETTINGS_TIMEOUT.toInt()
-    /**
-     * The hostname of the server to which requests are sent.
-     */
-    private val hostname = Constants.HOST_NAME
-    /**
-     * The protocol used for requests (e.g., "https").
-     */
-    private val protocol: String = Constants.HTTPS_PROTOCOL
-    /**
-     * The port number used for requests.
-     */
-    private val port = 0
+    private const val NETWORK_TIMEOUT = Constants.SETTINGS_TIMEOUT.toInt()
 
     /**
      * Uploads an event batch to the server.
@@ -65,16 +53,16 @@ internal object BatchUploader {
         val options = EventBatchQueryParams(sdkKey = sdkKey, accountId = accountId.toString()).queryParams
         val header = mutableMapOf("Authorization" to sdkKey)
         val request = RequestModel(
-            hostname,
-            "POST",
-            Constants.EVENT_BATCH_ENDPOINT,
-            options,
-            body,
-            header,
-            protocol,
-            port
+            url = getFinalUrl(serviceContainer = serviceContainer),
+            method = "POST",
+            path = Constants.EVENT_BATCH_ENDPOINT,
+            query = options,
+            body = body,
+            headers = header,
+            scheme = Constants.HTTPS_PROTOCOL,
+            port = 0
         )
-        request.timeout = networkTimeout
+        request.timeout = NETWORK_TIMEOUT
         val response = NetworkManager.post(request, serviceContainer)
         if (response?.statusCode != 200) {
             serviceContainer?.getLoggerService()?.log(
@@ -84,5 +72,13 @@ internal object BatchUploader {
             return false
         }
         return true
+    }
+
+    private fun getFinalUrl(serviceContainer: ServiceContainer?): String {
+        val collectionPrefix = serviceContainer?.getSettings()?.collectionPrefix
+        if (!collectionPrefix.isNullOrEmpty()) {
+            return "${Constants.HOST_NAME}/$collectionPrefix"
+        }
+        return Constants.HOST_NAME
     }
 }

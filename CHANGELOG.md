@@ -5,7 +5,15 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [1.13.1] - 2026-03-15
+## [1.14.0] - 2026-04-18
+
+### Fixed
+
+- Improve settings parsing ability, don't store invalid setting received from server.
+- Bugfix: `batch-events-v2` network calls not respecting the passed `gateway` url.
+- Platform type not being sent in network calls.
+
+## [1.13.1] - 2026-04-15
 
 ### Fixed
 

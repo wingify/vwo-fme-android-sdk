@@ -57,12 +57,13 @@ class EventBatchQueryParamsTest {
     @Test
     fun `test queryParams contains all required parameters`() {
         // Assert
-        assertEquals(5, eventBatchQueryParams.queryParams.size)
+        assertEquals(6, eventBatchQueryParams.queryParams.size)
         assertNotNull(eventBatchQueryParams.queryParams["i"])
         assertNotNull(eventBatchQueryParams.queryParams["env"])
         assertNotNull(eventBatchQueryParams.queryParams["a"])
         assertNotNull(eventBatchQueryParams.queryParams["sv"])
-        assertNotNull(eventBatchQueryParams.queryParams["sv"])
+        assertNotNull(eventBatchQueryParams.queryParams["sn"])
+        assertNotNull(eventBatchQueryParams.queryParams["pt"])
     }
 
     @Test

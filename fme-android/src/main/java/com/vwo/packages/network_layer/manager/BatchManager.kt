@@ -109,7 +109,6 @@ internal object BatchManager {
                 }
                 result = isUploaded && result
                 if ((isUploaded && count > 0) || !isUploaded) {
-                    Log.d("Swapnil", "Batch uploading success/failed ${firstItem.accountId} ${firstItem.sdkKey} count=$count")
                     batchServiceContainer?.getLoggerService()?.log(
                         LogLevelEnum.INFO,
                         "BATCH_PROCESSING_FINISHED",

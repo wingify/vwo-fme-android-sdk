@@ -64,7 +64,6 @@ class GatewayServiceUtilTest {
         settingsManager.port = 443
 
         // Set up the mock ServiceContainer to return expected values
-        `when`(mockServiceContainer.getBaseUrl()).thenReturn("test.vwo.com")
         `when`(mockServiceContainer.getSettingsManager()).thenReturn(settingsManager)
 
         NetworkManager.attachClient(mockNetworkClient)

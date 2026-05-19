@@ -15,7 +15,9 @@
  */
 package com.vwo.models.request.EventArchQueryParams
 
+import com.vwo.constants.Constants
 import com.vwo.utils.SDKMetaUtil
+import kotlin.collections.set
 
 /**
  * Represents query parameters for event batch requests.*
@@ -43,5 +45,7 @@ class EventBatchQueryParams(private val sdkKey: String, private val accountId: S
         this["a"] = accountId
         this["sn"] = SDKMetaUtil.sdkName
         this["sv"] = SDKMetaUtil.sdkVersion
+        this["pt"] = Constants.PLATFORM
     }
+
 }

@@ -42,7 +42,7 @@ object GatewayServiceUtil {
         var responseString: String? = null
         try {
             val request = RequestModel(
-                serviceContainer.getBaseUrl(),
+                serviceContainer.getSettingsManager()?.hostname ?: "",
                 "GET",
                 endpoint,
                 queryParams,

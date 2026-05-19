@@ -39,6 +39,7 @@ import com.vwo.packages.network_layer.manager.NetworkManager
 import com.vwo.packages.network_layer.models.RequestModel
 import com.vwo.providers.StorageProvider
 import java.util.Calendar
+import kotlin.collections.set
 
 /**
  * Provides network-related utility functions.
@@ -94,6 +95,7 @@ class NetworkUtil {
 
             requestQueryParams.queryParams["sn"] = SDKMetaUtil.sdkName
             requestQueryParams.queryParams["sv"] = SDKMetaUtil.sdkVersion
+            requestQueryParams.queryParams["pt"] = Constants.PLATFORM
             return requestQueryParams.queryParams
         }
 
@@ -566,14 +568,14 @@ class NetworkUtil {
                 NetworkManager.attachClient()
                 val headers = createHeaders(null, null)
                 val request = RequestModel(
-                    serviceContainer.getBaseUrl(),
-                    "POST",
-                    UrlEnum.EVENTS.url,
-                    queryParams,
-                    payload,
-                    headers,
-                    serviceContainer.getSettingsManager()?.protocol,
-                    serviceContainer.getSettingsManager()?.port ?: 0
+                    url = serviceContainer.getBaseUrl(),
+                    method = "POST",
+                    path = UrlEnum.EVENTS.url,
+                    query = queryParams,
+                    body = payload,
+                    headers = headers,
+                    scheme = serviceContainer.getSettingsManager()?.protocol,
+                    port = serviceContainer.getSettingsManager()?.port ?: 0
                 )
                 request.eventName = eventName
                 NetworkManager.postAsync(request, serviceContainer)
@@ -600,14 +602,14 @@ class NetworkUtil {
                 NetworkManager.attachClient()
                 val headers = createHeaders(null, null)
                 val request = RequestModel(
-                    Constants.HOST_NAME,
-                    "POST",
-                    UrlEnum.EVENTS.url,
-                    properties,
-                    payload,
-                    headers,
-                    Constants.HTTPS_PROTOCOL,
-                    0
+                    url = serviceContainer.getBaseUrl(),
+                    method = "POST",
+                    path = UrlEnum.EVENTS.url,
+                    query = properties,
+                    body = payload,
+                    headers = headers,
+                    scheme = serviceContainer.getSettingsManager()?.protocol,
+                    port = serviceContainer.getSettingsManager()?.port ?:0
                 )
                 request.eventName = eventName
                 NetworkManager.postAsync(request, serviceContainer)
