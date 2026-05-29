@@ -1,0 +1,126 @@
+/**
+ * Copyright (c) 2024-2026 Wingify Software Pvt. Ltd.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+package com.wingify.decorators
+
+import com.wingify.ServiceContainer
+import com.wingify.enums.ApiEnum
+import com.wingify.interfaces.storage.IStorageDecorator
+import com.wingify.models.Variation
+import com.wingify.models.user.WingifyUserContext
+import com.wingify.services.LoggerService
+import com.wingify.services.StorageService
+
+/**
+ * Decorator for interacting with the storage service.
+ *
+ * This class provides methods for retrieving and storing data related to feature* experiments
+ * and variations. It ensures data integrity by validating the input before storing it and logs
+ * errors if any inconsistencies are found.
+ */
+class StorageDecorator(private val serviceContainer: ServiceContainer? = null) : IStorageDecorator {
+
+    /**
+     * Retrieves feature data from storage for the given feature key and user context.
+     *
+     * @param featureKey The key of the feature to retrieve.
+     * @param context The user context for which to retrieve the data.
+     * @param storageService The storage service instance to use.
+     * @return The feature data as a Map, or null if not found.
+     */
+    override fun getFeatureFromStorage(
+        featureKey: String,
+        context: WingifyUserContext,
+        storageService: StorageService,
+    ): Map<String, Any>? {
+        return storageService.getDataInStorage(featureKey, context)
+    }
+
+    /**
+     * Stores the provided data in the storage service.
+     *
+     * This method validates the data to ensure it contains the necessary information for
+     * identifying the feature, user, and variation. If the data is invalid, it logs an error and
+     * returns null. Otherwise, it stores the data and returns a new Variation object.
+     *
+     * @param data The data to store, containing feature key, user ID, and variation details.
+     * @param storageService The storage service instance to use.
+     * @return A new Variation object, or null if the data is invalid.
+     */
+    override fun setDataInStorage(
+        data: Map<String, Any>,
+        storageService: StorageService
+    ): Variation? {
+        val context = data["context"] as? WingifyUserContext
+        val featureKey = data["featureKey"] as String?
+        val userId = data["userId"]?.toString()
+        val uuid = serviceContainer?.let { sc -> context?.getUuid(serviceContainer = sc) }
+        val debugValues = mutableMapOf("an" to ApiEnum.GET_FLAG.value)
+        if (uuid != null) debugValues["uuid"] = uuid
+
+        if (featureKey.isNullOrEmpty()) {
+            LoggerService.errorLog(
+                key = "ERROR_STORING_DATA_IN_STORAGE",
+                data = mapOf("key" to "featureKey"),
+                debugData = debugValues,
+                shouldSendToVWO = true,
+                serviceContainer = serviceContainer
+            )
+            return null
+        }
+
+        if (userId.isNullOrEmpty()) {
+            LoggerService.errorLog(
+                key = "ERROR_STORING_DATA_IN_STORAGE",
+                data = mapOf("key" to "userId"),
+                debugData = debugValues,
+                shouldSendToVWO = true,
+                serviceContainer = serviceContainer
+            )
+            return null
+        }
+
+        val rolloutKey = data["rolloutKey"] as String?
+        val experimentKey = data["experimentKey"] as String?
+        val rolloutVariationId = data["rolloutVariationId"] as Int?
+        val experimentVariationId = data["experimentVariationId"] as Int?
+
+        if (rolloutKey != null && !rolloutKey.isEmpty() && experimentKey == null && rolloutVariationId == null) {
+            LoggerService.errorLog(
+                key = "ERROR_STORING_DATA_IN_STORAGE",
+                data = mapOf("key" to "Variation:(rolloutKey, experimentKey or rolloutVariationId)"),
+                debugData = debugValues,
+                shouldSendToVWO = true,
+                serviceContainer = serviceContainer
+            )
+            return null
+        }
+
+        if (!experimentKey.isNullOrEmpty() && experimentVariationId == null) {
+            LoggerService.errorLog(
+                key = "ERROR_STORING_DATA_IN_STORAGE",
+                data = mapOf("key" to "Variation:(experimentKey or rolloutVariationId)"),
+                debugData = debugValues,
+                shouldSendToVWO = true,
+                serviceContainer = serviceContainer
+            )
+            return null
+        }
+
+        storageService.setDataInStorage(data)
+
+        return Variation() // Assuming you need to return a new VariationModel instance.
+    }
+}

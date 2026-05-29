@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2024-2025 Wingify Software Pvt. Ltd.
+ * Copyright (c) 2024-2026 Wingify Software Pvt. Ltd.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,7 +16,7 @@
 package com.vwo.testcases
 
 import com.google.gson.annotations.SerializedName
-import com.vwo.models.Storage
+import com.wingify.models.Storage
 
 class Expectation {
     @SerializedName("isEnabled")

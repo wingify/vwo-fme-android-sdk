@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2024-2025 Wingify Software Pvt. Ltd.
+ * Copyright (c) 2024-2026 Wingify Software Pvt. Ltd.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,11 +15,14 @@
  */
 package com.vwo
 
-import com.vwo.api.SetAttributeAPI
+import com.wingify.api.SetAttributeAPI
 import com.vwo.interfaces.IVwoInitCallback
-import com.vwo.models.Settings
+import com.wingify.models.Settings
 import com.vwo.models.user.VWOInitOptions
 import com.vwo.models.user.VWOUserContext
+import com.wingify.SDKState
+import com.wingify.WingifyClient
+import com.wingify.ServiceContainer
 import org.junit.Assert.assertNotNull
 import org.junit.Before
 import org.junit.Test
@@ -81,7 +84,7 @@ class VWOSetAttributeTest {
         // Set the mocked processedSettings in the VWO client (field is declared on VWOClient)
         if (::vwoClient.isInitialized) {
             // Use reflection to set the processedSettings field
-            val processedSettingsField = VWOClient::class.java.getDeclaredField("processedSettings")
+            val processedSettingsField = WingifyClient::class.java.getDeclaredField("processedSettings")
             processedSettingsField.isAccessible = true
             processedSettingsField.set(vwoClient, settings)
 
@@ -125,7 +128,8 @@ class VWOSetAttributeTest {
 
         // Verify mock was called only when it was successfully injected (setAttributeAPI is not a field on VWOClient)
         if (mockSetAttributeAPIInjected) {
-            verify(mockSetAttributeAPI).setAttribute(eq(settings), eq(attributes), eq(context), any(ServiceContainer::class.java))
+            verify(mockSetAttributeAPI).setAttribute(eq(settings), eq(attributes), eq(context), any(
+                ServiceContainer::class.java))
         }
     }
 

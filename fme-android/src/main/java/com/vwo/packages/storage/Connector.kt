@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2024-2025 Wingify Software Pvt. Ltd.
+ * Copyright (c) 2024-2026 Wingify Software Pvt. Ltd.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,27 +18,10 @@ package com.vwo.packages.storage
 /**
  * An abstract class representing a connector for data storage and retrieval.
  *
- * This class defines the basic interface for connectors that interact with data storage mechanisms.
- * Subclasses must implement the `set` and `get` methods to provide concrete implementations for
- * specific data stores.
+ * @deprecated Use [com.wingify.packages.storage.Connector] for new integrations.
  */
-abstract class Connector {
-    /**
-     * Sets data for a given key.
-     *
-     * @param data A map containing the data to be set.
-     * @throws Exception if an error occurs during the set operation.
-     */
-    @Throws(Exception::class)
-    abstract fun set(data: Map<String, Any>)
-
-    /**
-     * Retrieves data for a given feature key and user ID.
-     *
-     * @param featureKey The key of the feature for which to retrieve data.
-     * @param userId The ID of the user for which to retrieve data.
-     * @return The retrieved data or null if no data is found.
-     * @throws Exception if an error occurs during the get operation.*/
-    @Throws(Exception::class)
-    abstract fun get(featureKey: String?, userId: String?): Any?
-}
+@Deprecated(
+    message = "Use com.wingify.packages.storage.Connector instead",
+    replaceWith = ReplaceWith("Connector", "com.wingify.packages.storage.Connector"),
+)
+abstract class Connector : com.wingify.packages.storage.Connector()

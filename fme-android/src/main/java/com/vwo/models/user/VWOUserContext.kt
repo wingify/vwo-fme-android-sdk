@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2024-2025 Wingify Software Pvt. Ltd.
+ * Copyright (c) 2024-2026 Wingify Software Pvt. Ltd.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,65 +15,18 @@
  */
 package com.vwo.models.user
 
-import com.vwo.ServiceContainer
-import com.vwo.utils.DeviceIdUtil
-import com.vwo.utils.UUIDUtils.getUUID
+import com.wingify.models.user.WingifyUserContext
 
 /**
  * Represents the context of a VWO user.
  *
- * This class encapsulates information about a user in the context of VWO, including their ID, user agent, IP address, custom variables, and variation targeting variables.
+ * This class encapsulates information about a user in the context of VWO, including their ID,
+ * custom variables, and variation targeting variables.
+ *
+ * @deprecated Use [com.wingify.models.user.WingifyUserContext] for new integrations.
  */
-class VWOUserContext {
-
-    var id: String? = null
-
-    var customVariables: MutableMap<String, Any> = HashMap()
-
-    var postSegmentationVariables: List<String>? = null
-
-    var variationTargetingVariables: MutableMap<String, Any> = HashMap()
-
-    internal fun getUuid(serviceContainer: ServiceContainer): String {
-        return getUUID(
-            this.id.toString(),
-            serviceContainer.getSettingsManager()?.accountId?.toString()
-        )
-    }
-
-    internal var sessionId: Long = FMEConfig.generateSessionId()
-
-    var vwo: GatewayService? = null
-
-    /**
-     * Use device ID as user ID when user ID is not provided.
-     * When enabled, the SDK will generate a persistent device ID and use it as the user ID.
-     * This option is useful when explicit user identification is not available.
-     */
-    var shouldUseDeviceIdAsUserId: Boolean = false
-
-    /**
-     * Custom bucketing seed to control variation assignment independently of userId.
-     *
-     * When isCustomBucketingSeed is enabled in VWOInitOptions and this value is provided,
-     * the SDK will use this seed for bucketing decisions instead of userId.
-     *
-     * Use cases:
-     * - Household consistency: Use familyId to assign same variation to all family members
-     * - Account-level testing: Use accountId for all users under same account
-     * - Device consistency: Use deviceId for same variation across user's devices
-     * - Session-based testing: Use sessionId to maintain consistency within a session
-     */
-    var bucketingSeed: String? = null
-
-    /**
-     * The user might want to use the device id instead of temp id.
-     *
-     * @return [String] - the qualified id picked from either [id] or [DeviceIdUtil]::getDeviceId()
-     */
-    fun getIdBasedOnSpecificCondition(): String? {
-        if (id != null) return id
-        return if (shouldUseDeviceIdAsUserId) DeviceIdUtil().getDeviceId() else id
-    }
-
-}
+@Deprecated(
+    message = "Use com.wingify.models.user.WingifyUserContext instead",
+    replaceWith = ReplaceWith("WingifyUserContext", "com.wingify.models.user.WingifyUserContext"),
+)
+class VWOUserContext : WingifyUserContext()

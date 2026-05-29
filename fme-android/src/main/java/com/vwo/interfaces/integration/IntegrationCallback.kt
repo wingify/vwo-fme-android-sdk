@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2024-2025 Wingify Software Pvt. Ltd.
+ * Copyright (c) 2024-2026 Wingify Software Pvt. Ltd.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,15 +18,13 @@ package com.vwo.interfaces.integration
 /**
  * Callback interface for integration events.
  *
- * This interface defines a single method, `execute`, which is called when an integration event occurs.
- * The `execute` method receives a map of properties containing information about the event.
+ * @deprecated Use [com.wingify.interfaces.integration.IntegrationCallback] for new integrations.
  */
-interface IntegrationCallback {
-
-    /**
-     * Executes the callback logic with the provided properties.
-     *
-     * @param properties A map of properties containing information about the integration event.
-     */
-    fun execute(properties: Map<String, Any>)
-}
+@Deprecated(
+    message = "Use com.wingify.interfaces.integration.IntegrationCallback instead",
+    replaceWith = ReplaceWith(
+        "IntegrationCallback",
+        "com.wingify.interfaces.integration.IntegrationCallback",
+    ),
+)
+interface IntegrationCallback : com.wingify.interfaces.integration.IntegrationCallback

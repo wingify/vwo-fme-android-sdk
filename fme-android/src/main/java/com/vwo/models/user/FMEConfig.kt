@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2024-2025 Wingify Software Pvt. Ltd.
+ * Copyright (c) 2024-2026 Wingify Software Pvt. Ltd.
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -18,8 +18,7 @@
 package com.vwo.models.user
 
 import com.vwo.packages.logger.enums.LogLevelEnum
-import com.vwo.ServiceContainer
-import com.vwo.services.LoggerService
+import com.wingify.ServiceContainer
 import java.util.Calendar
 
 /**

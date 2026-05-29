@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2024-2025 Wingify Software Pvt. Ltd.
+ * Copyright (c) 2024-2026 Wingify Software Pvt. Ltd.
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -17,12 +17,13 @@
 
 package com.vwo.packages.network_layer.manager
 
-import com.vwo.ServiceContainer
+import com.wingify.ServiceContainer
 import com.vwo.models.user.VWOInitOptions
+import com.wingify.packages.network_layer.manager.BatchManager
+import com.wingify.packages.network_layer.manager.OnlineBatchUploadManager
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.mockkObject
-import io.mockk.unmockkObject
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.runBlocking
 import org.junit.Test

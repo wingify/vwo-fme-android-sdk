@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2024-2025 Wingify Software Pvt. Ltd.
+ * Copyright (c) 2024-2026 Wingify Software Pvt. Ltd.
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -16,7 +16,14 @@
  */
 package com.vwo.models.schemas
 
-import com.vwo.models.*
+import com.wingify.models.Campaign
+import com.wingify.models.Feature
+import com.wingify.models.Metric
+import com.wingify.models.Rule
+import com.wingify.models.Settings
+import com.wingify.models.Variable
+import com.wingify.models.Variation
+import com.wingify.models.schemas.SettingsSchema
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Before

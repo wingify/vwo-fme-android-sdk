@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2024-2025 Wingify Software Pvt. Ltd.
+ * Copyright (c) 2024-2026 Wingify Software Pvt. Ltd.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,16 +16,18 @@
 package com.vwo.services
 
 import com.google.gson.JsonElement
-import com.vwo.ServiceContainer
+import com.wingify.ServiceContainer
 import com.vwo.VWOClient
-import com.vwo.constants.Constants
+import com.wingify.constants.Constants
 import com.vwo.interfaces.logger.LogTransport
-import com.vwo.interfaces.networking.NetworkClientInterface
+import com.wingify.interfaces.networking.NetworkClientInterface
 import com.vwo.models.user.VWOInitOptions
 import com.vwo.packages.logger.enums.LogLevelEnum
-import com.vwo.packages.network_layer.manager.NetworkManager
-import com.vwo.packages.network_layer.models.RequestModel
-import com.vwo.packages.network_layer.models.ResponseModel
+import com.wingify.packages.network_layer.manager.NetworkManager
+import com.wingify.packages.network_layer.models.RequestModel
+import com.wingify.packages.network_layer.models.ResponseModel
+import com.wingify.services.LoggerService
+import com.wingify.services.SettingsManager
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue

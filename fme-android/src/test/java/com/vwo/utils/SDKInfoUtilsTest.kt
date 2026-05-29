@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2024-2025 Wingify Software Pvt. Ltd.
+ * Copyright (c) 2024-2026 Wingify Software Pvt. Ltd.
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -21,6 +21,8 @@ import android.content.Context
 import android.content.pm.PackageInfo
 import android.content.pm.PackageManager
 import android.os.Build
+import com.wingify.utils.SDKInfoUtils
+import com.wingify.utils.SDKMetaUtil
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -30,7 +32,6 @@ import org.mockito.junit.MockitoJUnitRunner
 import org.robolectric.annotation.Config
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
-import org.robolectric.RuntimeEnvironment
 
 @RunWith(MockitoJUnitRunner::class)
 @Config(sdk = [Build.VERSION_CODES.P], manifest = Config.NONE)

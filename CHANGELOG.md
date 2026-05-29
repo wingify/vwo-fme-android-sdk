@@ -5,6 +5,131 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.50.0] - 2026-05-29
+
+This release introduces Wingify as the primary SDK branding and package namespace, while keeping existing VWO integrations fully supported.
+
+Both Maven coordinates ship the **same library binary** at the same version — pick one; do not add both:
+
+| Coordinate | Public API |
+| --- | --- |
+| `com.wingify.sdk:wingify-fme-android-sdk` | `com.wingify.*` (recommended for new apps) |
+| `com.vwo.sdk:vwo-fme-android-sdk` | `com.vwo.*` (legacy, deprecated) |
+
+For a full migration guide, see [MIGRATE.md](MIGRATE.md).
+
+### Added
+
+- **Wingify public API** — use `Wingify`, `WingifyInitOptions`, and `WingifyUserContext` from the `com.wingify` package as the recommended entry point for new integrations.
+- **Wingify Maven coordinate** — `com.wingify.sdk:wingify-fme-android-sdk` publishes the same AAR as the legacy VWO artifact.
+
+  ```kotlin
+  // Kotlin
+  import com.wingify.Wingify
+  import com.wingify.Wingify.init
+  import com.wingify.interfaces.IWingifyInitCallback
+  import com.wingify.models.user.WingifyInitOptions
+  import com.wingify.models.user.WingifyUserContext
+  import com.wingify.models.user.GetFlag
+
+  val options = WingifyInitOptions()
+  options.accountId = ""
+  options.sdkKey = ""
+
+  init(options, object : IWingifyInitCallback {
+      override fun wingifyInitSuccess(wingifyClient: Wingify, message: String) {
+          val context = WingifyUserContext()
+          context.id = "user-123"
+
+          val flag: GetFlag = wingifyClient.getFlag("feature-key", context)
+      }
+
+      override fun wingifyInitFailed(message: String) {
+          // Initialization failed
+      }
+  })
+  ```
+
+  ```java
+  // Java
+  import com.wingify.Wingify;
+  import com.wingify.Wingify.init;
+  import com.wingify.interfaces.IWingifyInitCallback;
+  import com.wingify.models.user.GetFlag;
+  import com.wingify.models.user.WingifyInitOptions;
+  import com.wingify.models.user.WingifyUserContext;
+
+  WingifyInitOptions options = new WingifyInitOptions();
+  options.setAccountId(123456);
+  options.setSdkKey("");
+
+  init(options, new IWingifyInitCallback() {
+      @Override
+      public void wingifyInitSuccess(@NonNull Wingify wingifyClient, @NonNull String message) {
+          WingifyUserContext context = new WingifyUserContext();
+          context.setId("user-123");
+
+          GetFlag flag = wingifyClient.getFlag("feature-key", context);
+      }
+
+      @Override
+      public void wingifyInitFailed(@NonNull String message) {
+          // Initialization failed
+      }
+  });
+  ```
+
+### Changed
+
+- The SDK implementation now lives under the `com.wingify` package.
+- Log messages and documentation have been updated to reflect Wingify branding.
+- When initialized through `Wingify`, settings and events use Wingify hosts (`edge.wingify.net`, `collect.wingify.net`) and the Logcat tag `Wingify-FME-Android`.
+- No breaking changes for existing integrations — server event names, payload keys, and runtime behavior remain compatible with the VWO platform.
+
+### Deprecated
+
+The following VWO classes in `com.vwo` are deprecated but continue to work without modification:
+
+| Deprecated (still supported) | Use instead |
+| --- | --- |
+| `com.vwo.VWO` | `com.wingify.Wingify` |
+| `com.vwo.models.user.VWOInitOptions` | `com.wingify.models.user.WingifyInitOptions` |
+| `com.vwo.models.user.VWOUserContext` | `com.wingify.models.user.WingifyUserContext` |
+| `com.vwo.interfaces.IVwoInitCallback` | `com.wingify.interfaces.IWingifyInitCallback` |
+| `com.vwo.interfaces.IVwoListener` | `com.wingify.interfaces.IWingifyListener` |
+| `com.vwo.interfaces.logger.LogTransport` | `com.wingify.interfaces.logger.LogTransport` |
+| `com.vwo.interfaces.integration.IntegrationCallback` | `com.wingify.interfaces.integration.IntegrationCallback` |
+| `com.vwo.packages.storage.Connector` | `com.wingify.packages.storage.Connector` |
+
+Existing code does not need to change immediately. We recommend adopting the Wingify API for new projects and migrating when convenient:
+
+```kotlin
+// Still supported — no action required today
+import com.vwo.VWO
+import com.vwo.interfaces.IVwoInitCallback
+import com.vwo.models.user.VWOInitOptions
+import com.vwo.models.user.VWOUserContext
+
+val options = VWOInitOptions()
+options.accountId = 123456
+options.sdkKey = "32-alpha-numeric-sdk-key"
+
+VWO.init(options, object : IVwoInitCallback {
+    override fun vwoInitSuccess(vwo: VWO, message: String) {
+        val context = VWOUserContext()
+        context.id = "user-123"
+
+        vwo.getFlag("feature-key", context)
+    }
+
+    override fun vwoInitFailed(message: String) {
+        // Initialization failed
+    }
+})
+```
+
+**Migration tip:** Replace `VWO` → `Wingify`, `VWOInitOptions` → `WingifyInitOptions`, `VWOUserContext` → `WingifyUserContext`, init callbacks to `wingifyInitSuccess` / `wingifyInitFailed`, and update imports from `com.vwo.*` to `com.wingify.*`. Method signatures and SDK behavior are unchanged.
+
 ## [1.14.0] - 2026-04-18
 
 ### Fixed

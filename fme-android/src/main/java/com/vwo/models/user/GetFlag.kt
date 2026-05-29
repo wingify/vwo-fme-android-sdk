@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2024-2025 Wingify Software Pvt. Ltd.
+ * Copyright (c) 2024-2026 Wingify Software Pvt. Ltd.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,9 +15,11 @@
  */
 package com.vwo.models.user
 
-import com.vwo.constants.Constants.defaultString
-import com.vwo.enums.VariableTypeEnum
-import com.vwo.models.Variable
+import com.wingify.constants.Constants.defaultString
+import com.wingify.enums.VariableTypeEnum
+import com.wingify.internal.toVwoUserContext
+import com.wingify.models.Variable
+import com.wingify.models.user.WingifyUserContext
 
 /**
  * Represents a feature flag and its associated variables.
@@ -25,7 +27,8 @@ import com.vwo.models.Variable
  * This class encapsulates information about a feature flag, including its enabled status and a
  * list of variables with their values.
  */
-class GetFlag(val context: VWOUserContext) {
+class GetFlag(context: WingifyUserContext) {
+    val context: VWOUserContext = context.toVwoUserContext()
     private var isEnabled: Boolean = false
 
     private var variables: List<Variable> = ArrayList<Variable>()

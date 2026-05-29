@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2024-2025 Wingify Software Pvt. Ltd.
+ * Copyright (c) 2024-2026 Wingify Software Pvt. Ltd.
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -17,7 +17,8 @@
 package com.vwo.decorators
 
 import com.vwo.models.user.VWOUserContext
-import com.vwo.services.StorageService
+import com.wingify.services.StorageService
+import com.wingify.decorators.StorageDecorator
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
@@ -27,7 +28,6 @@ import org.junit.runner.RunWith
 import org.mockito.Mock
 import org.mockito.Mockito.*
 import org.mockito.junit.MockitoJUnitRunner
-import org.mockito.ArgumentMatchers.any
 
 @RunWith(MockitoJUnitRunner::class)
 class StorageDecoratorTest {

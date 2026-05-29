@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2024-2025 Wingify Software Pvt. Ltd.
+ * Copyright (c) 2024-2026 Wingify Software Pvt. Ltd.
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -17,6 +17,8 @@
 
 package com.vwo.packages.network_layer.models
 
+import com.wingify.interfaces.networking.HttpMethods
+import com.wingify.packages.network_layer.models.RequestModel
 import org.junit.Assert.*
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -41,7 +43,7 @@ class RequestModelTest {
         val options = requestModel.options
 
         assertEquals("example.com", options["hostname"])
-        assertEquals("GET", options["method"])
+        assertEquals(HttpMethods.GET.value, options["method"])
         assertEquals("http", options["scheme"])
         assertFalse(options.containsKey("port"))
         assertTrue(options.containsKey("headers"))
@@ -57,7 +59,7 @@ class RequestModelTest {
 
         val requestModel = RequestModel(
             url = "example.com",
-            method = "POST",
+            method = HttpMethods.POST.value,
             path = "/api/v1",
             query = query,
             body = body,
@@ -69,7 +71,7 @@ class RequestModelTest {
         val options = requestModel.options
 
         assertEquals("example.com", options["hostname"])
-        assertEquals("POST", options["method"])
+        assertEquals(HttpMethods.POST.value, options["method"])
         assertEquals("https", options["scheme"])
         assertEquals(443, options["port"])
         assertEquals(headers, options["headers"])
@@ -102,7 +104,7 @@ class RequestModelTest {
 
         val requestModel = RequestModel(
             url = "example.com",
-            method = "POST",
+            method = HttpMethods.POST.value,
             path = null,
             query = null,
             body = body,
@@ -189,7 +191,7 @@ class RequestModelTest {
         val options = requestModel.options
 
         assertNull(options["hostname"])
-        assertEquals("GET", options["method"])
+        assertEquals(HttpMethods.GET.value, options["method"])
         assertEquals("http", options["scheme"])
         assertTrue(options.containsKey("headers"))
         assertFalse(options.containsKey("body"))

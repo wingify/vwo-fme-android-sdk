@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2024-2025 Wingify Software Pvt. Ltd.
+ * Copyright (c) 2024-2026 Wingify Software Pvt. Ltd.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,84 +15,23 @@
  */
 package com.vwo.models.user
 
-import android.content.Context
-import com.vwo.VWOBuilder
-import com.vwo.constants.Constants
-import com.vwo.interfaces.networking.NetworkClientInterface
-import com.vwo.packages.segmentation_evaluator.evaluators.SegmentEvaluator
-import com.vwo.packages.storage.Connector
-import com.vwo.interfaces.integration.IntegrationCallback
-import com.vwo.packages.storage.MobileDefaultStorage
-import com.vwo.sdk.fme.BuildConfig
+import com.wingify.models.user.WingifyInitOptions
 
 /**
  * Represents initialization options for the VWO SDK.
  *
- * This class encapsulates various options that can be configured when initializing theVWO SDK,
+ * This class encapsulates various options that can be configured when initializing the VWO SDK,
  * such as the SDK key, account ID, integrations, logger, network client, segment evaluator,
  * storage, polling interval, and gateway service.
+ *
+ * @deprecated Use [com.wingify.models.user.WingifyInitOptions] for new integrations.
  */
-class VWOInitOptions {
-    var sdkKey: String? = null
-    var accountId: Int? = null
-    var integrations: IntegrationCallback? = null
-    var logger: Map<String, Any> = HashMap()
-    var networkClientInterface: NetworkClientInterface? = null
-    var segmentEvaluator: SegmentEvaluator? = null
-    var storage: Connector = MobileDefaultStorage(this)
-    var pollInterval: Int? = null
-    var vwoBuilder: VWOBuilder? = null
-    var isAliasingEnabled: Boolean = false
-
-    var gatewayService: Map<String, Any> = HashMap()
-
-    /**
-     * Optional: Even though context is optional, it is required if you want to use features like
-     * cached settings, offline batch upload, device ID generation, storage.*/
-    var context: Context? = null
-
-    /**
-     * Optional: If this value is provided, SDK will keep using cached settings till this interval
-     * is valid.
-     */
-    var cachedSettingsExpiryTime: Int = 0
-
-    /**
-     * Maximum time (in milliseconds) for which a stored GetFlag decision remains valid.
-     *
-     * When a positive value is set, any cached decision older than this duration is treated
-     * as expired and re-evaluated on the next GetFlag call. A value of `0` (the default)
-     * means decisions never expire and remain valid indefinitely.
-     */
-    var cachedDecisionExpiryTime: Int = 0
-
-    /**
-     * The name of the SDK.
-     *
-     * This is used to identifying the SDK.
-     *
-     * @param sdkName The name of the SDK. **For hybrid SDKs only.**
-     */
-    var sdkName = Constants.SDK_NAME
-
-    /**
-     * The version of the SDK.
-     *
-     * This is used for identifying the SDK version.
-     *
-     * @param sdkVersion The version of the SDK. **For hybrid SDKs only.**
-     */
-    var sdkVersion = BuildConfig.SDK_VERSION
-
-    /** Optional: Minimum size of Batch to upload*/
-    var batchMinSize = -1
-
-    /** Optional: Batch upload time interval in milliseconds. Please specify at least few minutes*/
-    var batchUploadTimeInterval: Long = -1L
-
-    /**Optional: Usage stats should always be collected, don't collect if `isUsageStatsDisabled` flag is true*/
-    var isUsageStatsDisabled = false
-
-    /**Internal meta data for VWO use.*/
-    var _vwo_meta: Map<String, Any> = emptyMap()
+@Deprecated(
+    message = "Use com.wingify.models.user.WingifyInitOptions instead",
+    replaceWith = ReplaceWith("WingifyInitOptions", "com.wingify.models.user.WingifyInitOptions"),
+)
+class VWOInitOptions : WingifyInitOptions() {
+    init {
+        markAsLegacyVwoSdk()
+    }
 }

@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2024-2025 Wingify Software Pvt. Ltd.
+ * Copyright (c) 2024-2026 Wingify Software Pvt. Ltd.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,10 +17,10 @@ package com.vwo.services
 
 import android.util.Log
 import com.vwo.interfaces.logger.LogTransport
-import com.vwo.packages.logger.core.LogManager
 import com.vwo.packages.logger.enums.LogLevelEnum
-import com.vwo.ServiceContainer
+import com.wingify.ServiceContainer
 import com.vwo.models.user.VWOInitOptions
+import com.wingify.services.LoggerService
 import org.junit.Assert.*
 import org.junit.Before
 import org.junit.Test

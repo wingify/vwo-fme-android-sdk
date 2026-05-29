@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2024-2025 Wingify Software Pvt. Ltd.
+ * Copyright (c) 2024-2026 Wingify Software Pvt. Ltd.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,7 +16,7 @@
 package com.vwo.e2e
 
 import com.vwo.VWO
-import com.vwo.VWOBuilder
+import com.wingify.WingifyBuilder
 import com.vwo.interfaces.IVwoInitCallback
 import com.vwo.interfaces.IVwoListener
 import com.vwo.models.user.GetFlag
@@ -262,13 +262,13 @@ class CustomBucketingSeedTest {
             this.isAliasingEnabled = aliasingEnabled
         }
 
-        val vwoBuilder = VWOBuilder(vwoInitOptions)
-        val vwoBuilderSpy = spy(vwoBuilder)
+        val wingifyBuilder = WingifyBuilder(vwoInitOptions)
+        val wingifyBuilderSpy = spy(wingifyBuilder)
         val settings = settingsReader.settingsMap[settingsKey]
         settings?.let {
-            whenever(vwoBuilderSpy.getSettings(false)).thenReturn(settings)
+            whenever(wingifyBuilderSpy.getSettings(false)).thenReturn(settings)
         }
-        vwoInitOptions.vwoBuilder = vwoBuilderSpy
+        vwoInitOptions.wingifyBuilder = wingifyBuilderSpy
 
         val latch = CountDownLatch(1)
         VWO.init(vwoInitOptions, object : IVwoInitCallback {

@@ -5,8 +5,6 @@ plugins {
     id 'signing'
 }
 
-
-
 // Set project version
 version = VERSION_NAME
 
@@ -78,31 +76,32 @@ android {
     publishing {
         singleVariant('release') {
             withJavadocJar()
+            withSourcesJar()
         }
     }
 }
 
-
+def pomVersionProperties() { [versionCode: VERSION_CODE,] }
 
 afterEvaluate {
     // Apply NMCP plugin only when running on Java 17+
     if (JavaVersion.current().isCompatibleWith(JavaVersion.VERSION_17)) {
         apply plugin: 'com.gradleup.nmcp'
-        
+
         // Configure Maven Central Portal Publishing (NMCP) immediately after applying plugin
         nmcp {
             centralPortal {
                 // Get credentials from local.properties
                 username = localProperties.getProperty('mavenCentralUsername')
                 password = localProperties.getProperty('mavenCentralPassword')
-                
+
                 // USER_MANAGED means upload to staging without auto-release
                 // You control when to publish manually from the portal
                 publishingType = "USER_MANAGED"
             }
         }
     }
-    
+
     publishing {
         publications {
             release(MavenPublication) {
@@ -117,9 +116,41 @@ afterEvaluate {
                     name = POM_ARTIFACT_ID
                     description = POM_DESCRIPTION
                     url = POM_URL
-                    properties = [
-                            versionCode: VERSION_CODE
-                    ]
+                    properties = pomVersionProperties()
+                    licenses {
+                        license {
+                            name = POM_LICENCE_NAME
+                            url = POM_LICENCE_URL
+                        }
+                    }
+                    developers {
+                        developer {
+                            id = localProperties.getProperty('POM_DEVELOPER_ID') ?: 'vwo-team'
+                            name = localProperties.getProperty('POM_DEVELOPER_NAME') ?: 'VWO Team'
+                            email = localProperties.getProperty('POM_DEVELOPER_EMAIL') ?: 'integration@vwo.com'
+                        }
+                    }
+                    scm {
+                        connection = POM_SCM_CONNECTION
+                        developerConnection = POM_SCM_DEV_CONNECTION
+                        url = POM_URL
+                    }
+                }
+            }
+            // Same release AAR + version; different Maven coordinate for Wingify-branded integrations.
+            wingifyRelease(MavenPublication) {
+                groupId = WINGIFY_GROUP
+                artifactId = POM_WINGIFY_ARTIFACT_ID
+                version = VERSION_NAME
+
+                afterEvaluate {
+                    from components.release
+                }
+                pom {
+                    name = POM_WINGIFY_NAME
+                    description = POM_WINGIFY_DESCRIPTION
+                    url = POM_URL
+                    properties = pomVersionProperties()
                     licenses {
                         license {
                             name = POM_LICENCE_NAME
@@ -148,25 +179,25 @@ afterEvaluate {
             }
         }
     }
-    
+
     // Configure signing after publishing is set up
     signing {
         // Only sign if required properties are available in local.properties
         required {
             localProperties.getProperty('signing.keyId') != null
         }
-        
+
         // Set signing properties from local.properties
         if (localProperties.getProperty('signing.keyId')) {
             project.ext.'signing.keyId' = localProperties.getProperty('signing.keyId')
             project.ext.'signing.password' = localProperties.getProperty('signing.password')
             project.ext.'signing.secretKeyRingFile' = localProperties.getProperty('signing.secretKeyRingFile')
         }
-        
+
         sign publishing.publications.release
+        sign publishing.publications.wingifyRelease
     }
 }
-
 
 dependencies {
 

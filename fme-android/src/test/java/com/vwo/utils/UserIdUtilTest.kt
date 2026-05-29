@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2024-2025 Wingify Software Pvt. Ltd.
+ * Copyright (c) 2024-2026 Wingify Software Pvt. Ltd.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,8 +18,9 @@ package com.vwo.utils
 import android.content.Context
 import com.vwo.models.user.VWOUserContext
 import com.vwo.models.user.VWOInitOptions
-import com.vwo.providers.StorageProvider
-import com.vwo.ServiceContainer
+import com.wingify.ServiceContainer
+import com.wingify.utils.DeviceIdUtil
+import com.wingify.utils.UserIdUtil
 import org.junit.Assert.*
 import org.junit.Before
 import org.junit.Test
@@ -27,9 +28,7 @@ import org.junit.runner.RunWith
 import org.mockito.Mock
 import org.mockito.junit.MockitoJUnitRunner
 import org.mockito.kotlin.whenever
-import org.mockito.kotlin.mock
 import org.mockito.MockitoAnnotations
-import java.lang.ref.WeakReference
 
 @RunWith(MockitoJUnitRunner::class)
 class UserIdUtilTest {

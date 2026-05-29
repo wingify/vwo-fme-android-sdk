@@ -17,3 +17,5 @@ local.properties
 /httpRequests/
 /app/
 /.cursor/
+# Optional local dev/QA Reposilite publish overlay (use dev-qa-publish.gradle.example)
+/dev-qa-publish.gradle

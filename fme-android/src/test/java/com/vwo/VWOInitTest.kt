@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2024-2025 Wingify Software Pvt. Ltd.
+ * Copyright (c) 2024-2026 Wingify Software Pvt. Ltd.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,6 +18,8 @@ package com.vwo
 import com.vwo.interfaces.IVwoInitCallback
 import com.vwo.models.user.VWOInitOptions
 import com.vwo.utils.DummySettingsReader
+import com.wingify.SDKState
+import com.wingify.WingifyBuilder
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
 import org.junit.Before
@@ -164,11 +166,11 @@ class VWOInitTest {
         val settingsMap = settingsReader.settingsMap
         val settings = settingsMap["BASIC_ROLLOUT_SETTINGS"]
 
-        val vwoBuilder = VWOBuilder(vwoInitOptions)
-        val vwoBuilderSpy: VWOBuilder = spy(vwoBuilder)
+        val wingifyBuilder = WingifyBuilder(vwoInitOptions)
+        val wingifyBuilderSpy: WingifyBuilder = spy(wingifyBuilder)
         settings?.let {
-            whenever(vwoBuilderSpy.getSettings(false)).thenReturn(settings)
+            whenever(wingifyBuilderSpy.getSettings(false)).thenReturn(settings)
         }
-        vwoInitOptions.vwoBuilder = vwoBuilderSpy
+        vwoInitOptions.wingifyBuilder = wingifyBuilderSpy
     }
 }

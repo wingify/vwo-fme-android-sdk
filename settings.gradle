@@ -15,12 +15,25 @@ pluginManagement {
         id 'com.gradleup.nmcp' version '0.1.5'
     }
 }
+
+def localProperties = new Properties()
+def localPropertiesFile = new File(settingsDir, 'local.properties')
+if (localPropertiesFile.exists()) {
+    localPropertiesFile.withReader('UTF-8') { reader ->
+        localProperties.load(reader)
+    }
+}
+
 dependencyResolutionManagement {
     repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
     repositories {
         mavenLocal()
         google()
         mavenCentral()
+        maven {
+            name = 'reposiliteRepository'
+            url = localProperties.getProperty('reposiliteUrl', 'https://maven.nvn.com.np/releases')
+        }
     }
 }
 

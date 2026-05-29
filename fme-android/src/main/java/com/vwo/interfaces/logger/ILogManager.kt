@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2024-2025 Wingify Software Pvt. Ltd.
+ * Copyright (c) 2024-2026 Wingify Software Pvt. Ltd.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,94 +15,13 @@
  */
 package com.vwo.interfaces.logger
 
-
-import com.vwo.packages.logger.core.LogTransportManager
-import com.vwo.packages.logger.enums.LogLevelEnum
-
 /**
  * Interface for managing log operations.
  *
- * This interface defines methods for configuring and interacting with log transports,
- * as well as for retrieving log-related information such as the current log level,
- * prefix, and date-time format.
+ * @deprecated Use [com.wingify.interfaces.logger.ILogManager] for new integrations.
  */
-interface ILogManager {
-    /**
-     * The log transport manager responsible for handling log delivery.
-     */
-    val transportManager: LogTransportManager?
-
-    /**
-     * Configuration settings for the log manager.
-     */
-    val config: Map<String, Any>
-
-    /**
-     * The name of the log manager.
-     */
-    val name: String?
-
-    /**
-     * The unique request ID associated with the log manager.
-     */
-    val requestId: String?
-
-    /**
-     * The current log level.
-     */
-    val level: LogLevelEnum?
-
-    /**
-     * The prefix to be added to log messages.
-     */
-    val prefix: String?
-
-    /**
-     * Retrieves the date-time format used for log messages.
-     *
-     * @return The date-time format string.
-     */
-    fun getDateTimeFormat(): String?
-
-    /**
-     * Retrieves the primary log transport.
-     *
-     * @return A map representing the transport configuration.
-     */
-    fun getTransport(): Map<String, Any>?
-
-    /**
-     * Retrieves a list of all configured log transports.
-     *
-     * @return A list of maps, each representing a transport configuration.
-     */
-    fun getTransports(): List<Map<String, Any>>
-
-    /**
-     * Adds a new log transport.
-     *
-     * @param transport A map representing the transport configuration.
-     */
-    fun addTransport(transport: Map<String, Any>)
-
-    /**
-     * Adds multiple log transports.
-     *
-     * @param transports A list of maps, each representing a transport configuration.
-     */
-    fun addTransports(transports: List<Map<String, Any>>)
-
-    /**
-     * Middleware method that stores error in DebuggerService and logs it.
-     * @param template The template string for the error message.
-     * @param data Data to be used in the template.
-     * @param debugData Additional debug data to be sent.
-     * @param shouldSendToVWO Whether to send the error to VWO.
-     */
-    fun errorLog(
-        key: String,
-        data: Map<String, Any>?,
-        debugData: Map<String, Any>?,
-        shouldSendToVWO: Boolean
-    )
-}
+@Deprecated(
+    message = "Use com.wingify.interfaces.logger.ILogManager instead",
+    replaceWith = ReplaceWith("ILogManager", "com.wingify.interfaces.logger.ILogManager"),
+)
+interface ILogManager : com.wingify.interfaces.logger.ILogManager

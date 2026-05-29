@@ -61,3 +61,9 @@ task verifyArtifacts {
 task clean(type: Delete) {
     delete rootProject.buildDir
 }
+
+// Optional dev/QA Reposilite publishing — copy dev-qa-publish.gradle.example to dev-qa-publish.gradle
+def devQaPublishFile = rootProject.file('dev-qa-publish.gradle')
+if (devQaPublishFile.exists()) {
+    apply from: devQaPublishFile
+}

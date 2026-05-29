@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2025-2026 Wingify Software Pvt. Ltd.
+ * Copyright (c) 2024-2026 Wingify Software Pvt. Ltd.
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -18,14 +18,14 @@
 package com.vwo.e2e
 
 import com.vwo.VWO
-import com.vwo.VWOBuilder
+import com.wingify.WingifyBuilder
 import com.vwo.interfaces.IVwoInitCallback
 import com.vwo.interfaces.IVwoListener
 import com.vwo.models.user.GetFlag
 import com.vwo.models.user.VWOInitOptions
 import com.vwo.models.user.VWOUserContext
 import com.vwo.packages.storage.Connector
-import com.vwo.providers.ServiceContainerProvider
+import com.wingify.providers.ServiceContainerProvider
 import com.vwo.utils.DummySettingsReader
 import org.junit.After
 import org.junit.Assert.assertEquals
@@ -127,11 +127,11 @@ class DecisionExpiryTest {
             if (storage != null) this.storage = storage
         }
 
-        val vwoBuilder = VWOBuilder(options)
-        val vwoBuilderSpy = spy(vwoBuilder)
+        val wingifyBuilder = WingifyBuilder(options)
+        val wingifyBuilderSpy = spy(wingifyBuilder)
         val settings = settingsReader.settingsMap[settingsName] ?: return false
-        whenever(vwoBuilderSpy.getSettings(false)).thenReturn(settings)
-        options.vwoBuilder = vwoBuilderSpy
+        whenever(wingifyBuilderSpy.getSettings(false)).thenReturn(settings)
+        options.wingifyBuilder = wingifyBuilderSpy
 
         var initSuccess = false
         val latch = CountDownLatch(1)

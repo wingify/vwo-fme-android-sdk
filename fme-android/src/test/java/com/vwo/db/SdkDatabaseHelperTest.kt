@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2024-2025 Wingify Software Pvt. Ltd.
+ * Copyright (c) 2024-2026 Wingify Software Pvt. Ltd.
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -22,9 +22,8 @@ import COLUMN_PAYLOAD
 import COLUMN_SDK_KEY
 import TABLE_NAME
 import android.content.ContentValues
-import android.content.Context
 import android.database.sqlite.SQLiteDatabase
-import androidx.test.core.app.ApplicationProvider
+import com.wingify.db.SdkDatabaseHelper
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue

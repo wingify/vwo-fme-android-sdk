@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2024-2025 Wingify Software Pvt. Ltd.
+ * Copyright (c) 2024-2026 Wingify Software Pvt. Ltd.
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -19,16 +19,13 @@ package com.vwo.packages.logger
 
 import com.vwo.interfaces.logger.LogTransport
 import com.vwo.packages.logger.enums.LogLevelEnum
+import com.wingify.packages.logger.AnsiColorEnum
+import com.wingify.packages.logger.LogMessageBuilder
 import org.junit.Assert.assertThrows
 import org.junit.Before
 import org.junit.Test
-import org.junit.runner.RunWith
 import org.mockito.Mock
 import org.mockito.MockitoAnnotations
-import org.mockito.junit.MockitoJUnitRunner
-import java.text.SimpleDateFormat
-import java.util.Date
-import java.util.Locale
 
 class LogMessageBuilderTest {
 

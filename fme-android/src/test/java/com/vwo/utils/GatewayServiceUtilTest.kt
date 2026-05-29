@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2024-2025 Wingify Software Pvt. Ltd.
+ * Copyright (c) 2024-2026 Wingify Software Pvt. Ltd.
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -17,10 +17,11 @@
 package com.vwo.utils
 
 import com.vwo.models.user.VWOInitOptions
-import com.vwo.packages.network_layer.manager.NetworkManager
-import com.vwo.packages.network_layer.models.RequestModel
-import com.vwo.packages.network_layer.models.ResponseModel
-import com.vwo.services.SettingsManager
+import com.wingify.interfaces.networking.HttpMethods
+import com.wingify.packages.network_layer.manager.NetworkManager
+import com.wingify.packages.network_layer.models.RequestModel
+import com.wingify.packages.network_layer.models.ResponseModel
+import com.wingify.services.SettingsManager
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -31,9 +32,9 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.mockito.kotlin.any
-import org.mockito.kotlin.argThat
-import com.vwo.interfaces.networking.NetworkClientInterface
-import com.vwo.ServiceContainer
+import com.wingify.interfaces.networking.NetworkClientInterface
+import com.wingify.ServiceContainer
+import com.wingify.utils.GatewayServiceUtil
 import org.junit.Assert.assertFalse
 
 @RunWith(MockitoJUnitRunner::class)
@@ -65,6 +66,8 @@ class GatewayServiceUtilTest {
 
         // Set up the mock ServiceContainer to return expected values
         `when`(mockServiceContainer.getSettingsManager()).thenReturn(settingsManager)
+        `when`(mockServiceContainer.resolveHost(HttpMethods.GET)).thenReturn("test.vwo.com")
+        `when`(mockServiceContainer.resolveScheme()).thenReturn("https")
 
         NetworkManager.attachClient(mockNetworkClient)
     }
@@ -86,7 +89,7 @@ class GatewayServiceUtilTest {
         assertEquals(expectedResponse, result)
         verify(mockNetworkClient).GET(org.mockito.kotlin.argThat { request ->
             request.url == "test.vwo.com" &&
-                    request.method == "GET" &&
+                    request.method == HttpMethods.GET.value &&
                     request.path == endpoint &&
                     request.query == queryParams &&
                     request.scheme == "https" &&

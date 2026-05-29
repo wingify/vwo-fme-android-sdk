@@ -1,0 +1,192 @@
+/**
+ * Copyright (c) 2024-2026 Wingify Software Pvt. Ltd.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+package com.wingify.packages.segmentation_evaluator.core
+
+import com.wingify.ServiceContainer
+import com.wingify.utils.JsonNode
+import com.wingify.WingifyClient
+import com.wingify.constants.Constants
+import com.wingify.enums.ApiEnum
+import com.wingify.enums.UrlEnum
+import com.wingify.models.Feature
+import com.wingify.models.Settings
+import com.wingify.models.user.GatewayService
+import com.wingify.models.user.WingifyUserContext
+import com.vwo.packages.logger.enums.LogLevelEnum
+import com.wingify.packages.segmentation_evaluator.evaluators.SegmentEvaluator
+import com.wingify.providers.StorageProvider
+import com.wingify.services.LoggerService
+import com.wingify.utils.FunctionUtil.getFormattedErrorMessage
+import com.wingify.utils.GatewayServiceUtil
+
+/**
+ * Manages the segmentation evaluator.
+ *
+ * This object provides methods for attaching and managing a segment evaluator, which is responsible forevaluating user segments.
+ */
+class SegmentationManager {
+    private var evaluator: SegmentEvaluator? = null
+
+    /**
+     * Attaches a custom segment evaluator.
+     *
+     * @param segmentEvaluator The segment evaluator to attach.
+     */
+    fun attachEvaluator(segmentEvaluator: SegmentEvaluator?) {
+        this.evaluator = segmentEvaluator
+    }
+
+    /**
+     * Attaches a default segment evaluator.
+     */
+    fun attachEvaluator(serviceContainer: ServiceContainer) {
+        this.evaluator = SegmentEvaluator(serviceContainer)
+    }
+
+    /**
+     * This method sets the contextual data required for segmentation.
+     * @param settings  SettingsModel object containing the account settings.
+     * @param feature   FeatureModel object containing the feature settings.
+     * @param context   VWOContext object containing the user context.
+     */
+    fun setContextualData(
+        settings: Settings,
+        feature: Feature,
+        context: WingifyUserContext,
+        serviceContainer: ServiceContainer
+    ) {
+        this.attachEvaluator(serviceContainer)
+        evaluator?.context = context
+        evaluator?.settings = settings
+        evaluator?.feature = feature
+
+        // if user agent is null or empty, return
+        if (StorageProvider.userAgent.isEmpty()) {
+            return
+        }
+
+        val isGatewayServiceRequiredForHoldouts = !settings.holdoutGroups
+            ?.filter { it.isGatewayServiceRequired == true }
+            .isNullOrEmpty()
+
+        // If gateway service is required and the base URL is not the default one, fetch the data from the gateway service
+        if ((feature.isGatewayServiceRequired || isGatewayServiceRequiredForHoldouts) && context.vwo == null) {
+
+            val queryParams: MutableMap<String, String> = HashMap()
+            if (StorageProvider.userAgent.isEmpty()) {
+                return
+            }
+            queryParams["userAgent"] = StorageProvider.userAgent
+            settings.accountId?.toString()?.let { queryParams["accountId"] = it }
+
+            try {
+                val vwo = getGatewayServiceResponse(queryParams, serviceContainer)
+
+                val gatewayServiceModel = vwo?.let {
+                    WingifyClient.objectMapper.readValue(it, GatewayService::class.java)
+                }
+
+                context.vwo = gatewayServiceModel
+            } catch (err: Exception) {
+
+                LoggerService.errorLog(
+                    key = "ERROR_SETTING_SEGMENTATION_CONTEXT",
+                    data = mapOf(Constants.ERR to getFormattedErrorMessage(err)),
+                    debugData = mapOf(
+                        "an" to ApiEnum.GET_FLAG.value,
+                        "uuid" to context.getUuid(serviceContainer),
+                        "sId" to context.sessionId
+                    ),
+                    shouldSendToVWO = true,
+                    serviceContainer = serviceContainer
+                )
+            }
+        }
+    }
+
+    private fun getGatewayServiceResponse(
+        params: MutableMap<String, String>,
+        serviceContainer: ServiceContainer
+    ): String? {
+        val vwo = if (isCachedResponseValid(serviceContainer)) {
+            StorageProvider.gatewayStore?.getGatewayResponse(
+                serviceContainer.getAccountId(),
+                serviceContainer.getSdkKey()
+            )
+        } else {
+            val response =
+                GatewayServiceUtil.getFromGatewayService(
+                    params,
+                    UrlEnum.GET_USER_DATA.url,
+                    serviceContainer
+                )
+            updateResponseCache(response, serviceContainer)
+            response
+        }
+        return vwo
+    }
+
+    private fun isCachedResponseValid(serviceContainer: ServiceContainer): Boolean {
+        val expiryTime = StorageProvider.gatewayStore?.getGatewayResponseExpiry(
+            serviceContainer.getAccountId(),
+            serviceContainer.getSdkKey()
+        ) ?: -1
+        return expiryTime != -1L && System.currentTimeMillis() <= expiryTime
+    }
+
+    private fun updateResponseCache(responseString: String?, serviceContainer: ServiceContainer) {
+        if (responseString == null) return
+
+        StorageProvider.gatewayStore?.saveGatewayResponse(
+            responseString,
+            serviceContainer.getAccountId(),
+            serviceContainer.getSdkKey()
+        )
+        val expiryTime = System.currentTimeMillis() + Constants.GATEWAY_USER_DATA_CACHE_DURATION
+        StorageProvider.gatewayStore?.saveGatewayResponseExpiry(
+            expiryTime,
+            serviceContainer.getAccountId(),
+            serviceContainer.getSdkKey()
+        )
+    }
+
+    /**
+     * This method validates the segmentation for the given DSL and properties.
+     * @param dsl     Object containing the segmentation DSL.
+     * @param properties  Map containing the properties required for segmentation.
+     * @return  Boolean value indicating whether the segmentation is valid or not.
+     */
+    fun validateSegmentation(
+        dsl: Any,
+        properties: Map<String, Any>,
+        serviceContainer: ServiceContainer? = null
+    ): Boolean {
+        try {
+            val dslNodes: JsonNode = if (dsl is String)
+                WingifyClient.objectMapper.readTree(dsl.toString())
+            else
+                WingifyClient.objectMapper.valueToTree(dsl)
+            return evaluator?.isSegmentationValid(dslNodes, properties) ?: false
+        } catch (exception: Exception) {
+            serviceContainer?.getLoggerService()?.log(
+                LogLevelEnum.ERROR,
+                "Exception occurred validate segmentation " + exception.message,
+                null
+            )
+            return false
+        }
+    }
+}

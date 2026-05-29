@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2024-2025 Wingify Software Pvt. Ltd.
+ * Copyright (c) 2024-2026 Wingify Software Pvt. Ltd.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,9 +17,9 @@ package com.vwo
 
 import android.content.Context
 import com.vwo.models.user.VWOInitOptions
-import com.vwo.models.user.VWOUserContext
 import com.vwo.interfaces.IVwoInitCallback
 import com.vwo.utils.DummySettingsReader
+import com.wingify.WingifyBuilder
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.mockito.Mock
@@ -136,9 +136,9 @@ class MultipleAccountsTest {
             context = mockContext
         }
 
-        // Create VWOBuilder instances for both accounts
-        val builder1 = VWOBuilder(options1)
-        val builder2 = VWOBuilder(options2)
+        // Create WingifyBuilder instances for both accounts
+        val builder1 = WingifyBuilder(options1)
+        val builder2 = WingifyBuilder(options2)
 
         // Set up services for both builders
         builder1.setLogger().setSettingsManager()
@@ -170,15 +170,14 @@ class MultipleAccountsTest {
             context = mockContext
         }
 
-        val builder = VWOBuilder(options)
+        val builder = WingifyBuilder(options)
         builder.setLogger().setSettingsManager()
 
         // Create VWOClient with builder
         val vwoClient = VWOClient(null, options, builder)
 
-        // Test that ServiceContainer can be created (via reflection since it's private)
-        val createServiceContainerMethod = VWOClient::class.java.getDeclaredMethod("createServiceContainer")
-        createServiceContainerMethod.isAccessible = true
+        // createServiceContainer is inherited from WingifyClient; use getMethod for public API
+        val createServiceContainerMethod = VWOClient::class.java.getMethod("createServiceContainer")
 
         try {
             val serviceContainer = createServiceContainerMethod.invoke(vwoClient)
@@ -196,11 +195,11 @@ class MultipleAccountsTest {
         val settingsMap = settingsReader.settingsMap
         val settings = settingsMap["BASIC_ROLLOUT_SETTINGS"]
 
-        val vwoBuilder = VWOBuilder(vwoInitOptions)
-        val vwoBuilderSpy: VWOBuilder = spy(vwoBuilder)
+        val wingifyBuilder = WingifyBuilder(vwoInitOptions)
+        val wingifyBuilderSpy: WingifyBuilder = spy(wingifyBuilder)
         settings?.let {
-            whenever(vwoBuilderSpy.getSettings(false)).thenReturn(settings)
+            whenever(wingifyBuilderSpy.getSettings(false)).thenReturn(settings)
         }
-        vwoInitOptions.vwoBuilder = vwoBuilderSpy
+        vwoInitOptions.wingifyBuilder = wingifyBuilderSpy
     }
 }

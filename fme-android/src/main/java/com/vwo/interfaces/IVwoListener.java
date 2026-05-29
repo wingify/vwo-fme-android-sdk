@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2024-2025 Wingify Software Pvt. Ltd.
+ * Copyright (c) 2024-2026 Wingify Software Pvt. Ltd.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -19,7 +19,10 @@ import org.jetbrains.annotations.NotNull;
 
 /**
  * Callback interface to receive notifications about the operation in VWO.
+ *
+ * @deprecated Use {@link com.wingify.interfaces.IWingifyListener} for new integrations.
  */
+@Deprecated
 public interface IVwoListener {
     /**
      * Called when VWO action is successful.

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2024-2025 Wingify Software Pvt. Ltd.
+ * Copyright (c) 2024-2026 Wingify Software Pvt. Ltd.
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -18,6 +18,7 @@
 package com.vwo.packages.logger.transports
 
 import com.vwo.packages.logger.enums.LogLevelEnum
+import com.wingify.packages.logger.transports.ConsoleTransport
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Before
@@ -200,7 +201,7 @@ class ConsoleTransportTest {
 
     @Test
     fun `test log method with different levels and messages`() {
-        consoleTransport = ConsoleTransport(com.vwo.packages.logger.enums.LogLevelEnum.INFO)
+        consoleTransport = ConsoleTransport(LogLevelEnum.INFO)
 
         consoleTransport.log(LogLevelEnum.TRACE, "Trace message")
         assertEquals("", outputStreamCaptor.toString()) // TRACE < INFO

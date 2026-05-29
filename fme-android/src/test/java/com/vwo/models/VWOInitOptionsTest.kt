@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2024-2025 Wingify Software Pvt. Ltd.
+ * Copyright (c) 2024-2026 Wingify Software Pvt. Ltd.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,11 +15,11 @@
  */
 package com.vwo.models
 
-import com.vwo.VWOBuilder
-import com.vwo.constants.Constants
+import com.wingify.WingifyBuilder
+import com.wingify.constants.Constants
 import com.vwo.interfaces.integration.IntegrationCallback
-import com.vwo.interfaces.networking.NetworkClientInterface
-import com.vwo.packages.segmentation_evaluator.evaluators.SegmentEvaluator
+import com.wingify.interfaces.networking.NetworkClientInterface
+import com.wingify.packages.segmentation_evaluator.evaluators.SegmentEvaluator
 import com.vwo.packages.storage.Connector
 import com.vwo.sdk.fme.BuildConfig
 
@@ -57,8 +57,8 @@ class VWOInitOptionsTest {
     @Mock // Mock the Connector
     private lateinit var mockConnector: Connector
 
-    @Mock // Mock the VWOBuilder
-    private lateinit var mockVWOBuilder: VWOBuilder
+    @Mock // Mock the WingifyBuilder
+    private lateinit var mockWingifyBuilder: WingifyBuilder
 
 
     @Before
@@ -79,7 +79,7 @@ class VWOInitOptionsTest {
         // You might want to assert the type of storage if needed:
         // assertTrue(initOptions.storage is MobileDefaultStorage)
         assertNull(initOptions.pollInterval)
-        assertNull(initOptions.vwoBuilder)
+        assertNull(initOptions.wingifyBuilder)
         assertNotNull(initOptions.gatewayService) // gatewayService is initialized to HashMap()
         assertTrue(initOptions.gatewayService.isEmpty()) // gatewayService should be an empty map by default
         assertNull(initOptions.context)
@@ -150,9 +150,9 @@ class VWOInitOptionsTest {
     }
 
     @Test
-    fun `test setting and getting vwoBuilder`() {
-        initOptions.vwoBuilder = mockVWOBuilder
-        assertEquals(mockVWOBuilder, initOptions.vwoBuilder)
+    fun `test setting and getting wingifyBuilder`() {
+        initOptions.wingifyBuilder = mockWingifyBuilder
+        assertEquals(mockWingifyBuilder, initOptions.wingifyBuilder)
     }
 
     @Test
@@ -239,7 +239,7 @@ class VWOInitOptionsTest {
             segmentEvaluator = mockSegmentEvaluator
             storage = mockConnector
             pollInterval = 600
-            vwoBuilder = mockVWOBuilder
+            wingifyBuilder = mockWingifyBuilder
             gatewayService = testGatewayService
             context = mockContext
             cachedSettingsExpiryTime = 7200
@@ -260,7 +260,7 @@ class VWOInitOptionsTest {
         assertEquals(mockSegmentEvaluator, initOptions.segmentEvaluator)
         assertEquals(mockConnector, initOptions.storage)
         assertEquals(600, initOptions.pollInterval)
-        assertEquals(mockVWOBuilder, initOptions.vwoBuilder)
+        assertEquals(mockWingifyBuilder, initOptions.wingifyBuilder)
         assertEquals(testGatewayService, initOptions.gatewayService)
         assertEquals(mockContext, initOptions.context)
         assertEquals(7200, initOptions.cachedSettingsExpiryTime)

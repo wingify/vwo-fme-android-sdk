@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2024-2025 Wingify Software Pvt. Ltd.
+ * Copyright (c) 2024-2026 Wingify Software Pvt. Ltd.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,36 +15,25 @@
  */
 package com.vwo.interfaces.storage
 
-import com.vwo.models.Variation
+import com.wingify.models.Variation
 import com.vwo.models.user.VWOUserContext
-import com.vwo.services.StorageService
+import com.wingify.services.StorageService
 
 /**
  * Interface for decorating storage operations.
  *
- * This interface defines methods for interacting with a storage service, providing
- * a layer of abstraction for storing and retrieving data related to features.
+ * @deprecated Use [com.wingify.interfaces.storage.IStorageDecorator] for new integrations.
  */
+@Deprecated(
+    message = "Use com.wingify.interfaces.storage.IStorageDecorator instead",
+    replaceWith = ReplaceWith("IStorageDecorator", "com.wingify.interfaces.storage.IStorageDecorator"),
+)
 interface IStorageDecorator {
-    /**
-     * Sets data in storage.
-     * @param data The data to be stored.
-     * @param storageService The storage service instance.
-     * @return The stored VariationModel.
-     */
     fun setDataInStorage(data: Map<String, Any>, storageService: StorageService): Variation?
 
-    /**
-     * Retrieves a feature from storage.
-     * @param featureKey The key of the feature to retrieve.
-     * @param context The context model.
-     * @param storageService The storage service instance.
-     * @return The retrieved feature or relevant status.
-     */
     fun getFeatureFromStorage(
         featureKey: String,
         context: VWOUserContext,
-        storageService: StorageService
+        storageService: StorageService,
     ): Map<String, Any>?
 }
-

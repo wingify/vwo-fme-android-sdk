@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2024-2025 Wingify Software Pvt. Ltd.
+ * Copyright (c) 2024-2026 Wingify Software Pvt. Ltd.
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -17,16 +17,14 @@
 
 package com.vwo.e2e
 
-import com.vwo.SDKState
 import com.vwo.VWO
-import com.vwo.VWOBuilder
+import com.wingify.WingifyBuilder
 import com.vwo.interfaces.IVwoInitCallback
 import com.vwo.interfaces.IVwoListener
 import com.vwo.models.user.GetFlag
 import com.vwo.models.user.VWOInitOptions
 import com.vwo.models.user.VWOUserContext
 import com.vwo.packages.storage.Connector
-import com.vwo.testcases.StorageTest
 import com.vwo.testcases.TestData
 import com.vwo.testcases.TestDataReader
 import com.vwo.utils.DummySettingsReader
@@ -104,16 +102,16 @@ class GetFlagTests {
             }
 
             val settingsReader = DummySettingsReader()
-            val vwoBuilder = VWOBuilder(vwoInitOptions)
-            val vwoBuilderSpy: VWOBuilder = spy(vwoBuilder)
+            val wingifyBuilder = WingifyBuilder(vwoInitOptions)
+            val wingifyBuilderSpy: WingifyBuilder = spy(wingifyBuilder)
             val settingsMap = settingsReader.settingsMap
             val settings = settingsMap[testData.settings]
             settings?.let {
-                whenever(vwoBuilderSpy.getSettings(false)).thenReturn(settings)
+                whenever(wingifyBuilderSpy.getSettings(false)).thenReturn(settings)
             }
-            /*val result = vwoBuilderSpy.getSettings(false)
+            /*val result = wingifyBuilderSpy.getSettings(false)
             println("VWO - Mocked settings matching: ${result == settings}")*/
-            vwoInitOptions.vwoBuilder = vwoBuilderSpy
+            vwoInitOptions.wingifyBuilder = wingifyBuilderSpy
 
             var latch = CountDownLatch(1)
             VWO.init(vwoInitOptions, object : IVwoInitCallback {
@@ -219,14 +217,14 @@ class GetFlagTests {
             vwoInitOptions.accountId = accountId
             vwoInitOptions.isUsageStatsDisabled = true
 
-            val vwoBuilder = VWOBuilder(vwoInitOptions)
-            val vwoBuilderSpy = spy(vwoBuilder)
+            val wingifyBuilder = WingifyBuilder(vwoInitOptions)
+            val wingifyBuilderSpy = spy(wingifyBuilder)
 
             val settingsReader = DummySettingsReader()
             val settingsMap = settingsReader.settingsMap
-            `when`<String?>(vwoBuilderSpy.getSettings(false)).thenReturn(settingsMap[testData.settings])
+            `when`<String?>(wingifyBuilderSpy.getSettings(false)).thenReturn(settingsMap[testData.settings])
 
-            vwoInitOptions.vwoBuilder = vwoBuilderSpy
+            vwoInitOptions.wingifyBuilder = wingifyBuilderSpy
             val latch = CountDownLatch(1)
             VWO.init(vwoInitOptions, object : IVwoInitCallback {
                 override fun vwoInitSuccess(vwo: VWO, message: String) {

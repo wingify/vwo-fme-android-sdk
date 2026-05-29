@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2024-2025 Wingify Software Pvt. Ltd.
+ * Copyright (c) 2024-2026 Wingify Software Pvt. Ltd.
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -18,7 +18,7 @@ package com.vwo.e2e
 
 import com.vwo.VWO
 
-import com.vwo.VWOBuilder
+import com.wingify.WingifyBuilder
 import com.vwo.interfaces.IVwoInitCallback
 import com.vwo.models.user.VWOUserContext
 import com.vwo.models.user.VWOInitOptions
@@ -66,12 +66,12 @@ class VWOTrackEventTest {
         val settingsMap = settingsReader.settingsMap
         val settings = settingsMap["BASIC_ROLLOUT_SETTINGS"]
 
-        val vwoBuilder = VWOBuilder(vwoInitOptions)
-        val vwoBuilderSpy: VWOBuilder = spy(vwoBuilder)
+        val wingifyBuilder = WingifyBuilder(vwoInitOptions)
+        val wingifyBuilderSpy: WingifyBuilder = spy(wingifyBuilder)
         settings?.let {
-            whenever(vwoBuilderSpy.getSettings(false)).thenReturn(settings)
+            whenever(wingifyBuilderSpy.getSettings(false)).thenReturn(settings)
         }
-        vwoInitOptions.vwoBuilder = vwoBuilderSpy
+        vwoInitOptions.wingifyBuilder = wingifyBuilderSpy
         VWO.init(vwoInitOptions, object : IVwoInitCallback {
             override fun vwoInitSuccess(vwoClient: VWO, message: String) {
                 this@VWOTrackEventTest.vwoClient = vwoClient

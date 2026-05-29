@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2024-2025 Wingify Software Pvt. Ltd.
+ * Copyright (c) 2024-2026 Wingify Software Pvt. Ltd.
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -18,8 +18,11 @@ package com.vwo.packages.logger.core
 
 import com.vwo.interfaces.logger.LogTransport
 import com.vwo.packages.logger.enums.LogLevelEnum
-import com.vwo.ServiceContainer
+import com.wingify.ServiceContainer
 import com.vwo.models.user.VWOInitOptions
+import com.wingify.models.user.WingifyInitOptions
+import com.wingify.packages.logger.core.LogManager
+import com.wingify.packages.logger.core.LogTransportManager
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -211,5 +214,53 @@ class LogTransportManagerTest {
         verify(mockTransport2).log(LogLevelEnum.INFO, "Info message")
         verify(mockTransport2).log(LogLevelEnum.WARN, "Warn message")
         verify(mockTransport2).log(LogLevelEnum.ERROR, "Error message")
+    }
+
+    @Test
+    fun `test log replaces VWO with Wingify when Wingify SDK is active`() {
+        val wingifyOptions = WingifyInitOptions()
+        val wingifyServiceContainer = ServiceContainer(
+            settingsManager = null,
+            options = wingifyOptions,
+            settings = null,
+            loggerService = null
+        )
+        val wingifyLogManager = LogManager(
+            mutableMapOf<String, Any>("level" to "TRACE"),
+            wingifyServiceContainer
+        )
+        val wingifyTransportManager = LogTransportManager(config, wingifyLogManager)
+        wingifyTransportManager.addTransport(mockTransport1)
+
+        wingifyTransportManager.error("[ERROR]: VWO-SDK Options should be of type object")
+
+        verify(mockTransport1).log(
+            LogLevelEnum.ERROR,
+            "[ERROR]: Wingify-SDK Options should be of type object"
+        )
+    }
+
+    @Test
+    fun `test log does not replace vwo underscore identifiers when Wingify SDK is active`() {
+        val wingifyOptions = WingifyInitOptions()
+        val wingifyServiceContainer = ServiceContainer(
+            settingsManager = null,
+            options = wingifyOptions,
+            settings = null,
+            loggerService = null
+        )
+        val wingifyLogManager = LogManager(
+            mutableMapOf<String, Any>("level" to "TRACE"),
+            wingifyServiceContainer
+        )
+        val wingifyTransportManager = LogTransportManager(config, wingifyLogManager)
+        wingifyTransportManager.addTransport(mockTransport1)
+
+        wingifyTransportManager.error("VWO init failed for _vwo_meta key")
+
+        verify(mockTransport1).log(
+            LogLevelEnum.ERROR,
+            "Wingify init failed for _vwo_meta key"
+        )
     }
 } 

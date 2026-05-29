@@ -1,0 +1,222 @@
+/*
+ * Copyright (c) 2024-2026 Wingify Software Pvt. Ltd.
+ *
+ *  Licensed under the Apache License, Version 2.0 (the "License");
+ *  you may not use this file except in compliance with the License.
+ *  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ *  Unless required by applicable law or agreed to in writing, software
+ *  distributed under the License is distributed on an "AS IS" BASIS,
+ *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *  See the License for the specific language governing permissions and
+ *  limitations under the License.
+ *
+ */
+
+package com.wingify.packages.network_layer.manager
+
+import SdkDataManager
+import com.wingify.WingifyClient
+import com.wingify.models.OfflineEventData
+import com.vwo.packages.logger.enums.LogLevelEnum
+import com.wingify.services.BatchUploader
+import com.wingify.ServiceContainer
+import com.wingify.providers.ServiceContainerProvider
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.withContext
+
+/**
+ * A manager class responsible for handling batch operations foroffline events.
+ *
+ * This object manages the process of sending batches of offline events to the server.
+ * It retrieves event data from the database, groups it into batches, and uploads them using the `BatchUploader`.
+ * It also handles synchronization to ensure that only one batch upload operation is in progress ata time.
+ */
+internal object BatchManager {
+
+    /**
+     * The data manager used to access and manipulate offline event data in the database.
+     */
+    var sdkDataManager: SdkDataManager? = null
+
+    private val batchUploader = BatchUploader
+    private val mutex = Mutex()
+
+    private var isInitUploadingStarted = false
+    val initName = "SDK Initialization"
+
+    /**
+     * Starts the batch upload process.
+     *
+     * This function initiates the process of sending batches of offline events to the server.
+     * It acquires a lock using a `Mutex` to ensure that only one batch upload operation is in progress at a time.* It then calls the `sendBatches()` function to perform the actual upload.
+     *
+     * @return `true` if all batches were uploaded successfully, `false` otherwise.
+     */
+    suspend fun start(entryName: String, serviceContainer: ServiceContainer?): Boolean {
+        if (entryName == initName && isInitUploadingStarted) {
+            return true
+        } else
+            isInitUploadingStarted = true
+
+        // When using mutex.withLock, the coroutine is suspended until the lock is available, and
+        // the thread remains free to execute other coroutines. This leads to better scalability in
+        // coroutine-based programs.
+        mutex.withLock {
+            val result = sendBatches(entryName, serviceContainer)
+            return result.isUploaded
+        }
+    }
+
+    /**
+     * Sends batches of offline events to the server.
+     *
+     * This function retrieves event data from the database, groups it into batches, and uploads them using the `BatchUploader`.
+     * It runs on the IO dispatcher to avoid blocking the main thread.
+     *
+     * @return `true` if all batches were uploaded successfully, `false` otherwise.
+     */
+    private suspend fun sendBatches(entryName: String, serviceContainer:ServiceContainer?): BatchUploadResult = withContext(Dispatchers.IO) {
+        var result = true
+        var count = 0
+        try {
+
+            val batches = if (serviceContainer == null)
+                getData() //This is offline batch uploading, send all events
+            else
+                getData(serviceContainer.getAccountId().toLong(), serviceContainer.getSdkKey())
+
+            batches.forEach { batch ->
+                //Upload one batch at a time, and wait till it finishes, then start second batch
+                val firstItem = batch.first()
+
+                val batchServiceContainer = serviceContainer ?: ServiceContainerProvider.getServiceContainer(
+                    firstItem.accountId.toInt(),
+                    firstItem.sdkKey
+                )
+                val values = batch.map {
+                    WingifyClient.objectMapper.readValue(it.payload, MutableMap::class.java)
+                }
+                val isUploaded = batchUploader.uploadBatch(firstItem.accountId, firstItem.sdkKey, values, serviceContainer)
+                if (isUploaded) {
+                    count += batch.size
+                    removeStoredData(batch)
+                }
+                result = isUploaded && result
+                if ((isUploaded && count > 0) || !isUploaded) {
+                    batchServiceContainer?.getLoggerService()?.log(
+                        LogLevelEnum.INFO,
+                        "BATCH_PROCESSING_FINISHED",
+                        mapOf(
+                            "status" to isUploaded.toString(),
+                            "name" to entryName,
+                            "count" to count.toString()
+                        )
+                    )
+                }
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+            result = false
+        }
+        BatchUploadResult(result, count)
+    }
+
+    /**
+     * Removes stored data for a batch of events from the database.
+     *
+     * This function iterates through a list of `OfflineEventData` objects and deletes each event from the database.
+     *
+     * @param batch The list of `OfflineEventData` objects to remove.
+     */
+    private fun removeStoredData(batch: List<OfflineEventData>) {
+        batch.forEach {
+            val isDeleted = sdkDataManager?.deleteData(it.id)
+        }
+    }
+
+    /**
+     * Retrieves data for batches of offline events from the database.
+     *
+     * This function retrieves distinct SDK keys and account IDs from the database and then fetches all events associated with each combination.
+     * It groups the events into batches based on their SDK key and account ID.
+     *
+     * @return A mutable list of lists of `OfflineEventData` objects, representing the batches of events.
+     */
+    private fun getData(): MutableList<List<OfflineEventData>> {
+        val result = mutableListOf<List<OfflineEventData>>()
+        sdkDataManager?.getDistinctSdkKeys()?.forEach {
+            val batch = sdkDataManager?.getSdkData(it.accountId, it.sdkKey)
+            if (batch?.isNotEmpty() == true) {
+                result.add(batch)
+            } else {
+                println("No data found for ${it.accountId} and ${it.sdkKey}")
+            }
+        }
+        return result
+    }
+
+    /**
+     * Retrieves data for batches of offline events from the database.
+     *
+     * This function retrieves distinct SDK keys and account IDs from the database and then fetches all events associated with each combination.
+     * It groups the events into batches based on their SDK key and account ID.
+     *
+     * @return A mutable list of lists of `OfflineEventData` objects, representing the batches of events.
+     */
+    private fun getData(accountId: Long, sdkKey: String): MutableList<List<OfflineEventData>> {
+        val result = mutableListOf<List<OfflineEventData>>()
+        val batch = sdkDataManager?.getSdkData(accountId, sdkKey)
+        if (batch?.isNotEmpty() == true) {
+            result.add(batch)
+        } else {
+            println("No data found for $accountId and $sdkKey")
+        }
+        return result
+    }
+
+    /**
+     * Determines whether online batching is allowed based on configured settings.
+     *
+     * This function checks if online batching is enabled by verifying if either the minimum batch
+     * size or the batch upload time interval is configured.
+     * Online batching is considered allowed if either of these settings is greater than 0.
+     *
+     * @return `true` if online batching is allowed, `false` otherwise.
+     */
+    fun isOnlineBatchingAllowed(onlineBatchUploadManager: OnlineBatchUploadManager): Boolean {
+        val batchMinSize = onlineBatchUploadManager.batchMinSize
+        val isBatchSizeProvided = batchMinSize > 0
+
+        val isBatchUploadIntervalProvided = onlineBatchUploadManager.batchUploadTimeInterval > 0
+        return isBatchSizeProvided || isBatchUploadIntervalProvided
+    }
+
+    /**
+     * Initializes batch manager & necessary values for it.
+     * @param serviceContainer The ServiceContainer instance for this account
+     */
+    fun initBatchManager(serviceContainer: ServiceContainer) {
+        val options = serviceContainer.getInitOptions()
+        val onlineBatchUploadManager = serviceContainer.onlineBatchUploadManager
+        onlineBatchUploadManager.batchMinSize = options.batchMinSize
+        onlineBatchUploadManager.batchUploadTimeInterval = options.batchUploadTimeInterval
+
+        val onlineBatchingAllowed = isOnlineBatchingAllowed(onlineBatchUploadManager)
+        val status = if (onlineBatchingAllowed) "enabled" else "disabled"
+        if (onlineBatchingAllowed) {
+            onlineBatchUploadManager.startBatchUploader(serviceContainer.getBatchManager(), serviceContainer)
+        }
+        serviceContainer.getLoggerService()?.log(
+            LogLevelEnum.INFO,
+            "ONLINE_BATCH_PROCESSING_STATUS",
+            mapOf("status" to status)
+        )
+    }
+}
+
+data class BatchUploadResult(val isUploaded: Boolean, val uploadEventCount: Int)

@@ -24,12 +24,73 @@ This SDK supports the following devices:
 Add below Maven dependency in your project's `build.gradle` file.
 
 ```groovy
+// Deprecated Legacy (com.vwo APIs)
 implementation 'com.vwo.sdk:vwo-fme-android-sdk:<latestVersion>'
+
+// Latest | New (com.wingify APIs)
+implementation 'com.wingify.sdk:wingify-fme-android-sdk:<latestVersion>'
 ```
 
-Latest version of SDK can be found in [Maven repository](https://mvnrepository.com/artifact/com.vwo.sdk/vwo-fme-android-sdk)
+Both coordinates publish the **same** library binary at the same version. Pick one dependency line; do not add both.
+
+Latest versions: [vwo-fme-android-sdk](https://mvnrepository.com/artifact/com.vwo.sdk/vwo-fme-android-sdk) · [vwo-wingify-android-sdk](https://mvnrepository.com/artifact/com.wingify.sdk/vwo-wingify-android-sdk) (after first publish)
 
 ## Basic Usage
+
+### Wingify API (recommended for new integrations)
+
+The SDK exposes a rebranded public API under `com.wingify` with Maven coordinate `com.wingify.sdk:wingify-fme-android-sdk`. Legacy `com.vwo` types and `com.vwo.sdk:vwo-fme-android-sdk` remain available but are deprecated.
+
+```kotlin
+import com.wingify.Wingify
+import com.wingify.Wingify.init
+import com.wingify.interfaces.IWingifyInitCallback
+import com.wingify.interfaces.IWingifyListener
+import com.wingify.models.user.GetFlag
+import com.wingify.models.user.WingifyInitOptions
+import com.wingify.models.user.WingifyUserContext
+
+val initOptions = WingifyInitOptions()
+initOptions.sdkKey = SDK_KEY
+initOptions.accountId = ACCOUNT_ID
+
+init(initOptions, object : IWingifyInitCallback {
+    override fun wingifyInitSuccess(wingifyClient: Wingify, message: String) {
+        this@MyActivity.wingifyClient = wingifyClient
+    }
+
+    override fun wingifyInitFailed(message: String) {
+        // Initialization failed
+    }
+})
+
+val context = WingifyUserContext()
+context.id = "unique_user_id"
+
+wingifyClient.getFlag("feature_key", context, object : IWingifyListener {
+    override fun onSuccess(data: Any) {
+        val featureFlag = data as? GetFlag
+        val isEnabled = featureFlag?.isEnabled()
+    }
+
+    override fun onFailure(message: String) {
+        // Feature flag is disabled or request failed
+    }
+})
+```
+
+| Legacy (`com.vwo`) | New (`com.wingify`) |
+| --- | --- |
+| `VWO` | `Wingify` |
+| `VWOInitOptions` | `WingifyInitOptions` |
+| `VWOUserContext` | `WingifyUserContext` |
+| `IVwoInitCallback` | `IWingifyInitCallback` |
+| `IVwoListener` | `IWingifyListener` |
+
+Existing apps can keep using `com.vwo` without changes. Migrate imports when convenient; IDE `ReplaceWith` hints are provided on deprecated types. See [MIGRATE.md](MIGRATE.md) for the Wingify migration guide and API reference.
+
+### VWO API (legacy, deprecated)
+
 The following example demonstrates initializing the SDK with a VWO account ID and SDK key, setting a user context, checking if a feature flag is enabled, and tracking a custom event.
 
 Kotlin usage
@@ -718,4 +779,4 @@ We welcome contributions to improve this SDK! Please read our [contributing guid
 
 [Apache License, Version 2.0](https://github.com/wingify/vwo-fme-android-sdk/blob/master/LICENSE)
 
-Copyright (c) 2024-2025 Wingify Software Pvt. Ltd.
+Copyright (c) 2024-2026 Wingify Software Pvt. Ltd.
