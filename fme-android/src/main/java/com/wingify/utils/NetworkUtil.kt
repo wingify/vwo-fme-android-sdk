@@ -477,7 +477,7 @@ class NetworkUtil {
          * @return A map of non-null config values, or null if options are unavailable.
          */
         private fun buildInitConfig(serviceContainer: ServiceContainer?): Map<String, Any>? {
-            val options = serviceContainer?.getVWOInitOptions() ?: return null
+            val options = serviceContainer?.getInitOptions() ?: return null
 
             val initConfig = mutableMapOf<String, Any?>()
             initConfig["accountId"] = options.accountId
@@ -499,7 +499,7 @@ class NetworkUtil {
             initConfig["storageConnector"] = options.storage != null
             initConfig["integrations"] = options.integrations != null
             initConfig["logTransport"] = options.logger.isNotEmpty()
-            initConfig["vwoBuilder"] = options.vwoBuilder != null
+            initConfig["vwoBuilder"] = options.wingifyBuilder != null
 
             return removeNullValues(initConfig)
         }
