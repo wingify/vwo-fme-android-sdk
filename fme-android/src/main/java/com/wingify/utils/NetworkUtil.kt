@@ -434,6 +434,45 @@ class NetworkUtil {
         }
 
         /**
+         * Returns the payload data for the user tracking evaluation event.
+         */
+        fun getUserTrackingPayloadData(
+            settings: Settings,
+            context: WingifyUserContext,
+            userId: String?,
+            featureKey: String,
+            featureId: Int?,
+            serviceContainer: ServiceContainer,
+        ): Map<String, Any> {
+            val properties = getEventBasePayload(
+                settings,
+                context,
+                userId,
+                EventEnum.VWO_FE_TRACK_USAGE.value,
+                StorageProvider.userAgent,
+                StorageProvider.ipAddress,
+                serviceContainer,
+            )
+            properties.d?.event?.props?.setData(mapOf("featureKey" to featureKey))
+            if (featureId != null) {
+                properties.d?.event?.props?.fId = featureId
+            }
+            serviceContainer.getLoggerService()?.log(
+                LogLevelEnum.DEBUG,
+                "IMPRESSION_FOR_USER_TRACKED",
+                object : HashMap<String?, String?>() {
+                    init {
+                        put("accountId", settings.accountId.toString())
+                        put("userId", userId)
+                        put("featureKey", featureKey)
+                    }
+                })
+            val payload: Map<*, *> =
+                WingifyClient.objectMapper.convertValue(properties, MutableMap::class.java)
+            return removeNullValues(payload)
+        }
+
+        /**
          * Returns the payload data for the messaging event.
          * @param messageType The type of the message.
          * @param message The content of the message.
@@ -610,7 +649,7 @@ class NetworkUtil {
                     body = payload,
                     headers = headers,
                     scheme = serviceContainer.resolveScheme(),
-                    port = serviceContainer.getSettingsManager()?.port ?:0
+                    port = serviceContainer.getSettingsManager()?.port ?: 0
                 )
                 request.eventName = eventName
                 NetworkManager.postAsync(request, serviceContainer)
@@ -713,7 +752,9 @@ class NetworkUtil {
          * @return The URL for the event.
          */
         private fun generateEventUrl(serviceContainer: ServiceContainer): String {
-            return serviceContainer.resolveScheme() + "://" + serviceContainer.resolveHost(HttpMethods.POST) + UrlEnum.EVENTS.url
+            return serviceContainer.resolveScheme() + "://" + serviceContainer.resolveHost(
+                HttpMethods.POST
+            ) + UrlEnum.EVENTS.url
         }
 
         /**
