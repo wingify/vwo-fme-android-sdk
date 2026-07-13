@@ -44,6 +44,7 @@ import com.wingify.utils.FunctionUtil.getAllExperimentRules
 import com.wingify.utils.FunctionUtil.getFeatureFromKey
 import com.wingify.utils.FunctionUtil.getSpecificRulesBasedOnType
 import com.wingify.utils.ImpressionUtil
+import com.wingify.utils.UserTrackingUsageUtil
 import com.wingify.utils.RuleEvaluationUtil
 import com.wingify.utils.extractDecisionKeys
 import com.wingify.utils.sendDebugEventToVWO
@@ -82,6 +83,19 @@ object GetFlagAPI {
         // get feature object from feature key
         val feature: Feature? = getFeatureFromKey(settings, featureKey)
 
+        // Captures all invariant params so each exit point is a single line.
+        // variationShownSent is the only value that differs per exit.
+        fun returnWithUserTrackingGate(variationShownSent: Boolean) =
+            UserTrackingUsageUtil.evaluateFlagAndTrackUsage(
+                settings = settings,
+                context = context,
+                featureKey = featureKey,
+                feature = feature,
+                serviceContainer = serviceContainer,
+                variationShownSent = variationShownSent,
+                getFlag = getFlag,
+            )
+
         // Initialize debug event properties
         val debugEventProps = mutableMapOf<String, Any>(
             "an" to ApiEnum.GET_FLAG.value,
@@ -106,7 +120,8 @@ object GetFlagAPI {
             put("holdoutIDs", emptyList<Int>())
 
             val isAnyHoldoutApplicableForThisFeature =
-                settings.holdoutGroups?.any { isHoldoutApplicableToFeature(it, feature?.id) } ?: false
+                settings.holdoutGroups?.any { isHoldoutApplicableToFeature(it, feature?.id) }
+                    ?: false
 
             put("isHoldoutPresent", isAnyHoldoutApplicableForThisFeature)
         }
@@ -156,7 +171,8 @@ object GetFlagAPI {
 
             // just like above, these ids were there on the server too
             val validSavedNotInHoldoutIds =
-                savedNotInHoldoutIds?.filter { isIdPresentOnServer(it, holdoutIdsFromSettings) }?.toSet()
+                savedNotInHoldoutIds?.filter { isIdPresentOnServer(it, holdoutIdsFromSettings) }
+                    ?.toSet()
                     ?.toList() // remove if any duplicate ids
                     ?: listOf()
 
@@ -167,7 +183,12 @@ object GetFlagAPI {
                 ?.filter { isHoldoutApplicableToFeature(it, feature?.id) }
                 ?.mapNotNull { it.id } ?: emptyList()
             val localHidAlsoValidOnServerForThisFeature =
-                localHidAlsoValidOnServer.filter { isIdPresentOnServer(it, holdoutIdsStillApplicableToThisFeature) }
+                localHidAlsoValidOnServer.filter {
+                    isIdPresentOnServer(
+                        it,
+                        holdoutIdsStillApplicableToThisFeature
+                    )
+                }
 
             if (isInHoldout && localHidAlsoValidOnServerForThisFeature.isNotEmpty()) {
                 serviceContainer.getLoggerService()?.log(
@@ -178,17 +199,18 @@ object GetFlagAPI {
                     )
                 )
 
+                var holdoutImpressions = ImpressionPayload()
                 // we might have new holdouts in server
                 // we need to evaluate them and send the data to the server
                 if (feature != null) {
 
                     val holdoutGroupService = HoldoutGroupService(DecisionMaker(), serviceContainer)
-                    val (_, holdoutImpressions) = holdoutGroupService.getHoldoutsFor(
+                    holdoutImpressions = holdoutGroupService.getHoldoutsFor(
                         settings = settings,
                         feature = feature,
                         context = context,
                         storageService = storageService
-                    )
+                    ).second
 
                     // filter out holdouts that were not part of the holdout
                     val (qualifiedIdsAfterEvaluation, notQualifiedIdsAfterEvaluation) = holdoutImpressions.impressionList.partition { it.variationId == Constants.Holdouts.VARIATION_IS_PART_OF_HOLDOUT }
@@ -222,7 +244,7 @@ object GetFlagAPI {
 
                 getFlag.setIsEnabled(false)
                 getFlag.setVariables(emptyList())
-                return getFlag
+                return returnWithUserTrackingGate(holdoutImpressions.hasValidData())
             } else {
 
                 // update local storage: only persist holdout ids that still apply to this feature,
@@ -277,7 +299,7 @@ object GetFlagAPI {
                         getFlag.setIsEnabled(true)
                         decision[Constants.KEY_DECISION_IS_USER_PART_OF_CAMPAIGN] = true
                         getFlag.setVariables(variation.variables)
-                        return getFlag
+                        return returnWithUserTrackingGate(impressionPayload.hasValidData())
                     }
                 }
             } else if (storedData?.rolloutKey != null && storedData.rolloutKey!!.isNotEmpty() && storedData.rolloutId != null && storedData.rolloutId.toString()
@@ -354,7 +376,7 @@ object GetFlagAPI {
                 serviceContainer = serviceContainer
             )
             getFlag.setIsEnabled(false)
-            return getFlag
+            return returnWithUserTrackingGate(false)
         }
 
         serviceContainer.getSegmentationManager()
@@ -440,7 +462,10 @@ object GetFlagAPI {
                     LogLevelEnum.INFO, "USER_EXCLUDED_DUE_TO_HOLDOUT", mapOf(
                         Constants.USER_ID to "${context.id}",
                         "featureKey" to featureKey,
-                        "holdoutId" to qualifiedHoldoutIds.joinToString(prefix = "[", postfix = "]", transform = { "$it" })
+                        "holdoutId" to qualifiedHoldoutIds.joinToString(
+                            prefix = "[",
+                            postfix = "]",
+                            transform = { "$it" })
                     )
                 )
 
@@ -456,7 +481,7 @@ object GetFlagAPI {
                     serviceContainer = serviceContainer
                 )
 
-                return getFlag
+                return returnWithUserTrackingGate(impressionPayload.hasValidData())
             } else {
                 serviceContainer.getLoggerService()?.log(
                     LogLevelEnum.INFO, "USER_NOT_EXCLUDED_DUE_TO_HOLDOUT", mapOf(
@@ -705,14 +730,14 @@ object GetFlagAPI {
 
         if (logsToBeShownAfterHoldoutLogs.isNotEmpty()) logsToBeShownAfterHoldoutLogs.forEach { it.invoke() }
 
+        val variationShownSent = impressionPayload.hasValidData()
         ImpressionUtil.createAndSendImpressionForVariationShown(
             settings = settings,
             impressionPayload = impressionPayload,
             context = context,
             serviceContainer = serviceContainer
         )
-
-        return getFlag
+        return returnWithUserTrackingGate(variationShownSent)
     }
 
     private fun sendNotInHoldoutForNewlyAddedHoldouts(

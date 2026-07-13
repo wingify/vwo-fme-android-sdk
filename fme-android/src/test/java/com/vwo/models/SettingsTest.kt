@@ -54,6 +54,7 @@ class SettingsTest {
         assertTrue(settings.features.isEmpty()) // features should be an empty list by default
         assertFalse(settings.isNBv2) // isNBv2 is initialized to false
         assertFalse(settings.isNB) // isNB is initialized to false
+        assertNull(settings.isUsageTracked) // user tracking flag is absent until set by settings response
     }
 
     @Test

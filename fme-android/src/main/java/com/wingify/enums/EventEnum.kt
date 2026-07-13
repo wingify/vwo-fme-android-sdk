@@ -47,5 +47,8 @@ enum class EventEnum(val value: String) {
     VWO_HOLDOUT("vwo_holdout"),
 
     /** FME sdk debugger event*/
-    VWO_DEBUGGER_EVENT("vwo_sdkDebug")
+    VWO_DEBUGGER_EVENT("vwo_sdkDebug"),
+
+    /** Track Usage event */
+    VWO_FE_TRACK_USAGE("vwo_feTrackUsage")
 }

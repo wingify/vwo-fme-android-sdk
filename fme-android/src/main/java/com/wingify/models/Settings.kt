@@ -64,4 +64,7 @@ class Settings {
     @JsonAdapter(WingifyClient.HoldoutGroupAdapter::class)
     @SerializedName("holdouts")
     var holdoutGroups: List<HoldoutGroup>? = null
+
+    @SerializedName("isMAU")
+    var isUsageTracked: Boolean? = null
 }

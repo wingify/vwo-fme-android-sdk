@@ -26,5 +26,8 @@
 
   "PART_OF_HOLDOUT_IN_MEG": "MEG: User id {userId} is part of holdout: {holdoutId} for feature key: {featureKey}.",
   "HOLDOUT_SKIP_EVALUATION": "Skip holdout reevaluation for holdout id : {holdoutName} because {reason}",
-  "SAVE_NOT_IN_HOLDOUT": "User id: {userId} was not part of any applicable holdout: {holdoutIds}"
+  "SAVE_NOT_IN_HOLDOUT": "User id: {userId} was not part of any applicable holdout: {holdoutIds}",
+
+  "IMPRESSION_FOR_USER_TRACKED": "Impression built for vwo_feTrackUsage event for Account ID:{accountId}, User ID:{userId}, and feature key:{featureKey}",
+  "USER_TRACKED": "User with ID:{userId} tracked for Account ID:{accountId} and Feature-key:{featureKey}"
 }

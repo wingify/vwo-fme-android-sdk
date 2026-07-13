@@ -4,6 +4,7 @@
 # --- Legacy public API (com.vwo) ---
 -keep class com.vwo.VWO { *; }
 -keep class com.vwo.VWO, com.vwo.VWO$Companion { public protected *; }
+-keep class com.vwo.VWOClient { *; }
 -keep class com.wingify.WingifyBuilder { *; }
 -keep class com.vwo.interfaces.IVwoInitCallback { *; }
 -keep class com.vwo.interfaces.IVwoListener { *; }
@@ -16,6 +17,8 @@
 # --- Wingify public API (com.wingify) ---
 -keep class com.wingify.Wingify { *; }
 -keep class com.wingify.Wingify, com.wingify.Wingify$Companion { public protected *; }
+-keep class com.wingify.WingifyClient { *; }
+-keep class com.wingify.WingifyBuilder { *; }
 -keep class com.wingify.interfaces.IWingifyInitCallback { *; }
 -keep class com.wingify.interfaces.IWingifyListener { *; }
 -keep class com.wingify.interfaces.logger.LogTransport { *; }
