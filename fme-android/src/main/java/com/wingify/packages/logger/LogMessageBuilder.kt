@@ -52,6 +52,20 @@ class LogMessageBuilder(
     }
 
     /**
+     * Formats a log message with level, prefix, and message (no ANSI colors or timestamp).
+     * Suitable for Android Logcat where timestamps are provided by the platform.
+     */
+    fun formatPlainMessage(level: LogLevelEnum, message: String?): String {
+        val levelLabel = level.name.uppercase(Locale.getDefault())
+        val configuredPrefix = loggerConfig["prefix"] as? String
+        return if (!configuredPrefix.isNullOrBlank()) {
+            String.format(Locale.getDefault(), "[%s]: %s %s", levelLabel, configuredPrefix, message)
+        } else {
+            String.format(Locale.getDefault(), "[%s]: %s", levelLabel, message)
+        }
+    }
+
+    /**
      * Formats the prefix with bold and green color.
      *
      * @param prefix The prefix string.

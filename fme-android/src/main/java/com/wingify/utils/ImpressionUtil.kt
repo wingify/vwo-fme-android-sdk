@@ -17,19 +17,18 @@ package com.wingify.utils
 
 import com.wingify.ServiceContainer
 import com.wingify.enums.EventEnum
-import com.wingify.interfaces.networking.HttpMethods
 import com.wingify.enums.UrlEnum
+import com.wingify.interfaces.networking.HttpMethods
 import com.wingify.models.Settings
 import com.wingify.models.impression.ImpressionPayload
 import com.wingify.models.user.WingifyUserContext
-import com.wingify.packages.network_layer.manager.BatchManager
 import com.wingify.packages.network_layer.manager.NetworkManager
 import com.wingify.packages.network_layer.models.RequestModel
 import com.wingify.providers.StorageProvider.ipAddress
 import com.wingify.providers.StorageProvider.userAgent
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.launch
+import com.wingify.utils.CampaignUtil.getCampaignKeyFromCampaignId
+import com.wingify.utils.CampaignUtil.getCampaignTypeFromCampaignId
+import com.wingify.utils.CampaignUtil.getVariationNameFromCampaignIdAndVariationId
 import java.io.UnsupportedEncodingException
 import java.net.URLEncoder
 
@@ -69,6 +68,9 @@ object ImpressionUtil {
             serviceContainer = serviceContainer
         )
 
+        // Ensure network client is available before dispatching impression events.
+        NetworkManager.attachClient()
+
         // Construct payload data for tracking the user
         for (index in 0 until impressionPayload.size()) {
             val impression = impressionPayload.get(index)
@@ -103,16 +105,16 @@ object ImpressionUtil {
             )
 
             val campaignKeyWithFeatureName =
-                CampaignUtil.getCampaignKeyFromCampaignId(settings, campaignId)
+                getCampaignKeyFromCampaignId(settings, campaignId)
             val variationName =
-                CampaignUtil.getVariationNameFromCampaignIdAndVariationId(
+                getVariationNameFromCampaignIdAndVariationId(
                     settings,
                     campaignId,
                     variationId
                 )
             val featureName = campaignKeyWithFeatureName?.split('_')?.getOrNull(0)
             val campaignKey = campaignKeyWithFeatureName?.split('_')?.getOrNull(1)
-            val campaignType = CampaignUtil.getCampaignTypeFromCampaignId(settings, campaignId)
+            val campaignType = getCampaignTypeFromCampaignId(settings, campaignId)
 
             request.campaignInfo = mapOf<String, Any>(
                 "campaignKey" to (campaignKey ?: ""),
@@ -120,14 +122,10 @@ object ImpressionUtil {
                 "featureName" to (featureName ?: ""),
                 "campaignType" to (campaignType ?: "")
             )
-            NetworkManager.addToBatch(request, serviceContainer)
-        }
-
-        if (serviceContainer.onlineBatchUploadManager.isBatchingDisabled()) {
-            // if batching is disabled then send all data immediately
-            CoroutineScope(Dispatchers.IO).launch {
-                BatchManager.start("Send GetFlag Impression", serviceContainer)
-            }
+            // Use standard async path:
+            // - online batching enabled  -> store and flush by batch policy
+            // - online batching disabled -> send immediately, store only on failure
+            NetworkManager.postAsync(request, serviceContainer)
         }
     }
 

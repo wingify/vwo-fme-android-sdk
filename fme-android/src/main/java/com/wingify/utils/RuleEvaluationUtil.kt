@@ -16,6 +16,7 @@
 package com.wingify.utils
 
 import com.wingify.ServiceContainer
+import com.wingify.constants.Constants.IMPRESSION_NO_FEATURE_ID
 import com.wingify.models.Campaign
 import com.wingify.models.Feature
 import com.wingify.models.Settings
@@ -85,7 +86,11 @@ object RuleEvaluationUtil {
 
                 // Send an impression for the variation shown
                 val impressionPayload = ImpressionPayload()
-                impressionPayload.add(campaignId = cmpId, variationId = whilistedId)
+                impressionPayload.add(
+                    campaignId = cmpId,
+                    variationId = whilistedId,
+                    featureId = feature?.id ?: IMPRESSION_NO_FEATURE_ID
+                )
                 ImpressionUtil.createAndSendImpressionForVariationShown(
                     settings = settings,
                     impressionPayload = impressionPayload,

@@ -238,6 +238,7 @@ To customize the SDK further, additional parameters can be passed to the `init()
 | `cachedSettingsExpiryTime` | Controls the duration (in milliseconds) the SDK uses cached settings before fetching new ones.                                                              | No           | Integer  | `60000`                         |
 | `batchMinSize`             | Uploads are triggered when the batch reaches this minimum size.                                                                                             | No           | Integer  | `10`                            |
 | `batchUploadTimeInterval`  | Specifies the time interval (in milliseconds) for periodic batch uploads.                                                                                   | No           | Integer  | `60000`                         |
+| `shouldTriggerIntegrationCallbackAlways` | When `true`, the integration callback is fired on every `getFlag()` call (including holdout, stored-decision, and feature-not-found paths). Defaults to `false`. | No | Boolean | `false` |
 
 Refer to the [official VWO documentation](https://developers.vwo.com/v2/docs/fme-android-install) for additional parameter details.
 
@@ -542,10 +543,13 @@ init(vwoInitOptions, object : IVwoInitCallback {
 
 VWO by default logs all `ERROR` level messages to logcat. To gain more control over VWO's logging behaviour, you can use the `logger` parameter in the `init` configuration.
 
+By default, messages are written to logcat with the tag `Vwo-fme-android` (or `Wingify-FME-Android` when initialized via Wingify) in the format `[LEVEL]: message`. If you set a custom `prefix`, messages appear as `[LEVEL]: prefix message`. Timestamps are not included in the message body because logcat adds them automatically.
+
 | **Parameter** | **Description**                        | **Required** | **Type** | **Example**           |
-| ------------- | -------------------------------------- | ------------ | -------- | --------------------- |
+|---------------| -------------------------------------- | ------------ | -------- | --------------------- |
 | `level`       | Log level to control verbosity of logs | Yes          | String   | `DEBUG`               |
-| `transport`   | Custom logger implementation           | No           | Object   | See example below     |
+| `prefix`      | Custom prefix included in log messages | No           | String   | `MyCustomPrefix`      |
+| `transports`  | Custom logger implementation           | No           | Object   | See example below     |
 
 #### Example 1: Set log level to control verbosity of logs
 ```kotlin
@@ -565,9 +569,38 @@ init(vwoInitOptions, object : IVwoInitCallback {
     }
 })
 ```
-#### Example 2: Implement custom transport to handle logs your way
 
-The `transport` parameter allows you to implement custom logging behavior by providing your own logging functions. You can define handlers for different log levels (TRACE, DEBUG, INFO, WARN, ERROR) to process log messages according to your needs.
+#### Example 2: Add a custom prefix to log messages
+
+```kotlin
+val vwoInitOptions = VWOInitOptions()
+vwoInitOptions.sdkKey = SDK_KEY
+vwoInitOptions.accountId = ACCOUNT_ID
+vwoInitOptions.logger = mutableMapOf<String, Any>().apply {
+    put("level", "INFO")
+    put("prefix", "MyCustomPrefix")
+}
+
+init(vwoInitOptions, object : IVwoInitCallback {
+    override fun vwoInitSuccess(vwoClient: VWO, message: String) {
+        // Success
+    }
+
+    override fun vwoInitFailed(message: String) {
+        // Log error here
+    }
+})
+```
+
+Logcat output:
+
+```
+I/Vwo-fme-android: [INFO]: MyCustomPrefix Settings fetched successfully
+```
+
+#### Example 3: Implement custom transport to handle logs your way
+
+The `transports` parameter allows you to implement custom logging behavior by providing your own logging functions. You can define handlers for different log levels (TRACE, DEBUG, INFO, WARN, ERROR) to process log messages according to your needs.
 For example, you could:
 
 - Send logs to a third-party logging service
@@ -575,7 +608,7 @@ For example, you could:
 - Format log messages differently
 - Filter or transform log messages
 
-The transport object should implement `defaultTransport` handler to customize.
+The transport object should implement `defaultTransport` handler to customize. Custom transports receive the formatted message string (including level and optional prefix).
 
 ```kotlin
 val vwoInitOptions = VWOInitOptions()
@@ -735,6 +768,74 @@ initOptions.setIntegrations(new IntegrationCallback() {
 });
 ```
 
+### Always-On Integration Callbacks
+
+By default, the integration callback is only invoked when a full live evaluation takes place inside `getFlag()`. Enable `shouldTriggerIntegrationCallbackAlways` in `WingifyInitOptions` (or legacy `VWOInitOptions`) to receive the callback on **every** `getFlag()` call, including:
+
+- Users served from **local storage** (previously stored decisions).
+- Users placed into a **holdout group**.
+- Calls where the **feature is not found** in the settings.
+
+This ensures your analytics pipeline captures a complete picture of all flag evaluations, not just live ones.
+
+```kotlin
+// Kotlin — Wingify (recommended)
+val initOptions = WingifyInitOptions()
+initOptions.sdkKey = SDK_KEY
+initOptions.accountId = ACCOUNT_ID
+initOptions.shouldTriggerIntegrationCallbackAlways = true
+
+initOptions.integrations = object : IntegrationCallback {
+    override fun execute(properties: Map<String, Any>) {
+        // Called for every getFlag() evaluation
+        mixpanelIntegration?.trackFlagEvaluation(properties)
+    }
+}
+
+// Kotlin — VWO (legacy)
+val vwoInitOptions = VWOInitOptions()
+vwoInitOptions.sdkKey = SDK_KEY
+vwoInitOptions.accountId = ACCOUNT_ID
+vwoInitOptions.shouldTriggerIntegrationCallbackAlways = true
+
+vwoInitOptions.integrations = object : IntegrationCallback {
+    override fun execute(properties: Map<String, Any>) {
+        // Called for every getFlag() evaluation
+        mixpanelIntegration?.trackFlagEvaluation(properties)
+    }
+}
+```
+
+```java
+// Java — Wingify (recommended)
+WingifyInitOptions initOptions = new WingifyInitOptions();
+initOptions.setSdkKey(SDK_KEY);
+initOptions.setAccountId(ACCOUNT_ID);
+initOptions.setShouldTriggerIntegrationCallbackAlways(true);
+
+initOptions.setIntegrations(new IntegrationCallback() {
+    @Override
+    public void execute(Map<String, Object> properties) {
+        // Called for every getFlag() evaluation
+        mixpanelIntegration.trackFlagEvaluation(properties);
+    }
+});
+
+// Java — VWO (legacy)
+VWOInitOptions vwoInitOptions = new VWOInitOptions();
+vwoInitOptions.setSdkKey(SDK_KEY);
+vwoInitOptions.setAccountId(ACCOUNT_ID);
+vwoInitOptions.setShouldTriggerIntegrationCallbackAlways(true);
+
+vwoInitOptions.setIntegrations(new IntegrationCallback() {
+    @Override
+    public void execute(Map<String, Object> properties) {
+        // Called for every getFlag() evaluation
+        mixpanelIntegration.trackFlagEvaluation(properties);
+    }
+});
+```
+
 ### Integration Data
 
 When using the integration callback, you'll receive the following data:
@@ -746,9 +847,21 @@ When using the integration callback, you'll receive the following data:
     featureId: 5,
     featureKey: "yourFlagKey",
     userId: "0duMh1j7krRB",
+    isEnabled: true/false,
+    isPartOfHoldout: true/false,
+    rolloutId: "<id or empty string>",
+    rolloutKey: "<key or empty string>",
+    rolloutVariationId: "<id or empty string>",
+    experimentId: "<id or empty string>",
+    experimentKey: "<key or empty string>",
+    experimentVariationId: "<id or empty string>",
+    customVariables: { ... },
+    variationTargetingVariables: { ... },
     ...
   }
   ```
+
+  > **Note:** When `shouldTriggerIntegrationCallbackAlways` is enabled, all keys above are always present in the payload regardless of which evaluation path was taken. Keys that are not applicable for a given path are set to an empty string.
 
 - **For event tracking**:
   ```

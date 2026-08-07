@@ -16,6 +16,7 @@
 package com.wingify.packages.logger.transports
 
 import android.util.Log
+import androidx.annotation.VisibleForTesting
 import com.wingify.interfaces.logger.LogTransport
 import com.wingify.models.user.WingifyInitOptions
 import com.vwo.packages.logger.enums.LogLevelEnum
@@ -29,7 +30,8 @@ import com.vwo.packages.logger.enums.LogLevelEnum
 class LogcatTransport(private val level: LogLevelEnum, private val initOptions: WingifyInitOptions) :
     LogTransport {
 
-    private fun resolveTag(): String = when {
+    @VisibleForTesting(otherwise = VisibleForTesting.PRIVATE)
+    internal fun resolveTag(): String = when {
         initOptions.isWingifySDKActive -> "Wingify-FME-Android"
         else -> "Vwo-fme-android"
     }

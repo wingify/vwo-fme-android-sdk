@@ -15,6 +15,7 @@
  */
 package com.wingify.utils
 
+import org.json.JSONArray
 import org.json.JSONObject
 import java.util.Date
 import java.util.function.Function
@@ -225,8 +226,26 @@ fun JSONObject.toMap(): MutableMap<String, Any> {
     val keys = this.keys()
     while (keys.hasNext()) {
         val key = keys.next()
-        val value = this.get(key)
-        map[key] = value
+        map[key] = unwrapJsonValue(this.get(key))
     }
     return map
+}
+
+/**
+ * Converts org.json types into plain Kotlin/Java collections so downstream Gson
+ * serialization does not reflect into JSONArray's private `myArrayList` field
+ * (which breaks [com.wingify.models.Storage.JsonArrayWrapper] parsing).
+ */
+private fun unwrapJsonValue(value: Any?): Any {
+    return when (value) {
+        is JSONObject -> value.toMap()
+        is JSONArray -> {
+            val list = ArrayList<Any>(value.length())
+            for (i in 0 until value.length()) {
+                list.add(unwrapJsonValue(value.get(i)))
+            }
+            list
+        }
+        else -> value as Any
+    }
 }

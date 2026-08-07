@@ -138,6 +138,25 @@ class PropsTest {
     }
 
     @Test
+    fun testFeatureIdPropertiesSerialization() {
+        val props = Props().apply {
+            id = 30
+            fId = 5
+            vwoFId = 5
+            variation = "1"
+            setFirst(1)
+        }
+
+        val json = gson.toJson(props)
+
+        assertTrue(json.contains("\"id\":30"))
+        assertTrue(json.contains("\"fId\":5"))
+        assertTrue(json.contains("\"vwo_fId\":5"))
+        assertTrue(json.contains("\"variation\":\"1\""))
+        assertTrue(json.contains("\"isFirst\":1"))
+    }
+
+    @Test
     fun testPropsDeserializationWithMissingFields() {
         val json = """
             {

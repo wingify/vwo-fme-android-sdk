@@ -63,6 +63,8 @@ class MobileDefaultStorage(private val initOptions: WingifyInitOptions) : Connec
      * - "experimentVariationId": The experiment variation ID for the data (optional).
      * - "rolloutId": The rollout ID for the data (optional).
      * - "experimentId": The experiment ID for the data (optional).
+     * - [Constants.KEY_STORAGE_CUSTOM_VARIABLES]: Caller custom variables (optional).
+     * - [Constants.KEY_STORAGE_VARIATION_TARGETING_VARIABLES]: Variation targeting variables (optional).
      */
     override fun set(data: Map<String, Any>) {
         val accId = initOptions.accountId ?: return
@@ -82,6 +84,15 @@ class MobileDefaultStorage(private val initOptions: WingifyInitOptions) : Connec
         data["rolloutId"]?.let { value["rolloutId"] = it }
         data["experimentId"]?.let { value["experimentId"] = it }
         data["decisionExpiryTime"]?.let { value["decisionExpiryTime"] = it }
+
+        // Persist the user context variables alongside the decision so that on subsequent
+        // reads we can detect when the caller passes different values and re-sync storage.
+        data[Constants.KEY_STORAGE_CUSTOM_VARIABLES]?.let {
+            value[Constants.KEY_STORAGE_CUSTOM_VARIABLES] = wrapAsJsonObject(it)
+        }
+        data[Constants.KEY_STORAGE_VARIATION_TARGETING_VARIABLES]?.let {
+            value[Constants.KEY_STORAGE_VARIATION_TARGETING_VARIABLES] = wrapAsJsonObject(it)
+        }
 
         data[Constants.Holdouts.KEY_STORAGE_HOLDOUT_IDS]?.let {
             value[Constants.Holdouts.KEY_STORAGE_HOLDOUT_IDS] = it
@@ -122,5 +133,24 @@ class MobileDefaultStorage(private val initOptions: WingifyInitOptions) : Connec
             return null
         }
         return JSONObject(stringValue).toMap()
+    }
+
+    /**
+     * Wraps a [Map]/[JSONObject] value into a [JSONObject] so that nested maps are persisted as
+     * structured JSON instead of `Object.toString()`. Other types are returned as-is and let the
+     * default [JSONObject] handling deal with them.
+     */
+    private fun wrapAsJsonObject(value: Any): Any {
+        return when (value) {
+            is JSONObject -> value
+            is Map<*, *> -> {
+                val safeMap = mutableMapOf<String, Any?>()
+                value.forEach { (k, v) ->
+                    if (k is String) safeMap[k] = v
+                }
+                JSONObject(safeMap)
+            }
+            else -> value
+        }
     }
 }

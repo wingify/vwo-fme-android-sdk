@@ -85,6 +85,12 @@ class PropsSerializer : JsonSerializer<Props>, JsonDeserializer<Props> {
         jsonObject.get("id")?.let { 
             if (!it.isJsonNull) props.id = it.asInt
         }
+        jsonObject.get("fId")?.let {
+            if (!it.isJsonNull) props.fId = it.asInt
+        }
+        jsonObject.get("vwo_fId")?.let {
+            if (!it.isJsonNull) props.vwoFId = it.asInt
+        }
         jsonObject.get("isFirst")?.let { 
             if (!it.isJsonNull) props.setFirst(it.asInt)
         }
@@ -111,8 +117,8 @@ class PropsSerializer : JsonSerializer<Props>, JsonDeserializer<Props> {
         }
 
         // Collect unknown properties into additionalProperties
-        val knownKeys = setOf("vwo_sdkName", "vwo_sdkVersion", "vwo_envKey", "variation", "id", 
-                             "isFirst", "isMII", "isCustomEvent", "product", "data", "vwoMeta")
+        val knownKeys = setOf("vwo_sdkName", "vwo_sdkVersion", "vwo_envKey", "variation", "id",
+                             "fId", "vwo_fId", "isFirst", "isMII", "isCustomEvent", "product", "data", "vwoMeta", "attrs")
         val additionalProperties = mutableMapOf<String, Any>()
         
         for ((key, value) in jsonObject.entrySet()) {

@@ -17,6 +17,7 @@ package com.wingify.packages.logger.core
 
 import androidx.annotation.VisibleForTesting
 import com.wingify.interfaces.logger.LogTransport
+import com.wingify.packages.logger.LogMessageBuilder
 import com.wingify.packages.logger.Logger
 import com.vwo.packages.logger.enums.LogLevelEnum
 import com.wingify.packages.logger.enums.LogLevelNumberEnum
@@ -113,10 +114,12 @@ class LogTransportManager(private val config: Map<String, Any>, val logManager: 
             message,
             logManager.serviceContainer.getInitOptions().isWingifySDKActive
         )
+        val logMessageBuilder = LogMessageBuilder(logManager.config, null)
+        val formattedMessage = logMessageBuilder.formatPlainMessage(level, brandedMessage)
         for (transport in transports) {
             val levelString = logManager.level.toString()
             if (shouldLog(level.name, levelString)) {
-                transport.log(level, brandedMessage)
+                transport.log(level, formattedMessage)
             }
         }
     }

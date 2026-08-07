@@ -21,7 +21,6 @@ import com.wingify.ServiceContainer
 import com.wingify.WingifyBuilder
 import com.wingify.models.Settings
 import com.wingify.models.user.WingifyInitOptions
-import com.vwo.packages.logger.enums.LogLevelEnum
 import java.util.concurrent.ConcurrentHashMap
 
 object ServiceContainerProvider {
@@ -115,8 +114,7 @@ object ServiceContainerProvider {
             updateServiceContainerIfNeeded(
                 existingServiceContainer,
                 builder,
-                settings,
-                initOptions
+                settings
             )
             settingsManager?.serviceContainer = existingServiceContainer
             return existingServiceContainer
@@ -142,63 +140,39 @@ object ServiceContainerProvider {
      * @param existingServiceContainer The existing ServiceContainer to potentially update
      * @param wingifyBuilder The WingifyBuilder instance containing potentially updated values
      * @param settings Settings data (nullable)
-     * @param initOptions VWO initialization options (nullable)
      */
     private fun updateServiceContainerIfNeeded(
         existingServiceContainer: ServiceContainer,
         wingifyBuilder: WingifyBuilder,
-        settings: Settings?,
-        initOptions: WingifyInitOptions?
+        settings: Settings?
     ) {
-        var hasUpdates = false
-
         // Check and update Settings if it was null but is now available
         if (existingServiceContainer.getSettings() == null && settings != null) {
             existingServiceContainer.setSettings(settings)
-            hasUpdates = true
         }
 
         // Check if SettingsManager needs serviceContainer reference
         val existingSettingsManager = existingServiceContainer.getSettingsManager()
         val newSettingsManager = wingifyBuilder.getSettingsManager()
-        
+
         if (existingSettingsManager == null && newSettingsManager != null) {
             existingServiceContainer.setSettingsManager(newSettingsManager)
-            hasUpdates = true
         }
 
         if (existingSettingsManager?.serviceContainer == null) {
             existingSettingsManager?.serviceContainer = existingServiceContainer
-            hasUpdates = true
         }
 
         // Check LoggerService
         val loggerService = existingServiceContainer.getLoggerService()
         if (loggerService == null && wingifyBuilder.getLoggerService() != null) {
             existingServiceContainer.setLoggerService(wingifyBuilder.getLoggerService()!!)
-            hasUpdates = true
         }
 
         // Check Storage - handle null or uninitialized storage
         val currentStorage = existingServiceContainer.storage
         if (currentStorage == null || currentStorage.getConnector() == null) {
             existingServiceContainer.storage = wingifyBuilder.storage
-            hasUpdates = true
-        }
-
-        // Log overall update status
-        if (hasUpdates) {
-            val accountId = existingSettingsManager?.accountId ?: initOptions?.accountId ?: 0
-            val sdkKey = existingSettingsManager?.sdkKey ?: initOptions?.sdkKey ?: ""
-            
-            existingServiceContainer.getLoggerService()?.log(
-                LogLevelEnum.INFO,
-                "ServiceContainer updated with new values",
-                mapOf(
-                    "accountId" to accountId.toString(),
-                    "sdkKey" to sdkKey
-                )
-            )
         }
     }
 

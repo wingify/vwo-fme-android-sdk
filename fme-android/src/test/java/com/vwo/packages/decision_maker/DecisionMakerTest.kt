@@ -113,4 +113,43 @@ class DecisionMakerTest {
 
         assertEquals(expectedBucketValue, bucketValue)
     }
+
+    /**
+     * Finds a user ID that falls in the bottom 5% holdout bucket (bucket value 1-5).
+     * Run this test and check the console output for a ready-to-use user ID.
+     *
+     * Bucket key format matches holdout evaluation: {accountId}_{holdoutId}_{userId}
+     */
+    @Test
+    fun findUserIdInBottom5PercentHoldoutBucket() {
+        val accountId = 951881
+        val holdoutId = 200
+        val trafficPercent = 5
+
+        val decisionMaker = DecisionMaker()
+        val baseMillis = System.currentTimeMillis()
+
+        var matchedUserId: String? = null
+        var matchedBucketValue = -1
+
+        for (i in 0 until 10_000) {
+            val userId = "user_${baseMillis}_$i"
+            val bucketKey = "${accountId}_${holdoutId}_$userId"
+            val bucketValue = decisionMaker.getBucketValueForUser(bucketKey)
+
+            if (bucketValue != 0 && bucketValue <= trafficPercent) {
+                matchedUserId = userId
+                matchedBucketValue = bucketValue
+                break
+            }
+        }
+
+        assertNotNull("Could not find a user in the bottom 5% bucket within 10,000 attempts", matchedUserId)
+        assertTrue(matchedBucketValue in 1..trafficPercent)
+
+        println("=== Holdout test user (bucket <= $trafficPercent%) ===")
+        println("userId: $matchedUserId")
+        println("bucketValue: $matchedBucketValue")
+        println("bucketKey: ${accountId}_${holdoutId}_$matchedUserId")
+    }
 }

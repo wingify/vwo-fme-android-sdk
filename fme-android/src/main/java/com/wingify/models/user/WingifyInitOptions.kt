@@ -97,6 +97,9 @@ open class WingifyInitOptions {
     /** Internal meta data for VWO use. */
     var _vwo_meta: Map<String, Any> = emptyMap()
 
+    /** Optional: If this option is enabled then the integration hooks will always be triggered with respsective data */
+    var shouldTriggerIntegrationCallbackAlways = false
+
     private var isWingifySDK = true
 
     internal val isWingifySDKActive: Boolean

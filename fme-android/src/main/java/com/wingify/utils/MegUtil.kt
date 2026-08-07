@@ -63,12 +63,18 @@ class MegUtil {
         val featureToSkip: MutableList<String?> = ArrayList()
         val campaignMap: MutableMap<String, MutableList<Campaign>> = HashMap()
 
+        // Tracks holdout bucket decisions made during this MEG evaluation cycle (before any are
+        // persisted to storage). Keyed by holdout group ID; value is whether the user is in holdout.
+        // Prevents redundant re-evaluation of the same holdout for sibling features in this group.
+        val holdoutDecisions: MutableMap<Int, Boolean> = mutableMapOf()
+
         // get all feature keys and all campaignIds from the groupId
         val featureKeysAndGroupCampaignIds = getFeatureKeysFromGroup(settings, groupId)
         val featureKeys = featureKeysAndGroupCampaignIds["featureKeys"] as List<String>?
         val groupCampaignIds: List<String>? =
             featureKeysAndGroupCampaignIds["groupCampaignIds"] as List<String>?
 
+        // Pass 1: check holdouts for every feature in the group before any rollout evaluation.
         for (featureKey in featureKeys!!) {
             val currentFeature = FunctionUtil.getFeatureFromKey(settings, featureKey)
 
@@ -109,7 +115,8 @@ class MegUtil {
                 settings = settings,
                 feature = currentFeature,
                 context = context,
-                storageService = storageService
+                storageService = storageService,
+                holdoutDecisions = holdoutDecisions
             )
 
             if (holdoutGroups.isNotEmpty()) {
@@ -137,40 +144,47 @@ class MegUtil {
                             transform = { "${it.id}" }),
                     )
                 )
-            } else {
-                // evaluate the feature rollout rules
-                val isRolloutRulePassed = isRolloutRuleForFeaturePassed(
-                    settings,
-                    currentFeature,
-                    evaluatedFeatureMap,
-                    featureToSkip,
-                    context,
-                    storageService,
-                    serviceContainer
-                )
-                if (isRolloutRulePassed) {
-                    for (feature1 in settings.features) {
-                        if (feature1.key == featureKey) {
-                            for (campaign in feature1.rulesLinkedCampaign) {
-                                if (groupCampaignIds!!.contains(campaign.id.toString())
-                                    || groupCampaignIds.contains(
-                                        campaign.id.toString()
-                                                + "_" + campaign.variations!![0].id
-                                    )
-                                ) {
+            }
+        }
 
-                                    campaignMap.getOrPut(featureKey) { mutableListOf() }
-                                    val campaigns = campaignMap[featureKey]
-                                    if (campaigns!!.none { it.ruleKey == campaign.ruleKey }) {
-                                        campaigns.add(campaign)
-                                    }
+        // Pass 2: rollouts and campaign collection only for features not in holdout.
+        for (featureKey in featureKeys) {
+            if (featureToSkip.contains(featureKey)) {
+                continue
+            }
+
+            val currentFeature = FunctionUtil.getFeatureFromKey(settings, featureKey) ?: continue
+
+            val isRolloutRulePassed = isRolloutRuleForFeaturePassed(
+                settings,
+                currentFeature,
+                evaluatedFeatureMap,
+                featureToSkip,
+                context,
+                storageService,
+                serviceContainer
+            )
+            if (isRolloutRulePassed) {
+                for (feature1 in settings.features) {
+                    if (feature1.key == featureKey) {
+                        for (campaign in feature1.rulesLinkedCampaign) {
+                            if (groupCampaignIds!!.contains(campaign.id.toString())
+                                || groupCampaignIds.contains(
+                                    campaign.id.toString()
+                                            + "_" + campaign.variations!![0].id
+                                )
+                            ) {
+
+                                campaignMap.getOrPut(featureKey) { mutableListOf() }
+                                val campaigns = campaignMap[featureKey]
+                                if (campaigns!!.none { it.ruleKey == campaign.ruleKey }) {
+                                    campaigns.add(campaign)
                                 }
                             }
                         }
                     }
                 }
             }
-
         }
 
         val eligibleCampaignsMap =

@@ -63,6 +63,7 @@ class HoldoutGroupService(
         feature: Feature,
         context: WingifyUserContext,
         storageService: StorageService,
+        holdoutDecisions: MutableMap<Int, Boolean>? = null,
     ): Pair<List<HoldoutGroup>, ImpressionPayload> {
 
         val featureId = feature.id
@@ -112,7 +113,7 @@ class HoldoutGroupService(
         for (holdoutGroup in holdoutGroups) {
 
             if (alreadyEvaluatedHoldoutIds.contains(holdoutGroup.id)) {
-                // holdout was already evaluated for this {user + feature}
+                // holdout was already evaluated for this {user + feature} and persisted in storage
                 serviceContainer?.getLoggerService()?.log(
                     level = LogLevelEnum.DEBUG,
                     key = "HOLDOUT_SKIP_EVALUATION",
@@ -125,6 +126,27 @@ class HoldoutGroupService(
             }
 
             if (!doesHoldoutApplyToFeature(holdoutGroup, featureId)) {
+                continue
+            }
+
+            // Check the in-memory map for holdouts already evaluated within this MEG cycle
+            // (evaluated for a sibling feature in the same group, but not yet persisted to storage)
+            val currentHoldoutId = holdoutGroup.id
+            val cachedHoldoutResult = if (currentHoldoutId != null) holdoutDecisions?.get(currentHoldoutId) else null
+            if (currentHoldoutId != null && holdoutDecisions != null && cachedHoldoutResult != null) {
+                serviceContainer?.getLoggerService()?.log(
+                    level = LogLevelEnum.DEBUG,
+                    key = "HOLDOUT_SKIP_EVALUATION",
+                    map = mapOf(
+                        "holdoutName" to "${holdoutGroup.name}",
+                        "reason" to "user ${context.id} was already evaluated for holdout in this MEG cycle (in-memory cache); cached result: $cachedHoldoutResult.",
+                    )
+                )
+                if (cachedHoldoutResult == true) {
+                    // User was determined to be IN this holdout during the current cycle; reuse result
+                    qualifiedHoldoutGroups.add(holdoutGroup)
+                }
+                // For not-in-holdout cached result, no impression is re-added; proceed like current flow
                 continue
             }
 
@@ -153,6 +175,7 @@ class HoldoutGroupService(
                         variationId = VARIATION_NOT_PART_OF_HOLDOUT,
                         featureId = featureId ?: IMPRESSION_NO_FEATURE_ID
                     )
+                    holdoutDecisions?.set(holdoutId, false)
                 }
                 continue
             }
@@ -193,6 +216,7 @@ class HoldoutGroupService(
                         variationId = VARIATION_IS_PART_OF_HOLDOUT,
                         featureId = featureId ?: IMPRESSION_NO_FEATURE_ID
                     )
+                    holdoutDecisions?.set(holdoutId, true)
                 }
             } else {
                 holdoutGroup.id?.let { holdoutId ->
@@ -201,6 +225,7 @@ class HoldoutGroupService(
                         variationId = VARIATION_NOT_PART_OF_HOLDOUT,
                         featureId = featureId ?: IMPRESSION_NO_FEATURE_ID
                     )
+                    holdoutDecisions?.set(holdoutId, false)
                 }
             }
 
