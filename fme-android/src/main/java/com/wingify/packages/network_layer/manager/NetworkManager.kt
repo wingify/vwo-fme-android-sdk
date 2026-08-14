@@ -61,10 +61,15 @@ object NetworkManager {
 
     /**
      * Attaches a default network client with a default configuration.
+     * Does not replace an already-attached custom client.
      */
     fun attachClient() {
-        this.client = NetworkClient()
-        this.config = GlobalRequestModel(null, null, null, null) // Initialize with default config
+        if (this.client == null) {
+            this.client = NetworkClient()
+        }
+        if (this.config == null) {
+            this.config = GlobalRequestModel(null, null, null, null)
+        }
     }
 
     /**
