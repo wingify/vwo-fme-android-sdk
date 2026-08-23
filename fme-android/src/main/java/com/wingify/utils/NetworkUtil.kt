@@ -509,39 +509,12 @@ class NetworkUtil {
         }
 
         /**
-         * Builds an initConfig map from the VWOInitOptions stored in the service container.
-         * Scalar/boolean fields are included directly; object/interface fields are represented
-         * as a boolean indicating whether they were provided by the caller.
-         *
-         * @param serviceContainer The service container holding the init options.
-         * @return A map of non-null config values, or null if options are unavailable.
+         * Builds an initConfig map from the init options stored in the service container.
+         * Keys match the Node SDK init event so the dashboard can read them the same way.
          */
         private fun buildInitConfig(serviceContainer: ServiceContainer?): Map<String, Any>? {
             val options = serviceContainer?.getInitOptions() ?: return null
-
-            val initConfig = mutableMapOf<String, Any?>()
-            initConfig["accountId"] = options.accountId
-            initConfig["sdkKey"] = options.sdkKey
-            initConfig["pollInterval"] = options.pollInterval
-            initConfig["gatewayService"] = options.gatewayService
-            initConfig["cachedSettingsExpiryTime"] = options.cachedSettingsExpiryTime
-            initConfig["cachedDecisionExpiryTime"] = options.cachedDecisionExpiryTime
-            initConfig["batchMinSize"] = options.batchMinSize
-            initConfig["batchUploadTimeInterval"] = options.batchUploadTimeInterval
-            initConfig["sdkName"] = options.sdkName
-            initConfig["sdkVersion"] = options.sdkVersion
-            initConfig["isUsageStatsDisabled"] = options.isUsageStatsDisabled
-            initConfig["vwoMeta"] = options._vwo_meta
-            initConfig["isAliasingEnabled"] = options.isAliasingEnabled
-            initConfig["isGatewayServiceConfigured"] = options.gatewayService.isNotEmpty()
-            initConfig["networkClientInterface"] = options.networkClientInterface != null
-            initConfig["segmentEvaluator"] = options.segmentEvaluator != null
-            initConfig["storageConnector"] = options.storage != null
-            initConfig["integrations"] = options.integrations != null
-            initConfig["logTransport"] = options.logger.isNotEmpty()
-            initConfig["vwoBuilder"] = options.wingifyBuilder != null
-
-            return removeNullValues(initConfig)
+            return InitConfig.from(options)
         }
 
         /**
@@ -742,11 +715,16 @@ class NetworkUtil {
             )
 
             // Set the required fields
-            properties.d?.event?.props?.setProduct(PRODUCT_NAME)
+            properties.d?.event?.props?.let { props ->
+                props.setProduct(PRODUCT_NAME)
 
-            val usageStats = serviceContainer.usageStats.getStats()
-            if (usageStats.isNotEmpty()) {
-                properties.d?.event?.props?.setVwoMeta(usageStats)
+                val usageStats = serviceContainer.usageStats.getStats()
+                if (usageStats.isNotEmpty()) {
+                    props.setVwoMeta(usageStats)
+                }
+                buildInitConfig(serviceContainer)?.let { initConfig ->
+                    props.setData(mapOf("initConfig" to initConfig))
+                }
             }
             val payload: Map<*, *> = WingifyClient.objectMapper.convertValue(
                 properties,
