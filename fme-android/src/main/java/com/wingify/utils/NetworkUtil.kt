@@ -311,6 +311,7 @@ class NetworkUtil {
 
             if (featureId != null && featureId != IMPRESSION_NO_FEATURE_ID) {
                 properties.d?.event?.props?.fId = featureId
+                properties.d?.event?.props?.vwoFId = featureId
             }
 
             if (eventName == EventEnum.VWO_VARIATION_SHOWN.value) {

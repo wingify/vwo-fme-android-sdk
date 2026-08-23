@@ -79,4 +79,54 @@ class JSONObjectExtensionTest {
         assertTrue(resultMap.entries.containsAll(expectedMap.entries))
         assertTrue(expectedMap.entries.containsAll(resultMap.entries))
     }
+
+    @Test
+    fun `toMap should unwrap nested JSONArray and JSONObject values`() {
+        val jsonObject = JSONObject(
+            """
+            {
+              "rolloutKey": "r1",
+              "holdoutIds": [],
+              "notInHoldoutIds": [100, 200],
+              "nested": {"a": 1}
+            }
+            """.trimIndent()
+        )
+
+        val resultMap = jsonObject.toMap()
+
+        assertEquals("r1", resultMap["rolloutKey"])
+        assertEquals(emptyList<Any>(), resultMap["holdoutIds"])
+        assertEquals(listOf(100, 200), resultMap["notInHoldoutIds"])
+        assertEquals(mapOf("a" to 1), resultMap["nested"])
+        assertTrue(resultMap["notInHoldoutIds"] is List<*>)
+        assertTrue(resultMap["nested"] is Map<*, *>)
+    }
+
+    @Test
+    fun `toMap should unwrap all three holdout cache formats for GetFlagAPI path`() {
+        // Format 1: raw arrays
+        val raw = JSONObject(
+            """{"holdoutIds":[],"notInHoldoutIds":[100,200]}"""
+        ).toMap()
+        assertEquals(emptyList<Any>(), raw["holdoutIds"])
+        assertEquals(listOf(100, 200), raw["notInHoldoutIds"])
+        assertTrue(raw["notInHoldoutIds"] is List<*>)
+
+        // Format 2: {"values":[...]}
+        val valuesWrapped = JSONObject(
+            """{"holdoutIds":{"values":[11]},"notInHoldoutIds":{"values":[22,33]}}"""
+        ).toMap()
+        assertEquals(mapOf("values" to listOf(11)), valuesWrapped["holdoutIds"])
+        assertEquals(mapOf("values" to listOf(22, 33)), valuesWrapped["notInHoldoutIds"])
+        assertTrue(valuesWrapped["holdoutIds"] is Map<*, *>)
+
+        // Format 3: {"myArrayList":[...]}
+        val myArrayListWrapped = JSONObject(
+            """{"holdoutIds":{"myArrayList":[]},"notInHoldoutIds":{"myArrayList":[100,200]}}"""
+        ).toMap()
+        assertEquals(mapOf("myArrayList" to emptyList<Any>()), myArrayListWrapped["holdoutIds"])
+        assertEquals(mapOf("myArrayList" to listOf(100, 200)), myArrayListWrapped["notInHoldoutIds"])
+        assertTrue(myArrayListWrapped["notInHoldoutIds"] is Map<*, *>)
+    }
 }

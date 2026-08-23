@@ -37,6 +37,9 @@ class Props {
     @SerializedName("fId")
     var fId: Int? = null
 
+    @SerializedName("vwo_fId")
+    var vwoFId: Int? = null
+
     @SerializedName("isFirst")
     private var isFirst: Int? = null
 

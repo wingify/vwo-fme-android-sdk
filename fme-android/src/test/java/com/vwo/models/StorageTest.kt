@@ -15,6 +15,7 @@
  */
 package com.vwo.models
 
+import com.wingify.WingifyClient
 import com.wingify.models.Storage
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -174,5 +175,143 @@ class StorageTest {
         assertEquals(testExperimentKey, storage.experimentKey)
         assertEquals(testExperimentVariationId, storage.experimentVariationId)
         assertEquals(testDecisionExpiryTime, storage.decisionExpiryTime)
+    }
+
+    @Test
+    fun `parses holdout id lists written as raw JSON arrays`() {
+        // MobileDefaultStorage persists holdoutIds / notInHoldoutIds as raw arrays.
+        val json = """
+            {
+              "rolloutKey": "r1",
+              "rolloutId": 10,
+              "rolloutVariationId": 1,
+              "holdoutIds": [],
+              "notInHoldoutIds": [100, 200]
+            }
+        """.trimIndent()
+
+        val parsed = WingifyClient.objectMapper.readValue(json, Storage::class.java)
+
+        assertEquals(emptyList<Int>(), parsed.holdoutIds?.values)
+        assertEquals(listOf(100, 200), parsed.notInHoldoutIds?.values)
+        assertEquals("r1", parsed.rolloutKey)
+        assertEquals(10, parsed.rolloutId)
+    }
+
+    @Test
+    fun `parses holdout id lists written as values wrapper objects`() {
+        val json = """
+            {
+              "holdoutIds": {"values": [11]},
+              "notInHoldoutIds": {"values": [22, 33]}
+            }
+        """.trimIndent()
+
+        val parsed = WingifyClient.objectMapper.readValue(json, Storage::class.java)
+
+        assertEquals(listOf(11), parsed.holdoutIds?.values)
+        assertEquals(listOf(22, 33), parsed.notInHoldoutIds?.values)
+    }
+
+    @Test
+    fun `parses holdout id lists from historical myArrayList wrapper`() {
+        val json = """
+            {
+              "holdoutIds": {"myArrayList": []},
+              "notInHoldoutIds": {"myArrayList": [100, 200]}
+            }
+        """.trimIndent()
+
+        val parsed = WingifyClient.objectMapper.readValue(json, Storage::class.java)
+
+        assertEquals(emptyList<Int>(), parsed.holdoutIds?.values)
+        assertEquals(listOf(100, 200), parsed.notInHoldoutIds?.values)
+    }
+
+    @Test
+    fun `round-trips storage map the way GetFlagAPI reads MobileDefaultStorage`() {
+        // After JSONObject.toMap() unwraps arrays, GetFlagAPI does:
+        // writeValueAsString(map) -> readValue(Storage)
+        val map = mapOf(
+            "rolloutKey" to "r1",
+            "rolloutId" to 10,
+            "rolloutVariationId" to 1,
+            "holdoutIds" to emptyList<Int>(),
+            "notInHoldoutIds" to listOf(100, 200),
+        )
+        val intermediate = WingifyClient.objectMapper.writeValueAsString(map)
+        val parsed = WingifyClient.objectMapper.readValue(intermediate, Storage::class.java)
+
+        assertEquals("r1", parsed.rolloutKey)
+        assertEquals(10, parsed.rolloutId)
+        assertEquals(listOf(100, 200), parsed.notInHoldoutIds?.values)
+        assertEquals(emptyList<Int>(), parsed.holdoutIds?.values)
+    }
+
+    @Test
+    fun `serializes holdout id lists as raw JSON arrays`() {
+        val storage = Storage().apply {
+            holdoutIds = Storage.JsonArrayWrapper().apply { values = listOf(1, 2) }
+            notInHoldoutIds = Storage.JsonArrayWrapper().apply { values = emptyList() }
+        }
+
+        val json = WingifyClient.objectMapper.writeValueAsString(storage)
+
+        assertTrue(json.contains("\"holdoutIds\":[1,2]"))
+        assertTrue(json.contains("\"notInHoldoutIds\":[]"))
+        assertFalse(json.contains("\"values\""))
+        assertFalse(json.contains("\"myArrayList\""))
+    }
+
+    @Test
+    fun `GetFlagAPI read path parses all three holdout cache formats after toMap`() {
+        // Simulates MobileDefaultStorage.get() after JSONObject.toMap() unwrap,
+        // then GetFlagAPI: writeValueAsString(map) -> readValue(Storage).
+
+        // Format 1: raw arrays -> List
+        assertHoldoutIdsViaStorageReadPath(
+            storageMap = mapOf(
+                "holdoutIds" to emptyList<Int>(),
+                "notInHoldoutIds" to listOf(100, 200),
+            ),
+            expectedHoldoutIds = emptyList(),
+            expectedNotInHoldoutIds = listOf(100, 200),
+        )
+
+        // Format 2: {"values":[...]} -> Map("values" to List)
+        assertHoldoutIdsViaStorageReadPath(
+            storageMap = mapOf(
+                "holdoutIds" to mapOf("values" to listOf(11)),
+                "notInHoldoutIds" to mapOf("values" to listOf(22, 33)),
+            ),
+            expectedHoldoutIds = listOf(11),
+            expectedNotInHoldoutIds = listOf(22, 33),
+        )
+
+        // Format 3: {"myArrayList":[...]} -> Map("myArrayList" to List)
+        assertHoldoutIdsViaStorageReadPath(
+            storageMap = mapOf(
+                "holdoutIds" to mapOf("myArrayList" to emptyList<Int>()),
+                "notInHoldoutIds" to mapOf("myArrayList" to listOf(100, 200)),
+            ),
+            expectedHoldoutIds = emptyList(),
+            expectedNotInHoldoutIds = listOf(100, 200),
+        )
+    }
+
+    /**
+     * Mirrors GetFlagAPI / HoldoutGroupService after MobileDefaultStorage.get():
+     * storage map -> writeValueAsString -> readValue(Storage)
+     */
+    private fun assertHoldoutIdsViaStorageReadPath(
+        storageMap: Map<String, Any>,
+        expectedHoldoutIds: List<Int>,
+        expectedNotInHoldoutIds: List<Int>,
+    ) {
+        val storageMapAsString = WingifyClient.objectMapper.writeValueAsString(storageMap)
+        val parsed = WingifyClient.objectMapper.readValue(storageMapAsString, Storage::class.java)
+
+        assertEquals(expectedHoldoutIds, parsed.holdoutIds?.values)
+        assertEquals(expectedNotInHoldoutIds, parsed.notInHoldoutIds?.values)
     }
 }

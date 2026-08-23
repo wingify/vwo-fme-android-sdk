@@ -33,6 +33,8 @@ import org.mockito.Mock
 import org.mockito.Mockito.*
 import org.mockito.junit.MockitoJUnitRunner
 import org.mockito.kotlin.anyOrNull
+import org.mockito.kotlin.eq
+import org.mockito.kotlin.verify
 
 @RunWith(MockitoJUnitRunner::class)
 class LogTransportManagerTest {
@@ -45,6 +47,32 @@ class LogTransportManagerTest {
 
     @Mock
     private lateinit var mockTransport2: LogTransport
+
+    private fun plainFormattedPattern(
+        level: LogLevelEnum,
+        message: String,
+        prefix: String? = null
+    ): String {
+        return if (prefix.isNullOrBlank()) {
+            """\[${level.name}\]: ${Regex.escape(message)}"""
+        } else {
+            """\[${level.name}\]: $prefix ${Regex.escape(message)}"""
+        }
+    }
+
+    private fun verifyPlainFormattedLog(
+        transport: LogTransport,
+        level: LogLevelEnum,
+        message: String,
+        prefix: String? = null
+    ) {
+        verify(transport).log(
+            eq(level),
+            argThat { actual: String? ->
+                actual?.matches(plainFormattedPattern(level, message, prefix).toRegex()) == true
+            }
+        )
+    }
 
     @Before
     fun setup() {
@@ -106,8 +134,8 @@ class LogTransportManagerTest {
         logTransportManager.trace(message)
 
         // Assert
-        verify(mockTransport1, atMostOnce()).log(LogLevelEnum.TRACE, message)
-        verify(mockTransport2, atMostOnce()).log(LogLevelEnum.TRACE, message)
+        verifyPlainFormattedLog(mockTransport1, LogLevelEnum.TRACE, message)
+        verifyPlainFormattedLog(mockTransport2, LogLevelEnum.TRACE, message)
     }
 
     @Test
@@ -121,8 +149,8 @@ class LogTransportManagerTest {
         logTransportManager.debug(message)
 
         // Assert
-        verify(mockTransport1, atMostOnce()).log(LogLevelEnum.DEBUG, message)
-        verify(mockTransport2, atMostOnce()).log(LogLevelEnum.DEBUG, message)
+        verifyPlainFormattedLog(mockTransport1, LogLevelEnum.DEBUG, message)
+        verifyPlainFormattedLog(mockTransport2, LogLevelEnum.DEBUG, message)
     }
 
     @Test
@@ -136,8 +164,8 @@ class LogTransportManagerTest {
         logTransportManager.info(message)
 
         // Assert
-        verify(mockTransport1).log(LogLevelEnum.INFO, message)
-        verify(mockTransport2).log(LogLevelEnum.INFO, message)
+        verifyPlainFormattedLog(mockTransport1, LogLevelEnum.INFO, message)
+        verifyPlainFormattedLog(mockTransport2, LogLevelEnum.INFO, message)
     }
 
     @Test
@@ -151,8 +179,8 @@ class LogTransportManagerTest {
         logTransportManager.warn(message)
 
         // Assert
-        verify(mockTransport1).log(LogLevelEnum.WARN, message)
-        verify(mockTransport2).log(LogLevelEnum.WARN, message)
+        verifyPlainFormattedLog(mockTransport1, LogLevelEnum.WARN, message)
+        verifyPlainFormattedLog(mockTransport2, LogLevelEnum.WARN, message)
     }
 
     @Test
@@ -166,8 +194,8 @@ class LogTransportManagerTest {
         logTransportManager.error(message)
 
         // Assert
-        verify(mockTransport1).log(LogLevelEnum.ERROR, message)
-        verify(mockTransport2).log(LogLevelEnum.ERROR, message)
+        verifyPlainFormattedLog(mockTransport1, LogLevelEnum.ERROR, message)
+        verifyPlainFormattedLog(mockTransport2, LogLevelEnum.ERROR, message)
     }
 
     @Test
@@ -206,14 +234,14 @@ class LogTransportManagerTest {
         debugManager.error("Error message")
 
         // Assert
-        verify(mockTransport1).log(LogLevelEnum.DEBUG, "Debug message")
-        verify(mockTransport1).log(LogLevelEnum.INFO, "Info message")
-        verify(mockTransport1).log(LogLevelEnum.WARN, "Warn message")
-        verify(mockTransport1).log(LogLevelEnum.ERROR, "Error message")
-        verify(mockTransport2).log(LogLevelEnum.DEBUG, "Debug message")
-        verify(mockTransport2).log(LogLevelEnum.INFO, "Info message")
-        verify(mockTransport2).log(LogLevelEnum.WARN, "Warn message")
-        verify(mockTransport2).log(LogLevelEnum.ERROR, "Error message")
+        verify(mockTransport1).log(eq(LogLevelEnum.DEBUG), argThat { actual -> actual?.contains("Debug message") == true })
+        verify(mockTransport1).log(eq(LogLevelEnum.INFO), argThat { actual -> actual?.contains("Info message") == true })
+        verify(mockTransport1).log(eq(LogLevelEnum.WARN), argThat { actual -> actual?.contains("Warn message") == true })
+        verify(mockTransport1).log(eq(LogLevelEnum.ERROR), argThat { actual -> actual?.contains("Error message") == true })
+        verify(mockTransport2).log(eq(LogLevelEnum.DEBUG), argThat { actual -> actual?.contains("Debug message") == true })
+        verify(mockTransport2).log(eq(LogLevelEnum.INFO), argThat { actual -> actual?.contains("Info message") == true })
+        verify(mockTransport2).log(eq(LogLevelEnum.WARN), argThat { actual -> actual?.contains("Warn message") == true })
+        verify(mockTransport2).log(eq(LogLevelEnum.ERROR), argThat { actual -> actual?.contains("Error message") == true })
     }
 
     @Test
@@ -235,8 +263,11 @@ class LogTransportManagerTest {
         wingifyTransportManager.error("[ERROR]: VWO-SDK Options should be of type object")
 
         verify(mockTransport1).log(
-            LogLevelEnum.ERROR,
-            "[ERROR]: Wingify-SDK Options should be of type object"
+            eq(LogLevelEnum.ERROR),
+            argThat { actual ->
+                actual?.startsWith("[ERROR]:") == true &&
+                    actual.contains("Wingify-SDK Options should be of type object")
+            }
         )
     }
 
@@ -258,9 +289,36 @@ class LogTransportManagerTest {
 
         wingifyTransportManager.error("VWO init failed for _vwo_meta key")
 
-        verify(mockTransport1).log(
+        verifyPlainFormattedLog(
+            mockTransport1,
             LogLevelEnum.ERROR,
             "Wingify init failed for _vwo_meta key"
+        )
+    }
+
+    @Test
+    fun `test log applies custom prefix in plain formatted message`() {
+        val loggerConfig = mutableMapOf<String, Any>(
+            "level" to "TRACE",
+            "prefix" to "MyCustomPrefix"
+        )
+        val mockServiceContainer = ServiceContainer(
+            settingsManager = null,
+            options = VWOInitOptions(),
+            settings = null,
+            loggerService = null
+        )
+        val logManager = LogManager(loggerConfig, mockServiceContainer)
+        val transportManager = LogTransportManager(loggerConfig, logManager)
+        transportManager.addTransport(mockTransport1)
+
+        transportManager.info("Settings fetched")
+
+        verifyPlainFormattedLog(
+            mockTransport1,
+            LogLevelEnum.INFO,
+            "Settings fetched",
+            prefix = "MyCustomPrefix"
         )
     }
 } 

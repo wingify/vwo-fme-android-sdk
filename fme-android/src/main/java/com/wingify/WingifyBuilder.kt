@@ -247,6 +247,7 @@ open class WingifyBuilder(private val options: WingifyInitOptions) {
                     "service" to "Logger"
                 )
             )
+            validateIntegrationCallbackConfig()
             this.serviceContainer = serviceContainer
         } catch (e: Exception) {
             val message =
@@ -257,6 +258,20 @@ open class WingifyBuilder(private val options: WingifyInitOptions) {
             System.err.println(message)
         }
         return this
+    }
+
+    /**
+     * Logs an error when [WingifyInitOptions.shouldTriggerIntegrationCallbackAlways] is enabled
+     * without an [WingifyInitOptions.integrations] callback — the flag has no effect otherwise.
+     */
+    private fun validateIntegrationCallbackConfig() {
+        if (options.shouldTriggerIntegrationCallbackAlways && options.integrations == null) {
+            loggerService?.log(
+                level = LogLevelEnum.ERROR,
+                key = "INTEGRATION_CALLBACK_MISSING",
+                map = null
+            )
+        }
     }
 
     /**

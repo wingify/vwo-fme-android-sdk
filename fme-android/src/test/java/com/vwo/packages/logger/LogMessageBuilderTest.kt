@@ -21,6 +21,7 @@ import com.vwo.interfaces.logger.LogTransport
 import com.vwo.packages.logger.enums.LogLevelEnum
 import com.wingify.packages.logger.AnsiColorEnum
 import com.wingify.packages.logger.LogMessageBuilder
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertThrows
 import org.junit.Before
 import org.junit.Test
@@ -157,5 +158,24 @@ class LogMessageBuilderTest {
         // Assert
         val expectedPrefix = "${AnsiColorEnum.BOLD}${AnsiColorEnum.GREEN}$customPrefix${AnsiColorEnum.RESET}"
         assert(result.contains(expectedPrefix))
+    }
+
+    @Test
+    fun `formatPlainMessage should omit timestamp and ANSI colors`() {
+        val builder = LogMessageBuilder(mapOf("prefix" to "MyCustomPrefix"), mockTransport)
+
+        val result = builder.formatPlainMessage(LogLevelEnum.INFO, "Settings fetched")
+
+        assertEquals("[INFO]: MyCustomPrefix Settings fetched", result)
+        assert(!result.contains(AnsiColorEnum.BOLD))
+    }
+
+    @Test
+    fun `formatPlainMessage should omit default prefix when not configured`() {
+        val builder = LogMessageBuilder(emptyMap(), mockTransport)
+
+        val result = builder.formatPlainMessage(LogLevelEnum.INFO, "Settings fetched")
+
+        assertEquals("[INFO]: Settings fetched", result)
     }
 }

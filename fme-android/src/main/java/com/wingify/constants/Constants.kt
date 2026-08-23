@@ -97,6 +97,14 @@ object Constants {
 
     const val KEY_DECISION_IS_USER_PART_OF_CAMPAIGN = "isUserPartOfCampaign"
 
+    /**
+     * Storage / decision-map keys for the user context variables persisted alongside a stored
+     * decision. Persisting these lets us detect when a subsequent call passes different values
+     * and re-sync storage to the latest context.
+     */
+    const val KEY_STORAGE_CUSTOM_VARIABLES = "customVariables"
+    const val KEY_STORAGE_VARIATION_TARGETING_VARIABLES = "variationTargetingVariables"
+
     object Holdouts {
 
         const val VARIATION_IS_PART_OF_HOLDOUT = 1

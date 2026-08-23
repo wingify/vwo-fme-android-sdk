@@ -50,6 +50,7 @@
   "ATTRIBUTES_MAP_ERROR": "Attributes map must contain atleast 1 key-value pair",
   "ATTRIBUTES_MAP_INVALID": "Attributes should be an object containing key-value pairs",
   "BATCHING_NOT_ENABLED": "Batching is not enabled. Pass batchEventData in the SDK configuration while invoking init API.",
+  "INTEGRATION_CALLBACK_MISSING": "shouldTriggerIntegrationCallbackAlways is enabled but integrations callback is not configured. Pass integrations in the SDK configuration while invoking init API.",
   "NETWORK_CALL_FAILED_AFTER_MAX_RETRIES": "Max retries reached. Request failed for {endPoint}, Error: {err}",
   "NETWORK_CALL_RETRY_ATTEMPT": "Request failed for {endPoint}, Error: {err}. Retrying in {delay} seconds, attempt {attempt} of {maxRetries}",
   "STORING_DATA_ERROR": "Key:{featureKey} is not valid. Not able to store data into storage",

@@ -45,6 +45,7 @@ import com.wingify.utils.DataTypeUtil.isString
 import com.wingify.utils.FunctionUtil.getFormattedErrorMessage
 import com.wingify.utils.EventsUtils
 import com.wingify.utils.GsonUtil
+import com.wingify.utils.InternalEventSamplingUtil
 import com.wingify.utils.SettingsUtil
 import com.wingify.utils.UserIdUtil
 import java.lang.reflect.Type
@@ -514,8 +515,19 @@ open class WingifyClient(
         }
     }
 
+    /**
+     * Sends SDK usage statistics (`vwo_sdkUsageStats`).
+     *
+     * Sends only when `usageStatsAccountId` is present in settings and the event
+     * passes the usage-stats check. When `alwaysApplySampling.client` is true,
+     * sampling uses `sampling.usage.client` (defaults to 1% when missing);
+     * otherwise the event is always sent.
+     */
     fun sendUsageStats(serviceContainer: ServiceContainer) {
         val usageStatsAccountId = processedSettings?.usageStatsAccountId ?: return
+        if (!InternalEventSamplingUtil.isUsageStatsEventQualified(processedSettings)) {
+            return
+        }
         EventsUtils().sendSDKUsageStatsEvent(usageStatsAccountId, serviceContainer)
     }
 

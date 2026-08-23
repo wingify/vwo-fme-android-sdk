@@ -15,6 +15,15 @@
  */
 package com.wingify.models
 
+import com.google.gson.JsonDeserializationContext
+import com.google.gson.JsonDeserializer
+import com.google.gson.JsonElement
+import com.google.gson.JsonNull
+import com.google.gson.JsonSerializationContext
+import com.google.gson.JsonSerializer
+import com.google.gson.annotations.JsonAdapter
+import java.lang.reflect.Type
+
 /**
  * Represents stored data for a VWO user.
  *
@@ -30,14 +39,81 @@ class Storage {
     var experimentId: Int? = null
     var experimentKey: String? = null
     var experimentVariationId: Int? = null
+
+    var customVariables: Map<String, Any>? = null
+    var variationTargetingVariables: Map<String, Any>? = null
+
+    @JsonAdapter(JsonArrayWrapper.Adapter::class)
     var holdoutIds: JsonArrayWrapper? = null
+
+    @JsonAdapter(JsonArrayWrapper.Adapter::class)
     var notInHoldoutIds: JsonArrayWrapper? = null
 
-    // ---
-    // MAJOR WORKAROUND because Gson and Jackson is being used simultaneously,
-    // other solutions requires some refactoring and might cause side effects in existing behavior
+    /**
+     * Holds a list of integer IDs that MobileDefaultStorage persists as a raw JSON array
+     * (e.g. `[1,2]`), while older / intermediate forms may use `{"values":[1,2]}`.
+     */
     class JsonArrayWrapper {
         var values: List<Int>? = null
+
+        class Adapter : JsonDeserializer<JsonArrayWrapper>, JsonSerializer<JsonArrayWrapper> {
+            override fun deserialize(
+                json: JsonElement?,
+                typeOfT: Type?,
+                context: JsonDeserializationContext?,
+            ): JsonArrayWrapper {
+                val wrapper = JsonArrayWrapper()
+                if (json == null || json.isJsonNull) {
+                    return wrapper
+                }
+                wrapper.values = when {
+                    json.isJsonArray -> json.asJsonArray.mapNotNull { element ->
+                        when {
+                            element.isJsonNull -> null
+                            element.isJsonPrimitive -> element.asInt
+                            else -> null
+                        }
+                    }
+                    json.isJsonObject -> {
+                        // Prefer {"values":[...]} (legacy wrapper). Also accept
+                        // {"myArrayList":[...]} which Gson emitted historically when
+                        // org.json.JSONArray leaked into the serialization map.
+                        val obj = json.asJsonObject
+                        val valuesElement = when {
+                            obj.has("values") -> obj.get("values")
+                            obj.has("myArrayList") -> obj.get("myArrayList")
+                            else -> null
+                        }
+                        if (valuesElement == null || valuesElement.isJsonNull) {
+                            null
+                        } else if (valuesElement.isJsonArray) {
+                            valuesElement.asJsonArray.mapNotNull { element ->
+                                when {
+                                    element.isJsonNull -> null
+                                    element.isJsonPrimitive -> element.asInt
+                                    else -> null
+                                }
+                            }
+                        } else {
+                            null
+                        }
+                    }
+                    else -> null
+                }
+                return wrapper
+            }
+
+            override fun serialize(
+                src: JsonArrayWrapper?,
+                typeOfSrc: Type?,
+                context: JsonSerializationContext?,
+            ): JsonElement {
+                if (src == null) return JsonNull.INSTANCE
+                // Persist as a raw array to match MobileDefaultStorage write format.
+                return context?.serialize(src.values ?: emptyList<Int>())
+                    ?: JsonNull.INSTANCE
+            }
+        }
     }
 
     var decisionExpiryTime: Long? = null

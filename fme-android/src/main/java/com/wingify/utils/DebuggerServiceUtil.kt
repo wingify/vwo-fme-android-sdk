@@ -18,6 +18,7 @@ package com.wingify.utils
 
 import com.wingify.ServiceContainer
 import com.wingify.enums.EventEnum
+import com.wingify.models.ErrorLogSamplingKeys
 
 /**
  * Utility functions for handling debugger service operations including
@@ -55,14 +56,28 @@ fun extractDecisionKeys(decisionObj: Map<String, Any> = emptyMap()): Map<String,
 }
 
 /**
- * Sends a debug event to VWO.
- * @param eventProps The properties for the event.
+ * Sends a `vwo_sdkDebug` event to the server.
+ *
+ * For debug events whose `msg_t` is in [ErrorLogSamplingKeys.sampled], the event is only
+ * subject to sampling when `alwaysApplySampling.client` is true (`sampling.debug.client` from
+ * DaCDN settings). When that flag is false or missing, sampled keys are always sent.
+ * Keys not listed in [ErrorLogSamplingKeys.sampled] are sent without sampling.
+ *
+ * @param eventProps The properties for the debug event (must include `msg_t` for error keys).
+ * @param serviceContainer ServiceContainer for account-specific settings and context.
  */
 fun sendDebugEventToVWO(
     eventProps: Map<String, Any> = emptyMap(),
     serviceContainer: ServiceContainer
 ) {
     try {
+        val errorKey = eventProps["msg_t"] as? String
+        if (ErrorLogSamplingKeys.isSampled(errorKey)) {
+            if (!InternalEventSamplingUtil.isSampledDebugEventQualified(serviceContainer.getSettings())) {
+                return
+            }
+        }
+
         // create query parameters
         val properties = NetworkUtil.Companion.getEventsBaseProperties(
             EventEnum.VWO_DEBUGGER_EVENT.value,

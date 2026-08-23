@@ -46,8 +46,11 @@ import com.wingify.utils.FunctionUtil.getSpecificRulesBasedOnType
 import com.wingify.utils.ImpressionUtil
 import com.wingify.utils.UserTrackingUsageUtil
 import com.wingify.utils.RuleEvaluationUtil
+import com.wingify.utils.UUIDUtils
 import com.wingify.utils.extractDecisionKeys
 import com.wingify.utils.sendDebugEventToVWO
+import com.wingify.utils.toMap
+import org.json.JSONObject
 
 object GetFlagAPI {
 
@@ -79,6 +82,11 @@ object GetFlagAPI {
 
         val passedRulesInformation: MutableMap<String, Any> = HashMap()
         val evaluatedFeatureMap: MutableMap<String, Any> = HashMap()
+
+        // True when the effective decision is served entirely from local storage (rollout-only path).
+        // In that case the hook should only fire if shouldTriggerIntegrationCallbackAlways is set,
+        // mirroring the behaviour of the stored-experiment and stored-holdout early-exit paths.
+        var isDecisionFromStorage = false
 
         // get feature object from feature key
         val feature: Feature? = getFeatureFromKey(settings, featureKey)
@@ -244,6 +252,25 @@ object GetFlagAPI {
 
                 getFlag.setIsEnabled(false)
                 getFlag.setVariables(emptyList())
+
+                if (serviceContainer.getInitOptions().shouldTriggerIntegrationCallbackAlways) {
+                    decision["isPartOfHoldout"] = true
+                    decision["holdoutIDs"] = localHidAlsoValidOnServerForThisFeature
+                    ensureDecisionDefaults(decision, context, settings)
+
+                    hookManager.set(decision)
+                    hookManager.execute(hookManager.get())
+                }
+
+                // Decision served from storage — sync persisted context vars with the latest
+                // values from `context` if they have diverged. No-op when they match.
+                syncContextVarsToStorageIfDiverged(
+                    context = context,
+                    storedDataMap = storedDataMap,
+                    feature = feature,
+                    storageService = storageService
+                )
+
                 return returnWithUserTrackingGate(holdoutImpressions.hasValidData())
             } else {
 
@@ -299,6 +326,35 @@ object GetFlagAPI {
                         getFlag.setIsEnabled(true)
                         decision[Constants.KEY_DECISION_IS_USER_PART_OF_CAMPAIGN] = true
                         getFlag.setVariables(variation.variables)
+
+                        if (serviceContainer.getInitOptions().shouldTriggerIntegrationCallbackAlways) {
+                            storedData.rolloutId?.let { decision["rolloutId"] = it }
+                            storedData.rolloutKey?.let { decision["rolloutKey"] = it }
+                            storedData.rolloutVariationId?.let {
+                                decision["rolloutVariationId"] = it
+                            }
+                            storedData.experimentId?.let { decision["experimentId"] = it }
+                            storedData.experimentKey?.let {
+                                decision[Constants.KEY_EXPERIMENT_KEY] = it
+                            }
+                            storedData.experimentVariationId?.let {
+                                decision["experimentVariationId"] = it
+                            }
+                            ensureDecisionDefaults(decision, context, settings)
+
+                            hookManager.set(decision)
+                            hookManager.execute(hookManager.get())
+                        }
+
+                        // Decision served from storage — sync persisted context vars with the
+                        // latest values from `context` if they have diverged. No-op when they match.
+                        syncContextVarsToStorageIfDiverged(
+                            context = context,
+                            storedDataMap = storedDataMap,
+                            feature = feature,
+                            storageService = storageService
+                        )
+
                         return returnWithUserTrackingGate(impressionPayload.hasValidData())
                     }
                 }
@@ -347,6 +403,7 @@ object GetFlagAPI {
                     decision[Constants.KEY_DECISION_IS_USER_PART_OF_CAMPAIGN] = true
                     getFlag.setVariables(variation.variables)
                     shouldCheckForExperimentsRules = true
+                    isDecisionFromStorage = true
                     val featureInfo = mutableMapOf<String, Any>()
                     storedData.rolloutId?.let { featureInfo["rolloutId"] = it }
                     storedData.rolloutKey?.let { featureInfo["rolloutKey"] = it }
@@ -376,6 +433,14 @@ object GetFlagAPI {
                 serviceContainer = serviceContainer
             )
             getFlag.setIsEnabled(false)
+
+            if (serviceContainer.getInitOptions().shouldTriggerIntegrationCallbackAlways) {
+                ensureDecisionDefaults(decision, context, settings)
+
+                hookManager.set(decision)
+                hookManager.execute(hookManager.get())
+            }
+
             return returnWithUserTrackingGate(false)
         }
 
@@ -437,6 +502,10 @@ object GetFlagAPI {
                 val holdoutStorageMap = mutableMapOf<String, Any>()
                 feature.key?.let { holdoutStorageMap["featureKey"] = it }
                 context.id?.let { holdoutStorageMap[Constants.USER_ID] = it }
+                holdoutStorageMap[Constants.KEY_STORAGE_CUSTOM_VARIABLES] =
+                    context.customVariables
+                holdoutStorageMap[Constants.KEY_STORAGE_VARIATION_TARGETING_VARIABLES] =
+                    context.variationTargetingVariables
 
                 val holdoutGroupSet = holdoutGroup.toSet()
                 holdoutStorageMap[Constants.Holdouts.KEY_STORAGE_HOLDOUT_IDS] =
@@ -470,9 +539,7 @@ object GetFlagAPI {
                 )
 
                 decision["isEnabled"] = false
-
-                hookManager.set(decision)
-                hookManager.execute(hookManager.get())
+                decision["isPartOfHoldout"] = true
 
                 ImpressionUtil.createAndSendImpressionForVariationShown(
                     settings = settings,
@@ -480,6 +547,10 @@ object GetFlagAPI {
                     context = context,
                     serviceContainer = serviceContainer
                 )
+
+                ensureDecisionDefaults(decision, context, settings)
+                hookManager.set(decision)
+                hookManager.execute(hookManager.get())
 
                 return returnWithUserTrackingGate(impressionPayload.hasValidData())
             } else {
@@ -540,6 +611,7 @@ object GetFlagAPI {
                     )
                 if (variation != null) {
                     getFlag.setIsEnabled(true)
+                    decision[Constants.KEY_DECISION_IS_USER_PART_OF_CAMPAIGN] = true
                     getFlag.setVariables(variation.variables)
                     shouldCheckForExperimentsRules = true
                     updateIntegrationsDecisionObject(
@@ -548,7 +620,8 @@ object GetFlagAPI {
 
                     impressionPayload.add(
                         campaignId = (passedRolloutCampaign.id ?: 0),
-                        variationId = (variation.id ?: 0)
+                        variationId = (variation.id ?: 0),
+                        featureId = feature?.id ?: Constants.IMPRESSION_NO_FEATURE_ID
                     )
                 }
             }
@@ -624,8 +697,13 @@ object GetFlagAPI {
                         campaign, variation, passedRulesInformation, decision
                     )
                     impressionPayload.add(
-                        campaignId = (campaign.id ?: 0), variationId = (variation.id ?: 0)
+                        campaignId = (campaign.id ?: 0),
+                        variationId = (variation.id ?: 0),
+                        featureId = feature?.id ?: Constants.IMPRESSION_NO_FEATURE_ID
                     )
+                    // A fresh experiment assignment was made on top of the stored rollout,
+                    // so this is a new decision — the hook must fire unconditionally.
+                    isDecisionFromStorage = false
                 }
             }
         }
@@ -638,6 +716,11 @@ object GetFlagAPI {
         val holdoutGroupSet = holdoutGroup.toSet()
         if (getFlag.isEnabled()) {
             storageMap["context"] = context
+            // Persist current user-context variables alongside the decision so the next
+            // call can detect drift and re-sync storage if the caller passes new values.
+            storageMap[Constants.KEY_STORAGE_CUSTOM_VARIABLES] = context.customVariables
+            storageMap[Constants.KEY_STORAGE_VARIATION_TARGETING_VARIABLES] =
+                context.variationTargetingVariables
             storageMap.putAll(passedRulesInformation)
 
             val cachedDecisionExpiryTime =
@@ -692,9 +775,23 @@ object GetFlagAPI {
 
         }
 
-        // Execute the integrations
-        hookManager.set(decision)
-        hookManager.execute(hookManager.get())
+        // Execute the integrations.
+        // - Fresh decision (first launch, re-evaluation): always fire.
+        // - Stored-rollout-only decision (subsequent launches): only fire when
+        //   shouldTriggerIntegrationCallbackAlways is true, matching the behaviour of
+        //   the stored-experiment and stored-holdout early-exit paths.
+        if (!isDecisionFromStorage) {
+            ensureDecisionDefaults(decision, context, settings)
+            hookManager.set(decision)
+            hookManager.execute(hookManager.get())
+        } else if (serviceContainer.getInitOptions().shouldTriggerIntegrationCallbackAlways) {
+            storedData?.rolloutId?.let { decision["rolloutId"] = it }
+            storedData?.rolloutKey?.let { decision["rolloutKey"] = it }
+            storedData?.rolloutVariationId?.let { decision["rolloutVariationId"] = it }
+            ensureDecisionDefaults(decision, context, settings)
+            hookManager.set(decision)
+            hookManager.execute(hookManager.get())
+        }
 
         // send debug event, if debugger is enabled
         if (feature.isDebuggerEnabled) {
@@ -723,7 +820,9 @@ object GetFlagAPI {
             )
             feature.impactCampaign.campaignId?.let {
                 impressionPayload.add(
-                    campaignId = it, variationId = (if (getFlag.isEnabled()) 2 else 1)
+                    campaignId = it,
+                    variationId = (if (getFlag.isEnabled()) 2 else 1),
+                    featureId = feature?.id ?: Constants.IMPRESSION_NO_FEATURE_ID
                 )
             }
         }
@@ -805,6 +904,159 @@ object GetFlagAPI {
             passedRulesInformation["experimentVariationId"] = variation.id ?: 0
         }
         decision.putAll(passedRulesInformation)
+    }
+
+    /**
+     * Backfills the decision map with default values for keys that are normally populated during
+     * a full evaluation (rollout/experiment rule processing + pre-segmentation) but may be absent
+     * on early-exit code paths (stored holdout, stored variation, feature not found, live holdout).
+     *
+     * Also injects `_vwoUserId` into `customVariables` and (for AB/experiment) into
+     * `variationTargetingVariables`, matching [DecisionUtil] so storage-hit integration callbacks
+     * have the same shape as fresh evaluations.
+     *
+     * This keeps the integration hook payload shape consistent regardless of which code path
+     * produced the decision, so callback consumers can rely on a fixed set of keys.
+     */
+    private fun ensureDecisionDefaults(
+        decision: MutableMap<String, Any>,
+        context: WingifyUserContext,
+        settings: Settings
+    ) {
+        val (campaign, vwoUserId) = resolveCampaignAndVwoUserId(decision, context, settings)
+        enrichDecisionContextVariables(decision, context, campaign, vwoUserId)
+
+        decision.getOrPut("rolloutId") { "" }
+        decision.getOrPut("rolloutKey") { "" }
+        decision.getOrPut("rolloutVariationId") { "" }
+        decision.getOrPut("experimentId") { "" }
+        decision.getOrPut(Constants.KEY_EXPERIMENT_KEY) { "" }
+        decision.getOrPut("experimentVariationId") { "" }
+    }
+
+    /**
+     * Injects `_vwoUserId` into `customVariables` (always) and into
+     * `variationTargetingVariables` for AB/experiment decisions, matching [DecisionUtil].
+     */
+    private fun enrichDecisionContextVariables(
+        decision: MutableMap<String, Any>,
+        context: WingifyUserContext,
+        campaign: Campaign?,
+        vwoUserId: String?
+    ) {
+        @Suppress("UNCHECKED_CAST")
+        val existingCustom =
+            decision[Constants.KEY_STORAGE_CUSTOM_VARIABLES] as? Map<String, Any>
+        val customVars = HashMap(existingCustom ?: context.customVariables)
+        vwoUserId?.let { customVars["_vwoUserId"] = it }
+        decision[Constants.KEY_STORAGE_CUSTOM_VARIABLES] = customVars
+
+        @Suppress("UNCHECKED_CAST")
+        val existingVtv =
+            decision[Constants.KEY_STORAGE_VARIATION_TARGETING_VARIABLES] as? Map<String, Any>
+        val targetingVars = HashMap(existingVtv ?: context.variationTargetingVariables)
+        val isAbCampaign = campaign?.type == CampaignTypeEnum.AB.value
+                || (decision["experimentId"] != null && decision["experimentId"] != "")
+                || (decision[Constants.KEY_EXPERIMENT_KEY] as? String)?.isNotEmpty() == true
+        if (isAbCampaign) {
+            vwoUserId?.let { targetingVars["_vwoUserId"] = it }
+        }
+        decision[Constants.KEY_STORAGE_VARIATION_TARGETING_VARIABLES] = targetingVars
+    }
+
+    /**
+     * Resolves the campaign referenced by [decision] (experiment key preferred, else rollout key)
+     * and the `_vwoUserId` value to inject into integration payload maps — matching
+     * [DecisionUtil] (`UUID` when [Campaign.isUserListEnabled], otherwise [WingifyUserContext.id]).
+     */
+    private fun resolveCampaignAndVwoUserId(
+        decision: Map<String, Any>,
+        context: WingifyUserContext,
+        settings: Settings
+    ): Pair<Campaign?, String?> {
+        val campaignKey =
+            (decision[Constants.KEY_EXPERIMENT_KEY] as? String)?.takeIf { it.isNotEmpty() }
+                ?: (decision["rolloutKey"] as? String)?.takeIf { it.isNotEmpty() }
+        val campaign = settings.campaigns?.firstOrNull { it.key == campaignKey }
+
+        val vwoUserId = if (campaign?.isUserListEnabled == true) {
+            UUIDUtils.getUUID(context.id, settings.accountId.toString())
+        } else {
+            context.id
+        }
+        return campaign to vwoUserId
+    }
+
+    /**
+     * Sync the persisted `customVariables` / `variationTargetingVariables` with the values on
+     * the currently-passed [context], writing only when storage has diverged. Decision-side
+     * usage of these values is the responsibility of the caller (the integration hook payload
+     * is backfilled from `context` via [ensureDecisionDefaults]).
+     *
+     * Storage is the snapshot, [context] is the source of truth — call this *after* the decision
+     * has been served so the next read sees the latest caller-supplied context.
+     *
+     * No-op when the keys were never persisted (legacy storage before these keys on first storage)
+     * or when stored and current values match.
+     */
+    private fun syncContextVarsToStorageIfDiverged(
+        context: WingifyUserContext,
+        storedDataMap: Map<String, Any>?,
+        feature: Feature?,
+        storageService: StorageService
+    ) {
+        val storedCustomVariables =
+            readContextMapFromStorage(storedDataMap, Constants.KEY_STORAGE_CUSTOM_VARIABLES)
+        val storedVariationTargetingVariables = readContextMapFromStorage(
+            storedDataMap,
+            Constants.KEY_STORAGE_VARIATION_TARGETING_VARIABLES
+        )
+
+        // Treat absent stored values as "nothing to sync" — the canonical decision write
+        // populates them on first storage. Only an existing stored value that *diverges* from
+        // the currently-passed one triggers an update.
+        val customVariablesDiverged = storedCustomVariables != null &&
+                storedCustomVariables != context.customVariables
+        val variationTargetingVariablesDiverged = storedVariationTargetingVariables != null &&
+                storedVariationTargetingVariables != context.variationTargetingVariables
+
+        if (!customVariablesDiverged && !variationTargetingVariablesDiverged) return
+
+        val updateData = mutableMapOf<String, Any>()
+        if (customVariablesDiverged) {
+            updateData[Constants.KEY_STORAGE_CUSTOM_VARIABLES] = context.customVariables
+        }
+        if (variationTargetingVariablesDiverged) {
+            updateData[Constants.KEY_STORAGE_VARIATION_TARGETING_VARIABLES] =
+                context.variationTargetingVariables
+        }
+        storageService.updateDataInStorage(
+            feature = feature,
+            context = context,
+            data = updateData
+        )
+    }
+
+    /**
+     * Reads a persisted context-vars map from [data], handling both the [JSONObject]
+     * representation (returned by [MobileDefaultStorage.get] before [toMap]) and a
+     * plain [Map] (in case a custom storage connector returns one directly).
+     *
+     * Returns `null` when the key is absent so callers can distinguish "never persisted" from
+     * "persisted as empty map".
+     */
+    private fun readContextMapFromStorage(
+        data: Map<String, Any>?,
+        key: String
+    ): Map<String, Any>? {
+        val raw = data?.get(key) ?: return null
+        return when (raw) {
+            is JSONObject -> raw.toMap()
+            is Map<*, *> -> raw.entries
+                .filter { it.key is String && it.value != null }
+                .associate { (it.key as String) to it.value!! }
+            else -> null
+        }
     }
 
     /**

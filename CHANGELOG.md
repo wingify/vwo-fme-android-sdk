@@ -5,12 +5,56 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [1.56.0] - 2026-07-13
+## [1.63.0] - 2026-08-24
 
 ### Added
 
 - Added support for sending initConfig to app dashboard via the init event.
 
+## [1.62.0] - 2026-08-14
+
+### Added
+
+- The SDK now sends sampled internal usage and debug events to VWO servers to reduce unnecessary network traffic.
+
+## [1.57.0] - 2026-08-07
+
+### Added
+
+- Added `shouldTriggerIntegrationCallbackAlways` option to `WingifyInitOptions` / `VWOInitOptions`. When set to `true`, the integration callback is triggered on **every** `getFlag()` call — including early-exit paths such as holdout groups, stored decisions, and feature-not-found cases — rather than only during a full live evaluation.
+
+  The integration hook payload is now guaranteed to have a consistent shape regardless of which code path produced the decision. Missing keys (e.g. `rolloutId`, `experimentKey`, `customVariables`) are back-filled with sensible defaults so callback consumers can rely on a fixed set of fields.
+
+  ```kotlin
+  // Kotlin — Wingify (recommended)
+  val initOptions = WingifyInitOptions()
+  initOptions.sdkKey = SDK_KEY
+  initOptions.accountId = ACCOUNT_ID
+  initOptions.shouldTriggerIntegrationCallbackAlways = true
+
+  // Kotlin — VWO (legacy)
+  val vwoInitOptions = VWOInitOptions()
+  vwoInitOptions.sdkKey = SDK_KEY
+  vwoInitOptions.accountId = ACCOUNT_ID
+  vwoInitOptions.shouldTriggerIntegrationCallbackAlways = true
+  ```
+
+  ```java
+  // Java — Wingify (recommended)
+  WingifyInitOptions initOptions = new WingifyInitOptions();
+  initOptions.setSdkKey(SDK_KEY);
+  initOptions.setAccountId(ACCOUNT_ID);
+  initOptions.setShouldTriggerIntegrationCallbackAlways(true);
+
+  // Java — VWO (legacy)
+  VWOInitOptions vwoInitOptions = new VWOInitOptions();
+  vwoInitOptions.setSdkKey(SDK_KEY);
+  vwoInitOptions.setAccountId(ACCOUNT_ID);
+  vwoInitOptions.setShouldTriggerIntegrationCallbackAlways(true);
+  ```
+### Fixed
+
+- Restored logger `prefix` support on Android. The `prefix` init option is now applied to log messages.
 
 ## [1.55.0] - 2026-06-09
 

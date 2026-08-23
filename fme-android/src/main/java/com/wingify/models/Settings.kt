@@ -67,4 +67,21 @@ class Settings {
 
     @SerializedName("isMAU")
     var isUsageTracked: Boolean? = null
+
+    /**
+     * Internal event sampling configuration from DaCDN settings.
+     *
+     * Contains per-platform sampling rates for usage stats and debug events.
+     * Example: `{ usage: { client: 20 }, debug: { client: 20 } }`
+     */
+    @SerializedName("sampling")
+    var sampling: EventCategorySamplingRates? = null
+
+    /**
+     * Flags indicating whether sampling should always be applied per platform.
+     *
+     * Example: `{ server: false, client: false, serverless: false }`
+     */
+    @SerializedName("alwaysApplySampling")
+    var alwaysApplySampling: AlwaysApplySampling? = null
 }
