@@ -506,12 +506,12 @@ open class WingifyClient(
         }
     }
 
-    fun sendSdkInitEvent(sdkInitTime: Long, serviceContainer: ServiceContainer? = null) {
+    fun sendSdkInitEvent(serviceContainer: ServiceContainer? = null) {
         val container = serviceContainer ?: createServiceContainer()
         val wasInitializedEarlier = processedSettings?.sdkMetaInfo?.wasInitializedEarlier
 
         if (isSettingsValid && wasInitializedEarlier != true) {
-            EventsUtils().sendSdkInitEvent(settingsFetchTime, sdkInitTime, container)
+            EventsUtils().sendSdkInitEvent(container)
         }
     }
 
@@ -523,12 +523,17 @@ open class WingifyClient(
      * sampling uses `sampling.usage.client` (defaults to 1% when missing);
      * otherwise the event is always sent.
      */
-    fun sendUsageStats(serviceContainer: ServiceContainer) {
+    fun sendUsageStats(sdkInitTime: Long, serviceContainer: ServiceContainer) {
         val usageStatsAccountId = processedSettings?.usageStatsAccountId ?: return
         if (!InternalEventSamplingUtil.isUsageStatsEventQualified(processedSettings)) {
             return
         }
-        EventsUtils().sendSDKUsageStatsEvent(usageStatsAccountId, serviceContainer)
+        EventsUtils().sendSDKUsageStatsEvent(
+            usageStatsAccountId,
+            serviceContainer,
+            settingsFetchTime,
+            sdkInitTime,
+        )
     }
 
     companion object {

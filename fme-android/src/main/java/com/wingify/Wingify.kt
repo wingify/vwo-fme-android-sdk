@@ -186,9 +186,9 @@ open class Wingify protected constructor(
 
                     val serviceContainer = client.createServiceContainer()
                     if (options.sdkName == SDK_NAME) {
-                        client.sendSdkInitEvent(sdkInitTime, serviceContainer)
+                        client.sendSdkInitEvent(serviceContainer)
                     }
-                    client.sendUsageStats(serviceContainer)
+                    client.sendUsageStats(sdkInitTime, serviceContainer)
 
                     cacheInstance(accountKey, client)
                     setAccountState(accountKey, SDKState.INITIALIZED)

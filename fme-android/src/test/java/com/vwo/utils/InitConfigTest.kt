@@ -104,7 +104,7 @@ class InitConfigTest {
     }
 
     @Test
-    fun `sdk init payload nests initConfig under event data`() {
+    fun `sdk init payload includes only isSDKInitialized in event data`() {
         val options = WingifyInitOptions().apply {
             accountId = 99
             sdkKey = "payload-key"
@@ -119,22 +119,14 @@ class InitConfigTest {
 
         val payload = NetworkUtil.getSDKInitEventPayload(
             EventEnum.VWO_INIT_CALLED.value,
-            10L,
-            20L,
             container,
         )
 
         val data = payload.eventData()
         assertEquals(true, data["isSDKInitialized"])
-        assertEquals(10L, (data["settingsFetchTime"] as Number).toLong())
-        assertEquals(20L, (data["sdkInitTime"] as Number).toLong())
-
-        @Suppress("UNCHECKED_CAST")
-        val initConfig = data["initConfig"] as Map<String, Any>
-        assertEquals(99, (initConfig["accountId"] as Number).toInt())
-        assertEquals("payload-key", initConfig["sdkKey"])
-        assertFalse(initConfig.containsKey("retryConfig"))
-        assertEquals(mapOf("level" to "INFO"), initConfig["logger"])
+        assertFalse(data.containsKey("settingsFetchTime"))
+        assertFalse(data.containsKey("sdkInitTime"))
+        assertFalse(data.containsKey("initConfig"))
     }
 
     @Test
@@ -156,10 +148,14 @@ class InitConfigTest {
             EventEnum.VWO_USAGE_STATS,
             1,
             container,
+            settingsFetchTime = 10L,
+            sdkInitTime = 20L,
         )
 
         @Suppress("UNCHECKED_CAST")
         val data = payload.eventProps()["data"] as Map<String, Any>
+        assertEquals(10L, (data["settingsFetchTime"] as Number).toLong())
+        assertEquals(20L, (data["sdkInitTime"] as Number).toLong())
         @Suppress("UNCHECKED_CAST")
         val initConfig = data["initConfig"] as Map<String, Any>
         assertEquals(99, (initConfig["accountId"] as Number).toInt())

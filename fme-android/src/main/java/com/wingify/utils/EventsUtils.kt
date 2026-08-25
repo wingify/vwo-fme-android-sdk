@@ -37,14 +37,8 @@ class EventsUtils {
     /**
      * Sends an init event to VWO.
      * This event is triggered when the init function is called.
-     * @param settingsFetchTime Time taken to fetch settings in milliseconds.
-     * @param sdkInitTime Time taken to initialize the SDK in milliseconds.
      */
-    fun sendSdkInitEvent(
-        settingsFetchTime: Long? = null,
-        sdkInitTime: Long? = null,
-        serviceContainer: ServiceContainer
-    ) {
+    fun sendSdkInitEvent(serviceContainer: ServiceContainer) {
         // Create the query parameters
         val queryParams = NetworkUtil.getEventsBaseProperties(
             EventEnum.VWO_INIT_CALLED.value,
@@ -56,8 +50,6 @@ class EventsUtils {
         // Create the payload with required fields
         val payload = NetworkUtil.getSDKInitEventPayload(
             EventEnum.VWO_INIT_CALLED.value,
-            settingsFetchTime,
-            sdkInitTime,
             serviceContainer
         )
 
@@ -76,8 +68,15 @@ class EventsUtils {
      *
      * @param usageStatsAccountId The account ID specifically designated for tracking usage statistics.
      *                            This might be different from the main VWO account ID.
+     * @param settingsFetchTime Time taken to fetch settings in milliseconds.
+     * @param sdkInitTime Time taken to initialize the SDK in milliseconds.
      */
-    fun sendSDKUsageStatsEvent(usageStatsAccountId: Int, serviceContainer: ServiceContainer) {
+    fun sendSDKUsageStatsEvent(
+        usageStatsAccountId: Int,
+        serviceContainer: ServiceContainer,
+        settingsFetchTime: Long? = null,
+        sdkInitTime: Long? = null,
+    ) {
         // create the query parameters
         val queryParams = NetworkUtil.getEventsBaseProperties(
             eventName = EventEnum.VWO_USAGE_STATS.value,
@@ -92,7 +91,9 @@ class EventsUtils {
         val payload = NetworkUtil.getSDKUsageStatsEventPayload(
             EventEnum.VWO_USAGE_STATS,
             usageStatsAccountId,
-            serviceContainer
+            serviceContainer,
+            settingsFetchTime,
+            sdkInitTime,
         )
 
         // Send the payload as a POST request

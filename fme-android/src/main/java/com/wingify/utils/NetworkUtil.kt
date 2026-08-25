@@ -520,14 +520,10 @@ class NetworkUtil {
         /**
          * Returns the payload data for the SDK init event.
          * @param eventName The name of the event.
-         * @param settingsFetchTime Time taken to fetch settings in milliseconds.
-         * @param sdkInitTime Time taken to initialize the SDK in milliseconds.
          * @return Map containing the payload data.
          */
         fun getSDKInitEventPayload(
             eventName: String,
-            settingsFetchTime: Long? = null,
-            sdkInitTime: Long? = null,
             serviceContainer: ServiceContainer
         ): Map<String, Any> {
             val settingsManager = serviceContainer.getSettingsManager()
@@ -547,14 +543,7 @@ class NetworkUtil {
                 props.setAdditionalProperties(map)
                 props.setProduct(PRODUCT_NAME)
 
-                val data = mutableMapOf<String, Any>(
-                    "isSDKInitialized" to true
-                )
-                settingsFetchTime?.let { data["settingsFetchTime"] = it }
-                sdkInitTime?.let { data["sdkInitTime"] = it }
-                buildInitConfig(serviceContainer)?.let { data["initConfig"] = it }
-
-                props.setData(data)
+                props.setData(mapOf("isSDKInitialized" to true))
             }
 
             val payload: Map<*, *> = WingifyClient.objectMapper.convertValue(
@@ -688,6 +677,8 @@ class NetworkUtil {
          *              This is an enum value from `EventEnum`.
          * @param usageStatsAccountId The account ID specifically designated for tracking usage statistics.
          *                            This might be different from the main VWO account ID.
+         * @param settingsFetchTime Time taken to fetch settings in milliseconds.
+         * @param sdkInitTime Time taken to initialize the SDK in milliseconds.
          * @return A map containing the non-null key-value pairs representing the payload
          *         for the SDK usage statistics event. This map is ready to be serialized
          *         (e.g., to JSON) and sent to the server.
@@ -695,7 +686,9 @@ class NetworkUtil {
         fun getSDKUsageStatsEventPayload(
             event: EventEnum,
             usageStatsAccountId: Int,
-            serviceContainer: ServiceContainer
+            serviceContainer: ServiceContainer,
+            settingsFetchTime: Long? = null,
+            sdkInitTime: Long? = null,
         ): Map<String, Any> {
             val settingsManager = serviceContainer.getSettingsManager()
             val accountId = settingsManager?.accountId
@@ -722,8 +715,12 @@ class NetworkUtil {
                 if (usageStats.isNotEmpty()) {
                     props.setVwoMeta(usageStats)
                 }
-                buildInitConfig(serviceContainer)?.let { initConfig ->
-                    props.setData(mapOf("initConfig" to initConfig))
+                val data = mutableMapOf<String, Any>()
+                settingsFetchTime?.let { data["settingsFetchTime"] = it }
+                sdkInitTime?.let { data["sdkInitTime"] = it }
+                buildInitConfig(serviceContainer)?.let { data["initConfig"] = it }
+                if (data.isNotEmpty()) {
+                    props.setData(data)
                 }
             }
             val payload: Map<*, *> = WingifyClient.objectMapper.convertValue(
