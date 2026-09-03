@@ -582,9 +582,30 @@ object GetFlagAPI {
                     decision,
                     serviceContainer
                 )
-                val preSegmentationResult = evaluateRuleResult["preSegmentationResult"] as Boolean
-                // If pre-segmentation passes, add the rule to the list of rules to evaluate
-                if (preSegmentationResult) {
+                val isForceUserApplicable = evaluateRuleResult[Constants.KEY_FORCED_USER_CHECK] as Boolean
+                // Combined eligibility from force lists, MEG, and targeting segments.
+                // Force On/Off take precedence: Off fails this check and skips the rule;
+                // On (whitelistedObject) applies the variation and skips traffic.
+                // Flow is as per PRD
+                if (isForceUserApplicable) {
+                    val whitelistedObject: Variation? =
+                        evaluateRuleResult["whitelistedObject"] as? Variation
+                    if (whitelistedObject != null) {
+                        // Force On: apply rollout experience and skip traffic
+                        getFlag.setIsEnabled(true)
+                        getFlag.setVariables(whitelistedObject.variables)
+                        shouldCheckForExperimentsRules = true
+                        val featureMap: MutableMap<String, Any> = HashMap()
+                        rule.id?.let { featureMap["rolloutId"] = it }
+                        rule.key?.let { featureMap["rolloutKey"] = it }
+                        whitelistedObject.id?.let { featureMap["rolloutVariationId"] = it }
+                        evaluatedFeatureMap[featureKey] = featureMap
+                        updateIntegrationsDecisionObject(
+                            rule, whitelistedObject, passedRulesInformation, decision
+                        )
+                        break
+                    }
+
                     rolloutRulesToEvaluate.add(rule)
                     val featureMap: MutableMap<String, Any> = HashMap()
 
@@ -1055,6 +1076,7 @@ object GetFlagAPI {
             is Map<*, *> -> raw.entries
                 .filter { it.key is String && it.value != null }
                 .associate { (it.key as String) to it.value!! }
+
             else -> null
         }
     }

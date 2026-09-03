@@ -65,13 +65,15 @@ class DecisionUtil {
         val vwoUserId = UUIDUtils.getUUID(context.id, settings.accountId.toString())
         val campaignId = campaign.id!!
 
-        // If the campaign is of type AB, set the _vwoUserId for variation targeting variables
-        if (campaign.type == CampaignTypeEnum.AB.value) {
+        // Force/whitelist for Testing (AB), Rollout, and Personalize when enabled
+        if (isForceWhitelistingEligible(campaign)) {
             // set _vwoUserId for variation targeting variables
+            // Rollout / Personalize force lists store UUIDUtils.getUUID hashes;
+            // Testing (AB) keeps plain ids unless isUserListEnabled.
             context.variationTargetingVariables = object : HashMap<String, Any>() {
                 init {
                     putAll(context.variationTargetingVariables)
-                    val id = if (campaign.isUserListEnabled == true) vwoUserId else context.id
+                    val id = forceMatchUserId(campaign, context.id, vwoUserId)
                     id?.let { put("_vwoUserId", it) }
                 }
             }
@@ -81,6 +83,19 @@ class DecisionUtil {
 
             // check if the campaign satisfies the whitelisting
             if (campaign.isForcedVariationEnabled == true) {
+                if (isRolloutForceOff(campaign, context, serviceContainer)) {
+                    logWhitelistingStatus(
+                        campaign,
+                        context,
+                        serviceContainer,
+                        StatusEnum.PASSED,
+                        messageKey = "WHITELISTING_FORCED_OFF"
+                    )
+                    return mutableMapOf(
+                        "preSegmentationResult" to false,
+                        "whitelistedObject" to null,
+                    )
+                }
                 val whitelistedVariation =
                     checkCampaignWhitelisting(campaign, context, serviceContainer)
                 if (whitelistedVariation != null) {
@@ -98,7 +113,9 @@ class DecisionUtil {
                     object : HashMap<String?, String?>() {
                         init {
                             put("userId", context.id)
-                            put("campaignKey", campaign.ruleKey)
+                            put("ruleType", forceRuleTypeLabel(campaign))
+                            put("campaignKey", forceCampaignKey(campaign))
+                            put("variation", "")
                         }
                     })
             }
@@ -433,24 +450,107 @@ class DecisionUtil {
     ): Map<String, Any?>? {
         val whitelistingResult = evaluateWhitelisting(campaign, context, serviceContainer)
         val status = if (whitelistingResult != null) StatusEnum.PASSED else StatusEnum.FAILED
+        val variationName =
+            if (whitelistingResult != null) whitelistingResult["variationName"] as String? else null
         val variationString =
-            if (whitelistingResult != null) whitelistingResult["variationName"] as String? else ""
+            if (!variationName.isNullOrEmpty()) "for variation: $variationName" else ""
+        logWhitelistingStatus(campaign, context, serviceContainer, status, variationString)
+        return whitelistingResult
+    }
+
+    private fun logWhitelistingStatus(
+        campaign: Campaign,
+        context: WingifyUserContext,
+        serviceContainer: ServiceContainer,
+        status: StatusEnum,
+        variationString: String = "",
+        messageKey: String = "WHITELISTING_STATUS"
+    ) {
         serviceContainer.getLoggerService()
-            ?.log(LogLevelEnum.INFO, "WHITELISTING_STATUS", object : HashMap<String?, String?>() {
+            ?.log(LogLevelEnum.INFO, messageKey, object : HashMap<String?, String?>() {
                 init {
                     put("userId", context.id)
-                    put(
-                        "campaignKey",
-                        if (campaign.type.equals(CampaignTypeEnum.AB.value))
-                            campaign.key
-                        else
-                            campaign.name + "_" + campaign.ruleKey
-                    )
+                    put("ruleType", forceRuleTypeLabel(campaign))
+                    put("campaignKey", forceCampaignKey(campaign))
                     put("status", status.status)
                     put("variationString", variationString)
                 }
             })
-        return whitelistingResult
+    }
+
+    /**
+     * Log label for force/whitelist messages (parity with Testing "experiment").
+     */
+    private fun forceRuleTypeLabel(campaign: Campaign): String {
+        return when (campaign.type) {
+            CampaignTypeEnum.ROLLOUT.value -> "rollout"
+            CampaignTypeEnum.PERSONALIZE.value -> "personalize"
+            else -> "experiment"
+        }
+    }
+
+    /**
+     * Identifier substituted into `{campaignKey}` on `WHITELISTING_SKIP`,
+     * `WHITELISTING_STATUS`, and `WHITELISTING_FORCED_OFF`.
+     *
+     * Testing (AB) uses [Campaign.key]. Rollout / Personalize use `{name}_{ruleKey}`
+     * when both are set (same shape as [com.wingify.services.CampaignDecisionService]
+     * segmentation logs); otherwise [Campaign.key], then [Campaign.ruleKey], then
+     * [Campaign.name].
+     *
+     * @param campaign Campaign being logged.
+     * @return Log identifier; may be null when Testing [Campaign.key] is unset.
+     */
+    private fun forceCampaignKey(campaign: Campaign): String? {
+        return if (campaign.type == CampaignTypeEnum.AB.value) {
+            campaign.key
+        } else {
+            val name = campaign.name ?: ""
+            val ruleKey = campaign.ruleKey ?: ""
+            if (name.isNotEmpty() && ruleKey.isNotEmpty()) {
+                name + "_" + ruleKey
+            } else {
+                campaign.key ?: ruleKey.ifEmpty { name }
+            }
+        }
+    }
+
+    /**
+     * Whether this campaign type supports force/whitelisting evaluation.
+     */
+    private fun isForceWhitelistingEligible(campaign: Campaign): Boolean {
+        val type = campaign.type
+        return type == CampaignTypeEnum.AB.value ||
+            type == CampaignTypeEnum.ROLLOUT.value ||
+            type == CampaignTypeEnum.PERSONALIZE.value
+    }
+
+    /**
+     * User id stored as `_vwoUserId` in [WingifyUserContext.variationTargetingVariables]
+     * so force-list `user` operands can match.
+     *
+     * Rollout / Personalize always use [vwoUserId] because
+     * [Variation.whitelistedSegments] stores [UUIDUtils.getUUID] hashes.
+     * Testing (AB) uses [vwoUserId] only when [Campaign.isUserListEnabled] is true;
+     * otherwise the raw [userId] in [Variation.segments].
+     *
+     * @param campaign Campaign whose type and [Campaign.isUserListEnabled] pick the id form.
+     * @param userId Raw [WingifyUserContext.id].
+     * @param vwoUserId [UUIDUtils.getUUID] of [userId] and the account id.
+     * @return Value for `_vwoUserId`, or null when [userId] is null on the Testing raw-id path.
+     */
+    private fun forceMatchUserId(
+        campaign: Campaign,
+        userId: String?,
+        vwoUserId: String
+    ): String? {
+        val type = campaign.type
+        if (type == CampaignTypeEnum.ROLLOUT.value ||
+            type == CampaignTypeEnum.PERSONALIZE.value
+        ) {
+            return vwoUserId
+        }
+        return if (campaign.isUserListEnabled == true) vwoUserId else userId
     }
 
     /**
@@ -464,6 +564,14 @@ class DecisionUtil {
         context: WingifyUserContext,
         serviceContainer: ServiceContainer
     ): Map<String, Any?>? {
+        // Rollout / Personalize: variations[0].whitelistedSegments → that variation
+        if (campaign.type == CampaignTypeEnum.ROLLOUT.value ||
+            campaign.type == CampaignTypeEnum.PERSONALIZE.value
+        ) {
+            return evaluateVariationWhitelistedSegments(campaign, context, serviceContainer)
+        }
+
+        // Testing (AB): variation-level segments (unchanged)
         val targetedVariations: MutableList<Variation> = ArrayList()
 
         for (variation in campaign.variations!!) {
@@ -474,13 +582,8 @@ class DecisionUtil {
                     object : HashMap<String?, String?>() {
                         init {
                             put("userId", context.id)
-                            put(
-                                "campaignKey",
-                                if (campaign.type.equals(CampaignTypeEnum.AB.value))
-                                    campaign.key
-                                else
-                                    campaign.name + "_" + campaign.ruleKey
-                            )
+                            put("ruleType", forceRuleTypeLabel(campaign))
+                            put("campaignKey", forceCampaignKey(campaign))
                             put(
                                 "variation",
                                 if (variation.name?.isNotEmpty() == true) "for variation: " + variation.name else ""
@@ -533,13 +636,105 @@ class DecisionUtil {
             whitelistedVariation = targetedVariations[0]
         }
 
-        if (whitelistedVariation != null) {
-            val map: MutableMap<String, Any?> = HashMap()
-            map["variation"] = whitelistedVariation
-            map["variationName"] = whitelistedVariation.name
-            map["variationId"] = whitelistedVariation.id
-            return map
+        return whitelistingResultMap(whitelistedVariation)
+    }
+
+    /**
+     * Force Off (`not` list) for Rollout only. Personalize has no Off list.
+     * Same [com.wingify.packages.segmentation_evaluator] path as Force On,
+     * on the inner operand of `not`.
+     */
+    private fun isRolloutForceOff(
+        campaign: Campaign,
+        context: WingifyUserContext,
+        serviceContainer: ServiceContainer
+    ): Boolean {
+        if (campaign.type != CampaignTypeEnum.ROLLOUT.value) {
+            return false
+        }
+        val operand = forceOffOperand(campaign.variations?.getOrNull(0)?.whitelistedSegments)
+            ?: return false
+        return serviceContainer.getSegmentationManager().validateSegmentation(
+            operand,
+            context.variationTargetingVariables
+        )
+    }
+
+    /**
+     * Unwraps the Force Off operand from [Variation.whitelistedSegments].
+     *
+     * Backend encodes Force Off as a `not` node. That node is either the root of
+     * [segments] (Off list only) or nested under `and` when Force On and Force Off
+     * are both present:
+     *
+     * - Off only: `{ "not": { "or": [{ "user": "..." }] } }`
+     * - On + Off: `{ "and": [ { "or": [...] }, { "not": { "or": [...] } } ] }`
+     *
+     * Returns the inner operand of `not` so [isRolloutForceOff] can run the same
+     * [com.wingify.packages.segmentation_evaluator] path as Force On. A match
+     * means the user is on the Off list.
+     *
+     * @param segments [Variation.whitelistedSegments], or null if unset.
+     * @return Inner map of the first `not` node, or null when there is no Off list.
+     */
+    @Suppress("UNCHECKED_CAST")
+    private fun forceOffOperand(segments: Map<String, Any>?): Map<String, Any>? {
+        if (segments == null) return null
+        (segments["not"] as? Map<String, Any>)?.let { return it }
+        val andList = segments["and"] as? List<*> ?: return null
+        for (item in andList) {
+            val map = item as? Map<*, *> ?: continue
+            (map["not"] as? Map<String, Any>)?.let { return it }
         }
         return null
+    }
+
+    /**
+     * Force On for Rollout / Personalize using [Variation.whitelistedSegments]
+     * and existing [com.wingify.packages.segmentation_evaluator] validation.
+     */
+    private fun evaluateVariationWhitelistedSegments(
+        campaign: Campaign,
+        context: WingifyUserContext,
+        serviceContainer: ServiceContainer
+    ): Map<String, Any?>? {
+        val variation = campaign.variations?.getOrNull(0) ?: return null
+        val whitelistSegments = variation.whitelistedSegments
+        if (whitelistSegments.isNullOrEmpty()) {
+            serviceContainer.getLoggerService()?.log(
+                LogLevelEnum.INFO,
+                "WHITELISTING_SKIP",
+                object : HashMap<String?, String?>() {
+                    init {
+                        put("userId", context.id)
+                        put("ruleType", forceRuleTypeLabel(campaign))
+                        put("campaignKey", forceCampaignKey(campaign))
+                        put("variation", "")
+                    }
+                })
+            return null
+        }
+
+        val segmentationResult =
+            serviceContainer.getSegmentationManager().validateSegmentation(
+                whitelistSegments,
+                context.variationTargetingVariables
+            )
+        if (!segmentationResult) {
+            return null
+        }
+
+        return whitelistingResultMap(FunctionUtil.cloneObject(variation) as Variation)
+    }
+
+    private fun whitelistingResultMap(whitelistedVariation: Variation?): Map<String, Any?>? {
+        if (whitelistedVariation == null) {
+            return null
+        }
+        val map: MutableMap<String, Any?> = HashMap()
+        map["variation"] = whitelistedVariation
+        map["variationName"] = whitelistedVariation.name
+        map["variationId"] = whitelistedVariation.id
+        return map
     }
 }

@@ -57,6 +57,14 @@ class Variation {
     @SerializedName("segments")
     var segments: Map<String, Any> = HashMap()
 
+    /**
+     * Force-list segment DSL for Rollout / Personalize
+     * (e.g. `{ "or": [{ "user": "<uuid1>,<uuid2>" }] }`).
+     * Audience targeting stays in [segments]. Testing force stays in [segments].
+     */
+    @SerializedName("whitelistedSegments")
+    var whitelistedSegments: Map<String, Any>? = null
+
     @SerializedName("salt")
     var salt: String? = null
 

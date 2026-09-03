@@ -17,8 +17,9 @@
 
   "USER_CAMPAIGN_BUCKET_INFO": "User ID:{userId} for experiment:{campaignKey} {status}",
 
-  "WHITELISTING_SKIP": "Whitelisting is not used for experiment:{campaignKey}, hence skipping evaluating whitelisting {variation} for User ID:{userId}",
-  "WHITELISTING_STATUS": "User ID:{userId} for experiment:{campaignKey} {status} whitelisting {variationString}",
+  "WHITELISTING_SKIP": "Whitelisting is not used for {ruleType}:{campaignKey}, hence skipping evaluating whitelisting {variation} for User ID:{userId}",
+  "WHITELISTING_STATUS": "User ID:{userId} for {ruleType}:{campaignKey} {status} whitelisting {variationString}",
+  "WHITELISTING_FORCED_OFF": "User ID:{userId} for {ruleType}:{campaignKey} is forced off and excluded from the rule",
 
   "VARIATION_RANGE_ALLOCATION": "Variation:{variationKey} of experiment:{campaignKey} having weight:{variationWeight} got bucketing range: ({startRange} - {endRange})",
 

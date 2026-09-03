@@ -105,6 +105,8 @@ object Constants {
     const val KEY_STORAGE_CUSTOM_VARIABLES = "customVariables"
     const val KEY_STORAGE_VARIATION_TARGETING_VARIABLES = "variationTargetingVariables"
 
+    const val KEY_FORCED_USER_CHECK = "preSegmentationResult"
+
     object Holdouts {
 
         const val VARIATION_IS_PART_OF_HOLDOUT = 1

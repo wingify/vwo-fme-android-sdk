@@ -52,6 +52,7 @@ class VariationTest {
         assertTrue(variation.variations.isEmpty()) // variations should be an empty list by default
         assertNotNull(variation.segments) // segments is initialized to HashMap()
         assertTrue(variation.segments.isEmpty()) // segments should be an empty map by default
+        assertNull(variation.whitelistedSegments)
         assertNull(variation.salt)
         assertNull(variation.segments_events)
     }
