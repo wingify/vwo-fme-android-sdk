@@ -1,0 +1,170 @@
+# workflow_dispatch from master → upload to Maven Central Portal
+# (USER_MANAGED: publish the draft at https://central.sonatype.com/publishing/deployments).
+#
+# GitHub secrets that MUST exist (exported as env on the Publish step):
+#   MAVEN_CENTRAL_USERNAME  — Central Portal username (local.properties: mavenCentralUsername)
+#   MAVEN_CENTRAL_PASSWORD  — Central Portal token     (local.properties: mavenCentralPassword)
+#   SIGNING_SECRET_KEY      — ASCII-armored GPG private key. CI has no secring.gpg, so Gradle
+#                             uses useInMemoryPgpKeys(); do not set signing.keyId / secretKeyRingFile.
+#   SIGNING_PASSWORD        — passphrase for that key  (local.properties: signing.password)
+#   SLACK_NOTIFICATIONS_BOT_TOKEN — Slack status ping (not used by Gradle)
+#
+# Not secrets / not exported:
+#   signing.keyId + signing.secretKeyRingFile — laptop-only; ignored when SIGNING_SECRET_KEY is set
+#   POM_DEVELOPER_* — local.properties only; CI POM falls back to gradle defaults
+#
+# Unit tests (testDebugUnitTest) always run first. Publish is skipped unless they pass.
+# Missing secrets fail the job. Slack notifies only when SLACK_NOTIFICATIONS_BOT_TOKEN is set.
+name: Maven Central Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      artifact:
+        description: 'Which SDK to publish'
+        type: choice
+        options:
+          - both
+          - vwo
+          - wingify
+        default: both
+      tag:
+        description: 'Existing tag to release (e.g. v1.70.0). Must already be on master.'
+        required: true
+        type: string
+
+concurrency:
+  group: maven-central-release
+  cancel-in-progress: false
+
+jobs:
+  release:
+    name: Publish ${{ github.event.inputs.artifact || 'both' }}
+    if: github.ref == 'refs/heads/master'
+    runs-on: ubuntu-latest
+    environment: release
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: ${{ github.event.inputs.tag || github.ref }}
+
+      - name: Resolve version
+        id: meta
+        run: |
+          set -euo pipefail
+          TAG="${{ github.event.inputs.tag }}"
+          if [ -z "$TAG" ]; then
+            TAG="${GITHUB_REF_NAME}"
+          fi
+          TAG="${TAG#refs/tags/}"
+          VERSION="${TAG#v}"
+          GRADLE_VERSION="$(grep -E '^VERSION_NAME=' gradle.properties | cut -d= -f2 | tr -d '[:space:]')"
+          ARTIFACT="${{ github.event.inputs.artifact || 'both' }}"
+
+          echo "ref=${GITHUB_REF} branch=${GITHUB_REF_NAME}"
+          echo "tag=${TAG}"
+          echo "gradle.properties VERSION_NAME=${GRADLE_VERSION}"
+          echo "artifact=${ARTIFACT}"
+
+          if ! [[ "$VERSION" =~ ^[0-9]+\.[0-9]+ ]]; then
+            echo "::error::Need a vX.Y.Z tag in the workflow_dispatch tag input."
+            exit 1
+          fi
+          if [ "$VERSION" != "$GRADLE_VERSION" ]; then
+            echo "::error::Tag version ${VERSION} does not match gradle.properties VERSION_NAME=${GRADLE_VERSION}"
+            exit 1
+          fi
+
+          git fetch origin master
+          if ! git merge-base --is-ancestor HEAD origin/master; then
+            echo "::error::HEAD is not on origin/master. Tag/commit must already be merged."
+            exit 1
+          fi
+
+          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
+          echo "artifact=${ARTIFACT}" >> "$GITHUB_OUTPUT"
+
+      - name: Check secrets
+        id: secrets
+        if: always()
+        env:
+          MAVEN_CENTRAL_USERNAME: ${{ secrets.MAVEN_CENTRAL_USERNAME }}
+          MAVEN_CENTRAL_PASSWORD: ${{ secrets.MAVEN_CENTRAL_PASSWORD }}
+          SIGNING_SECRET_KEY: ${{ secrets.SIGNING_SECRET_KEY }}
+          SIGNING_PASSWORD: ${{ secrets.SIGNING_PASSWORD }}
+          SLACK_NOTIFICATIONS_BOT_TOKEN: ${{ secrets.SLACK_NOTIFICATIONS_BOT_TOKEN }}
+        run: |
+          set -euo pipefail
+          if [ -n "${SLACK_NOTIFICATIONS_BOT_TOKEN}" ]; then
+            echo "slack_ok=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "slack_ok=false" >> "$GITHUB_OUTPUT"
+          fi
+          missing=""
+          for v in MAVEN_CENTRAL_USERNAME MAVEN_CENTRAL_PASSWORD SIGNING_SECRET_KEY SIGNING_PASSWORD SLACK_NOTIFICATIONS_BOT_TOKEN; do
+            if [ -z "${!v}" ]; then
+              missing="${missing:+$missing }$v"
+            fi
+          done
+          if [ -n "$missing" ]; then
+            echo "missing=$missing" >> "$GITHUB_OUTPUT"
+            echo "::error::Missing required secrets: $missing"
+            exit 1
+          fi
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: temurin
+          cache: gradle
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+        with:
+          # v3 still defaults to the removed `tools` package.
+          packages: platform-tools
+
+      - name: Point Gradle at the Android SDK
+        run: echo "sdk.dir=${ANDROID_HOME}" >> local.properties
+
+      - name: Grant execute permission for gradlew
+        run: chmod +x ./gradlew
+
+      - name: Unit tests
+        id: unit-tests
+        continue-on-error: false
+        run: ./gradlew :fme-android:testDebugUnitTest --no-daemon
+
+      - name: Publish
+        if: success() && steps.unit-tests.outcome == 'success' && steps.secrets.outcome == 'success'
+        env:
+          MAVEN_CENTRAL_USERNAME: ${{ secrets.MAVEN_CENTRAL_USERNAME }}
+          MAVEN_CENTRAL_PASSWORD: ${{ secrets.MAVEN_CENTRAL_PASSWORD }}
+          SIGNING_SECRET_KEY: ${{ secrets.SIGNING_SECRET_KEY }}
+          SIGNING_PASSWORD: ${{ secrets.SIGNING_PASSWORD }}
+        run: |
+          set -euo pipefail
+          ARTIFACT="${{ steps.meta.outputs.artifact }}"
+          echo "Uploading to Maven Central Portal (USER_MANAGED; publish at https://central.sonatype.com/publishing/deployments)"
+          VWO_TASK=:fme-android:publishReleasePublicationToCentralPortal
+          WINGIFY_TASK=:fme-android:publishWingifyReleasePublicationToCentralPortal
+          case "$ARTIFACT" in
+            vwo) ./gradlew "$VWO_TASK" --no-daemon ;;
+            wingify) ./gradlew "$WINGIFY_TASK" --no-daemon ;;
+            *) ./gradlew "$VWO_TASK" "$WINGIFY_TASK" --no-daemon ;;
+          esac
+
+      - name: Notification
+        if: always() && steps.secrets.outputs.slack_ok == 'true'
+        uses: wingify/slack-github-action@v1.15.1-wingify
+        with:
+          channel-id: 'vwo-fs-fme-sdk-job-status'
+          slack-message: "<!here> Android FME Maven release *${{ steps.meta.outputs.version || github.ref_name }}* (${{ steps.meta.outputs.artifact || github.event.inputs.artifact || 'both' }}) got *${{ job.status }}* ${{ job.status == 'success' && ':heavy_check_mark:' || ':x:' }}${{ steps.secrets.outputs.missing && format('\nMissing secrets: `{0}`', steps.secrets.outputs.missing) || '' }}\nhttps://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          color: "${{ job.status == 'success' && '#00FF00' || '#FF0000' }}"
+        env:
+          SLACK_BOT_TOKEN: ${{ secrets.SLACK_NOTIFICATIONS_BOT_TOKEN }}
