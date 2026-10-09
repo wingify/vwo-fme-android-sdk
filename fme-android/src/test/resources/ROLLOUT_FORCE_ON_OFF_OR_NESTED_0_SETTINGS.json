@@ -42,7 +42,7 @@
         {
           "id": 1,
           "name": "Rollout-rule-1",
-          "weight": 100,
+          "weight": 0,
           "segments": {},
           "variables": [
             {
@@ -59,14 +59,7 @@
             }
           ],
           "whitelistedSegments": {
-            "and": [
-              {
-                "or": [
-                  {
-                    "user": "2379B0C13B8F50D6ADCCD1CE321D4D67,301D9C959DBA5E099192FA96A6B8D7F1"
-                  }
-                ]
-              },
+            "or": [
               {
                 "not": {
                   "or": [
@@ -77,13 +70,11 @@
                 }
               },
               {
-                "not": {
-                  "or": [
-                    {
-                      "user": "F3526EDDEB7053A687873C032D0BCF1F"
-                    }
-                  ]
-                }
+                "or": [
+                  {
+                    "user": "2379B0C13B8F50D6ADCCD1CE321D4D67"
+                  }
+                ]
               }
             ]
           }

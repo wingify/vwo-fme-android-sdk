@@ -47,6 +47,9 @@ object Constants {
 
     const val RANDOM_ALGO: Int = 1
 
+    /** Max concurrent evaluation batches used by [com.wingify.api.GetFlagsAPI.getFlags]. */
+    const val MAX_CONCURRENT_FLAG_EVALUATIONS: Int = 5
+
     const val AUTH_TOKEN = ""
     const val RETRY_DELAY = 1000L
     const val MAX_RETRY_ATTEMPTS = 4

@@ -22,6 +22,7 @@ import com.wingify.interfaces.networking.HttpMethods
 import com.wingify.models.Settings
 import com.wingify.models.impression.ImpressionPayload
 import com.wingify.models.user.WingifyUserContext
+import com.wingify.packages.network_layer.manager.BatchManager
 import com.wingify.packages.network_layer.manager.NetworkManager
 import com.wingify.packages.network_layer.models.RequestModel
 import com.wingify.providers.StorageProvider.ipAddress
@@ -29,6 +30,9 @@ import com.wingify.providers.StorageProvider.userAgent
 import com.wingify.utils.CampaignUtil.getCampaignKeyFromCampaignId
 import com.wingify.utils.CampaignUtil.getCampaignTypeFromCampaignId
 import com.wingify.utils.CampaignUtil.getVariationNameFromCampaignIdAndVariationId
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 import java.io.UnsupportedEncodingException
 import java.net.URLEncoder
 
@@ -104,14 +108,10 @@ object ImpressionUtil {
                 serviceContainer.getSettingsManager()!!.port,
             )
 
-            val campaignKeyWithFeatureName =
-                getCampaignKeyFromCampaignId(settings, campaignId)
-            val variationName =
-                getVariationNameFromCampaignIdAndVariationId(
-                    settings,
-                    campaignId,
-                    variationId
-                )
+            val campaignKeyWithFeatureName = getCampaignKeyFromCampaignId(settings, campaignId)
+            val variationName = getVariationNameFromCampaignIdAndVariationId(
+                settings, campaignId, variationId
+            )
             val featureName = campaignKeyWithFeatureName?.split('_')?.getOrNull(0)
             val campaignKey = campaignKeyWithFeatureName?.split('_')?.getOrNull(1)
             val campaignType = getCampaignTypeFromCampaignId(settings, campaignId)
@@ -122,10 +122,14 @@ object ImpressionUtil {
                 "featureName" to (featureName ?: ""),
                 "campaignType" to (campaignType ?: "")
             )
-            // Use standard async path:
-            // - online batching enabled  -> store and flush by batch policy
-            // - online batching disabled -> send immediately, store only on failure
-            NetworkManager.postAsync(request, serviceContainer)
+            NetworkManager.addToBatch(request, serviceContainer)
+        }
+
+        if (serviceContainer.onlineBatchUploadManager.isBatchingDisabled() && !serviceContainer.deferImmediateBatchUpload) {
+            // if batching is disabled then send all data immediately
+            CoroutineScope(Dispatchers.IO).launch {
+                BatchManager.start("Send GetFlag Impression", serviceContainer)
+            }
         }
     }
 
