@@ -42,7 +42,7 @@
         {
           "id": 1,
           "name": "Rollout-rule-1",
-          "weight": 100,
+          "weight": 0,
           "segments": {},
           "variables": [
             {

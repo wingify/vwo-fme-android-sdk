@@ -66,5 +66,8 @@
 
   "INVALID_CREDENTIALS": "Invalid Account ID, SDK Key, or both provided during initialization.",
 
-  "HOLDOUT_FEATURE_ID_NULL": "While evaluating holdouts, featureId = null, only checking global holdouts."
+  "HOLDOUT_FEATURE_ID_NULL": "While evaluating holdouts, featureId = null, only checking global holdouts.",
+
+  "MEG_CAMPAIGN_CLONE_FAILED": "MEG: failed to clone campaign {campaignKey}. Error: {err}",
+  "MEG_CAMPAIGN_VARIATION_MAPPING_FAILED": "MEG: failed to convert campaign {campaignKey} to variation. Error: {err}"
 }

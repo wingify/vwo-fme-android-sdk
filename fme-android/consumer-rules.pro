@@ -14,6 +14,10 @@
 -keep class com.vwo.models.** { *; }
 -keep class com.vwo.packages.storage.Connector { *; }
 
+# Batch flag evaluation (getFlags) — result types for native and hybrid SDK consumers.
+-keep class com.vwo.models.user.FlagCollection { *; }
+-keep class com.vwo.models.user.GetFlag { *; }
+
 # --- Wingify public API (com.wingify) ---
 -keep class com.wingify.Wingify { *; }
 -keep class com.wingify.Wingify, com.wingify.Wingify$Companion { public protected *; }
@@ -26,5 +30,9 @@
 -keep class com.wingify.packages.logger.enums.LogLevelEnum { *; }
 -keep class com.wingify.packages.storage.Connector { *; }
 -keep class com.wingify.models.** { *; }
+
+# Batch flag evaluation (getFlags) — result types for native and hybrid SDK consumers.
+-keep class com.wingify.models.user.FlagCollection { *; }
+-keep class com.wingify.models.user.GetFlag { *; }
 
 # Wingify public types are standalone classes; conversion to com.vwo types is internal.

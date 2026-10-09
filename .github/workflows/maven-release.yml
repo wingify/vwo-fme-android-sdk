@@ -13,7 +13,7 @@
 #   signing.keyId + signing.secretKeyRingFile — laptop-only; ignored when SIGNING_SECRET_KEY is set
 #   POM_DEVELOPER_* — local.properties only; CI POM falls back to gradle defaults
 #
-# Unit tests (testDebugUnitTest) always run first. Publish is skipped unless they pass.
+# Unit tests run first unless skip_tests is checked. Publish waits for them when they run.
 # Missing secrets fail the job. Slack notifies only when SLACK_NOTIFICATIONS_BOT_TOKEN is set.
 name: Maven Central Release
 
@@ -32,6 +32,10 @@ on:
         description: 'Existing tag to release (e.g. v1.70.0). Must already be on master.'
         required: true
         type: string
+      skip_tests:
+        description: 'Skip unit tests'
+        type: boolean
+        default: false
 
 concurrency:
   group: maven-central-release
@@ -137,11 +141,11 @@ jobs:
 
       - name: Unit tests
         id: unit-tests
-        continue-on-error: false
+        if: github.event.inputs.skip_tests != 'true'
         run: ./gradlew :fme-android:testDebugUnitTest --no-daemon
 
       - name: Publish
-        if: success() && steps.unit-tests.outcome == 'success' && steps.secrets.outcome == 'success'
+        if: success() && steps.secrets.outcome == 'success' && (github.event.inputs.skip_tests == 'true' || steps.unit-tests.outcome == 'success')
         env:
           MAVEN_CENTRAL_USERNAME: ${{ secrets.MAVEN_CENTRAL_USERNAME }}
           MAVEN_CENTRAL_PASSWORD: ${{ secrets.MAVEN_CENTRAL_PASSWORD }}
@@ -164,7 +168,7 @@ jobs:
         uses: wingify/slack-github-action@v1.15.1-wingify
         with:
           channel-id: 'vwo-fs-fme-sdk-job-status'
-          slack-message: "<!here> Android FME Maven release *${{ steps.meta.outputs.version || github.ref_name }}* (${{ steps.meta.outputs.artifact || github.event.inputs.artifact || 'both' }}) got *${{ job.status }}* ${{ job.status == 'success' && ':heavy_check_mark:' || ':x:' }}${{ steps.secrets.outputs.missing && format('\nMissing secrets: `{0}`', steps.secrets.outputs.missing) || '' }}\nhttps://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          slack-message: "${{ job.status == 'success' && format('<!here> Android FME Maven release *{0}* ({1}) uploaded to the Maven Central Portal 🎉🎉\nPublish the draft: https://central.sonatype.com/publishing/deployments\nhttps://github.com/{2}/actions/runs/{3}', steps.meta.outputs.version || github.ref_name, steps.meta.outputs.artifact || github.event.inputs.artifact || 'both', github.repository, github.run_id) || format('<!here> Android FME Maven release *{0}* ({1}) failed :x:{2}\nhttps://github.com/{3}/actions/runs/{4}', steps.meta.outputs.version || github.ref_name, steps.meta.outputs.artifact || github.event.inputs.artifact || 'both', steps.secrets.outputs.missing && format('\nMissing secrets: `{0}`', steps.secrets.outputs.missing) || '', github.repository, github.run_id) }}"
           color: "${{ job.status == 'success' && '#00FF00' || '#FF0000' }}"
         env:
           SLACK_BOT_TOKEN: ${{ secrets.SLACK_NOTIFICATIONS_BOT_TOKEN }}

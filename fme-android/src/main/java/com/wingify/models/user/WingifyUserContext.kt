@@ -74,4 +74,26 @@ open class WingifyUserContext {
         if (id != null) return id
         return if (shouldUseDeviceIdAsUserId) DeviceIdUtil().getDeviceId() else id
     }
+
+    /**
+     * Creates an isolated copy for parallel flag evaluation.
+     * Each evaluation mutates context maps independently without affecting siblings.
+     */
+    internal fun clone(): WingifyUserContext {
+        val copy = WingifyUserContext()
+        copy.id = id
+        copy.customVariables = HashMap(customVariables)
+        copy.variationTargetingVariables = HashMap(variationTargetingVariables)
+        copy.postSegmentationVariables = postSegmentationVariables?.toList()
+        copy.sessionId = sessionId
+        copy.vwo = vwo?.let { gateway ->
+            GatewayService().apply {
+                location = gateway.location?.toMap()
+                userAgent = gateway.userAgent?.toMap()
+            }
+        }
+        copy.shouldUseDeviceIdAsUserId = shouldUseDeviceIdAsUserId
+        copy.bucketingSeed = bucketingSeed
+        return copy
+    }
 }

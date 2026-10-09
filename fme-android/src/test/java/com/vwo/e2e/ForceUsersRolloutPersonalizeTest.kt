@@ -47,7 +47,12 @@ import java.util.concurrent.TimeUnit
  *  D — Multi-rollout priority: force only on 2nd rollout
  *  E — Force disabled (`isForcedVariationEnabled=false`) ignores list
  *  F — Control / non-forced user unchanged
- *  G — Force Off (`not`) excludes the user even at 100% traffic
+ *  G — Force Off (`not`) excludes the user even at 100% traffic;
+ *      mixed On + multiple top-level `not` siblings; Force On at 0%
+ *  H — Off-only (`not` root): H1 inversion at 0%; H2 fail-gate at 100%
+ *  I — `and` with `not` first then On `or`; Off fail-gate at 100%,
+ *      Force On and inversion at 0%
+ *  J — `not` nested inside `or`; Off fail-gate at 100%, Force On and inversion at 0%
  */
 class ForceUsersRolloutPersonalizeTest {
 
@@ -59,6 +64,7 @@ class ForceUsersRolloutPersonalizeTest {
     private val forcedUser = "qa_forced"
     private val forcedUser2 = "qa_forced_2"
     private val forcedOffUser = "qa_forced_off"
+    private val forcedOffUser2 = "qa_forced_off_2"
     private val controlUser = "other_user"
 
     @Before
@@ -307,16 +313,19 @@ class ForceUsersRolloutPersonalizeTest {
     fun `G2 force on user still gets On when off list is present`() {
         logRun(
             "G2",
-            "Force On still applies when `and`/`not` Off list is present",
-            "ROLLOUT_FORCE_ON_OFF_SETTINGS",
+            "Force On at 0% uses On list only; traffic cannot enroll this user",
+            "ROLLOUT_FORCE_ON_OFF_0_SETTINGS",
             forcedUser,
             "feature1"
         )
-        initVWOWithSettings("ROLLOUT_FORCE_ON_OFF_SETTINGS")
+        initVWOWithSettings("ROLLOUT_FORCE_ON_OFF_0_SETTINGS")
         val flag = getFlag("feature1", user(forcedUser))
         logResult(flag)
         assertNotNull(flag)
-        assertTrue(flag!!.isEnabled())
+        assertTrue(
+            "On-list user must be Force On at 0% traffic; 100% would also enroll via traffic",
+            flag!!.isEnabled()
+        )
         assertEquals("forced_rollout", flag.getVariable("string", ""))
     }
 
@@ -335,6 +344,230 @@ class ForceUsersRolloutPersonalizeTest {
         assertNotNull(flag)
         assertTrue(
             "Neither-list user must still follow empty audience + 100% traffic",
+            flag!!.isEnabled()
+        )
+    }
+
+    @Test
+    fun `G4 second top-level not user is also excluded`() {
+        logRun(
+            "G4",
+            "Second top-level `not` sibling must Force Off, not only the first `not`",
+            "ROLLOUT_FORCE_ON_OFF_SETTINGS",
+            forcedOffUser2,
+            "feature1"
+        )
+        initVWOWithSettings("ROLLOUT_FORCE_ON_OFF_SETTINGS")
+        val flag = getFlag("feature1", user(forcedOffUser2))
+        logResult(flag)
+        assertNotNull(flag)
+        assertFalse(
+            "Second Off list user must be excluded; unwrapping must collect every top-level not",
+            flag!!.isEnabled()
+        )
+    }
+
+    @Test
+    fun `G5 second On user is still Force On beside two nots`() {
+        logRun(
+            "G5",
+            "Second On user at 0% is Force On beside two top-level `not`s; traffic cannot enroll",
+            "ROLLOUT_FORCE_ON_OFF_0_SETTINGS",
+            forcedUser2,
+            "feature1"
+        )
+        initVWOWithSettings("ROLLOUT_FORCE_ON_OFF_0_SETTINGS")
+        val flag = getFlag("feature1", user(forcedUser2))
+        logResult(flag)
+        assertNotNull(flag)
+        assertTrue(
+            "Second On-list user must be Force On at 0% traffic beside two nots",
+            flag!!.isEnabled()
+        )
+        assertEquals("forced_rollout", flag.getVariable("string", ""))
+    }
+
+    // -------------------------------------------------------------------------
+    // Run H — Off-only (`not` root): inversion at 0%, fail-gate at 100%
+    // -------------------------------------------------------------------------
+
+    @Test
+    fun `H1 off-only user not on list is not force-on at 0 percent`() {
+        logRun(
+            "H1",
+            "Off-only `not` at 0% unmatched audience must fall through, not Force On",
+            "ROLLOUT_FORCE_OFF_ONLY_SETTINGS",
+            controlUser,
+            "feature1"
+        )
+        initVWOWithSettings("ROLLOUT_FORCE_OFF_ONLY_SETTINGS")
+        val flag = getFlag("feature1", user(controlUser))
+        logResult(flag)
+        assertNotNull(flag)
+        assertFalse(
+            "User not on Off-only list must not be Force On; 0% + unmatched audience stays off",
+            flag!!.isEnabled()
+        )
+    }
+
+    @Test
+    fun `H2 off-only listed user is still excluded`() {
+        logRun(
+            "H2",
+            "Off-only listed user is Force Off at 100% empty audience, not traffic fall-through",
+            "ROLLOUT_FORCE_OFF_ONLY_100_SETTINGS",
+            forcedOffUser,
+            "feature1"
+        )
+        initVWOWithSettings("ROLLOUT_FORCE_OFF_ONLY_100_SETTINGS")
+        val flag = getFlag("feature1", user(forcedOffUser))
+        logResult(flag)
+        assertNotNull(flag)
+        assertFalse(
+            "User on Off-only list must stay excluded at 100% traffic",
+            flag!!.isEnabled()
+        )
+    }
+
+    // -------------------------------------------------------------------------
+    // Run I — not-first `and` + comma Off/On lists; Off at 100%, inversion at 0%
+    // -------------------------------------------------------------------------
+
+    @Test
+    fun `I1 first comma Off user is excluded when not is first in and`() {
+        logRun(
+            "I1",
+            "not-first and; first UUID in comma Off list is Force Off at 100% traffic",
+            "ROLLOUT_FORCE_ON_OFF_NOT_FIRST_SETTINGS",
+            forcedOffUser,
+            "feature1"
+        )
+        initVWOWithSettings("ROLLOUT_FORCE_ON_OFF_NOT_FIRST_SETTINGS")
+        val flag = getFlag("feature1", user(forcedOffUser))
+        logResult(flag)
+        assertNotNull(flag)
+        assertFalse(
+            "First comma Off user must be excluded at 100% traffic; not-first and must still unwrap Off",
+            flag!!.isEnabled()
+        )
+    }
+
+    @Test
+    fun `I2 second comma Off user is excluded when not is first in and`() {
+        logRun(
+            "I2",
+            "not-first and; second UUID in comma Off list is Force Off at 100% traffic",
+            "ROLLOUT_FORCE_ON_OFF_NOT_FIRST_SETTINGS",
+            forcedOffUser2,
+            "feature1"
+        )
+        initVWOWithSettings("ROLLOUT_FORCE_ON_OFF_NOT_FIRST_SETTINGS")
+        val flag = getFlag("feature1", user(forcedOffUser2))
+        logResult(flag)
+        assertNotNull(flag)
+        assertFalse(
+            "Second comma Off user must be excluded at 100% traffic; evaluateUserDSL splits the Off string",
+            flag!!.isEnabled()
+        )
+    }
+
+    @Test
+    fun `I3 On user is Force On when not is first in and`() {
+        logRun(
+            "I3",
+            "not-first and; On comma list is Force On at 0% after dropping not",
+            "ROLLOUT_FORCE_ON_OFF_NOT_FIRST_0_SETTINGS",
+            forcedUser,
+            "feature1"
+        )
+        initVWOWithSettings("ROLLOUT_FORCE_ON_OFF_NOT_FIRST_0_SETTINGS")
+        val flag = getFlag("feature1", user(forcedUser))
+        logResult(flag)
+        assertNotNull(flag)
+        assertTrue(
+            "On-list user must be Force On at 0% when not is first in and",
+            flag!!.isEnabled()
+        )
+        assertEquals("forced_rollout", flag.getVariable("string", ""))
+    }
+
+    @Test
+    fun `I4 neither-list user is not force-on when not is first in and`() {
+        logRun(
+            "I4",
+            "not-first and; user on neither list at 0% must not get inverted not as Force On",
+            "ROLLOUT_FORCE_ON_OFF_NOT_FIRST_0_SETTINGS",
+            controlUser,
+            "feature1"
+        )
+        initVWOWithSettings("ROLLOUT_FORCE_ON_OFF_NOT_FIRST_0_SETTINGS")
+        val flag = getFlag("feature1", user(controlUser))
+        logResult(flag)
+        assertNotNull(flag)
+        assertFalse(
+            "Neither-list user must not be Force On; inverted not would enable them at 0% traffic",
+            flag!!.isEnabled()
+        )
+    }
+
+    // -------------------------------------------------------------------------
+    // Run J — `not` nested inside `or`; Off at 100%, inversion at 0%
+    // -------------------------------------------------------------------------
+
+    @Test
+    fun `J1 nested or not excludes Off user`() {
+        logRun(
+            "J1",
+            "or[ not(Off), or(On) ]; Off user is Force Off at 100% traffic",
+            "ROLLOUT_FORCE_ON_OFF_OR_NESTED_SETTINGS",
+            forcedOffUser,
+            "feature1"
+        )
+        initVWOWithSettings("ROLLOUT_FORCE_ON_OFF_OR_NESTED_SETTINGS")
+        val flag = getFlag("feature1", user(forcedOffUser))
+        logResult(flag)
+        assertNotNull(flag)
+        assertFalse(
+            "Off user nested under or must be excluded at 100% traffic",
+            flag!!.isEnabled()
+        )
+    }
+
+    @Test
+    fun `J2 nested or not still Force On for On user`() {
+        logRun(
+            "J2",
+            "or[ not(Off), or(On) ]; On user is Force On at 0% traffic",
+            "ROLLOUT_FORCE_ON_OFF_OR_NESTED_0_SETTINGS",
+            forcedUser,
+            "feature1"
+        )
+        initVWOWithSettings("ROLLOUT_FORCE_ON_OFF_OR_NESTED_0_SETTINGS")
+        val flag = getFlag("feature1", user(forcedUser))
+        logResult(flag)
+        assertNotNull(flag)
+        assertTrue(
+            "On user nested under or must be Force On at 0% traffic",
+            flag!!.isEnabled()
+        )
+        assertEquals("forced_rollout", flag.getVariable("string", ""))
+    }
+
+    @Test
+    fun `J3 nested or not does not Force On neither-list user`() {
+        logRun(
+            "J3",
+            "or[ not(Off), or(On) ]; inverted not must not Force On Charlie at 0%",
+            "ROLLOUT_FORCE_ON_OFF_OR_NESTED_0_SETTINGS",
+            controlUser,
+            "feature1"
+        )
+        initVWOWithSettings("ROLLOUT_FORCE_ON_OFF_OR_NESTED_0_SETTINGS")
+        val flag = getFlag("feature1", user(controlUser))
+        logResult(flag)
+        assertNotNull(flag)
+        assertFalse(
+            "Neither-list user must not be Force On from nested not inside or",
             flag!!.isEnabled()
         )
     }

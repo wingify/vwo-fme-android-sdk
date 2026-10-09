@@ -24,7 +24,7 @@ import com.wingify.interfaces.integration.IntegrationCallback
  * methods to allow external systems to integrate with the application's functionality.
  */
 class HooksManager(private val callback: IntegrationCallback?) {
-    private var decision: Map<String, Any>? = null
+    private val decisionHolder = ThreadLocal<Map<String, Any>?>()
 
     /**
      * Executes the callback
@@ -32,9 +32,11 @@ class HooksManager(private val callback: IntegrationCallback?) {
      * @param properties Properties from the callback
      */
     fun execute(properties: Map<String, Any>?) {
-        if (this.callback != null && properties!=null) {
-            callback.execute(properties)
+        val payload = properties ?: decisionHolder.get()
+        if (this.callback != null && payload != null) {
+            callback.execute(payload)
         }
+        decisionHolder.remove()
     }
 
     /**
@@ -44,7 +46,7 @@ class HooksManager(private val callback: IntegrationCallback?) {
      */
     fun set(properties: Map<String, Any>?) {
         if (this.callback != null) {
-            this.decision = properties
+            decisionHolder.set(properties)
         }
     }
 
@@ -54,6 +56,6 @@ class HooksManager(private val callback: IntegrationCallback?) {
      * @return The decision object
      */
     fun get(): Map<String, Any>? {
-        return this.decision
+        return decisionHolder.get()
     }
 }

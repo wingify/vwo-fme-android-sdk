@@ -25,6 +25,7 @@ enum class ApiEnum(val value: String) {
     INIT("init"),
     ON_INIT("onInit"),
     GET_FLAG("getFlag"),
+    GET_FLAGS("getFlags"),
     TRACK_EVENT("trackEvent"),
     SET_ATTRIBUTE("setAttribute"),
     UPDATE_SETTINGS("updateSettings"),

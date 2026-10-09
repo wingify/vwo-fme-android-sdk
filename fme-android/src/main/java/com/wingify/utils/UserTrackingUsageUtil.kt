@@ -154,7 +154,9 @@ object UserTrackingUsageUtil {
             ),
         )
 
-        if (serviceContainer.onlineBatchUploadManager.isBatchingDisabled()) {
+        if (serviceContainer.onlineBatchUploadManager.isBatchingDisabled()
+            && !serviceContainer.deferImmediateBatchUpload
+        ) {
             CoroutineScope(Dispatchers.IO).launch {
                 BatchManager.start("User Tracking Util", serviceContainer)
             }
