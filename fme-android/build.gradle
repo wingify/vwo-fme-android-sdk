@@ -91,9 +91,9 @@ afterEvaluate {
         // Configure Maven Central Portal Publishing (NMCP) immediately after applying plugin
         nmcp {
             centralPortal {
-                // Get credentials from local.properties
-                username = localProperties.getProperty('mavenCentralUsername')
-                password = localProperties.getProperty('mavenCentralPassword')
+                // CI exports MAVEN_CENTRAL_*; laptops use local.properties.
+                username = System.getenv('MAVEN_CENTRAL_USERNAME') ?: localProperties.getProperty('mavenCentralUsername')
+                password = System.getenv('MAVEN_CENTRAL_PASSWORD') ?: localProperties.getProperty('mavenCentralPassword')
 
                 // USER_MANAGED means upload to staging without auto-release
                 // You control when to publish manually from the portal
@@ -180,19 +180,20 @@ afterEvaluate {
         }
     }
 
-    // Configure signing after publishing is set up
+    // Configure signing after publishing is set up.
+    // CI has no secring: SIGNING_SECRET_KEY is the armored key, SIGNING_PASSWORD its passphrase.
     signing {
-        // Only sign if required properties are available in local.properties
-        required {
-            localProperties.getProperty('signing.keyId') != null
-        }
-
-        // Set signing properties from local.properties
-        if (localProperties.getProperty('signing.keyId')) {
+        def signingKey = System.getenv('SIGNING_SECRET_KEY')
+        def signingPassword = System.getenv('SIGNING_PASSWORD') ?: localProperties.getProperty('signing.password')
+        if (signingKey) {
+            useInMemoryPgpKeys(signingKey, signingPassword)
+        } else if (localProperties.getProperty('signing.keyId')) {
             project.ext.'signing.keyId' = localProperties.getProperty('signing.keyId')
-            project.ext.'signing.password' = localProperties.getProperty('signing.password')
+            project.ext.'signing.password' = signingPassword
             project.ext.'signing.secretKeyRingFile' = localProperties.getProperty('signing.secretKeyRingFile')
         }
+
+        required { signingKey || localProperties.getProperty('signing.keyId') }
 
         sign publishing.publications.release
         sign publishing.publications.wingifyRelease

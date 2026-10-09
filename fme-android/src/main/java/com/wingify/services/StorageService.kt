@@ -21,6 +21,7 @@ import com.wingify.enums.ApiEnum
 import com.wingify.models.Feature
 import com.wingify.models.user.WingifyUserContext
 import com.wingify.packages.storage.Connector
+import com.wingify.utils.KeyedLockUtil
 
 /**
  * Provides data storage and retrieval services.
@@ -61,12 +62,16 @@ class StorageService(private val serviceContainer: ServiceContainer? = null) {
      * @return true if data is successfully stored, otherwise false.
      */
     fun setDataInStorage(data: Map<String, Any>): Boolean {
-        val storageInstance = serviceContainer?.storage?.getConnector() ?: return false
-        try {
-            (storageInstance as Connector).set(data)
-            return true
-        } catch (e: Exception) {
-            return false
+        val featureKey = data["featureKey"]?.toString() ?: return false
+        return KeyedLockUtil.withLock(featureKey) {
+            val storageInstance =
+                serviceContainer?.storage?.getConnector() ?: return@withLock false
+            try {
+                (storageInstance as Connector).set(data)
+                true
+            } catch (e: Exception) {
+                false
+            }
         }
     }
 
@@ -76,23 +81,29 @@ class StorageService(private val serviceContainer: ServiceContainer? = null) {
         data: Map<String, Any>
     ): Boolean {
         if (feature == null) return false
+        val featureKey = feature.key ?: return false
 
-        // get and map existing data
-        val existingData =
-            getDataInStorage(featureKey = feature.key, context = context)?.toMutableMap()
-                ?: return false
+        return KeyedLockUtil.withLock(featureKey) {
+            val existingData =
+                getDataInStorage(featureKey = featureKey, context = context)?.toMutableMap()
+                    ?: return@withLock false
 
-        // required keys
-        existingData["featureKey"] = "${feature.key}"
-        existingData["userId"] = "${context.id}"
+            existingData["featureKey"] = featureKey
+            existingData["userId"] = "${context.id}"
 
-        data.keys.forEach { key ->
-            val value = data[key]
-            if (value != null) existingData[key] = value
+            data.keys.forEach { key ->
+                val value = data[key]
+                if (value != null) existingData[key] = value
+            }
+
+            val storageInstance =
+                serviceContainer?.storage?.getConnector() ?: return@withLock false
+            try {
+                (storageInstance as Connector).set(existingData)
+                true
+            } catch (e: Exception) {
+                false
+            }
         }
-
-        setDataInStorage(existingData)
-
-        return true
     }
 }

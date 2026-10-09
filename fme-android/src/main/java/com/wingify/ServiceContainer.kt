@@ -27,6 +27,7 @@ import com.wingify.packages.network_layer.manager.OnlineBatchUploadManager
 import com.wingify.packages.segmentation_evaluator.core.SegmentationManager
 import com.wingify.packages.storage.Storage
 import com.wingify.utils.UsageStats
+import java.util.concurrent.atomic.AtomicInteger
 
 /**
  * ServiceContainer manages all services required for VWO SDK operations.
@@ -41,10 +42,44 @@ class ServiceContainer(
 ) {
     private val hooksManager: HooksManager = HooksManager(options.integrations)
     private val segmentationManager = SegmentationManager()
+    /**
+     * Per-thread segmentation manager used during parallel [com.wingify.api.GetFlagsAPI] evaluation.
+     * Falls back to [segmentationManager] when unset.
+     */
+    private val evalSegmentationManager = ThreadLocal<SegmentationManager?>()
     private val batchManager = BatchManager
     val onlineBatchUploadManager = OnlineBatchUploadManager()
+    /**
+     * Nested defer count for immediate batch uploads.
+     * Concurrent [com.wingify.api.GetFlagsAPI.getFlags] calls share this container;
+     * a boolean would race and clear deferral while another evaluation is still running.
+     */
+    private val deferImmediateBatchUploadCount = AtomicInteger(0)
     lateinit var usageStats: UsageStats
     internal var storage: Storage? = null
+
+    /** True while at least one getFlags evaluation is deferring immediate uploads. */
+    val deferImmediateBatchUpload: Boolean
+        get() = deferImmediateBatchUploadCount.get() > 0
+
+    /** Begins a nested defer scope. Must be paired with [endDeferImmediateBatchUpload]. */
+    fun beginDeferImmediateBatchUpload() {
+        deferImmediateBatchUploadCount.incrementAndGet()
+    }
+
+    /**
+     * Ends a nested defer scope.
+     * @return true when this was the outermost scope (count reached zero).
+     */
+    fun endDeferImmediateBatchUpload(): Boolean {
+        while (true) {
+            val current = deferImmediateBatchUploadCount.get()
+            if (current <= 0) return false
+            if (deferImmediateBatchUploadCount.compareAndSet(current, current - 1)) {
+                return current == 1
+            }
+        }
+    }
 
     init {
         // Set the ServiceContainer reference in SettingsManager for logging
@@ -107,7 +142,23 @@ class ServiceContainer(
      * @return SegmentationManager instance
      */
     fun getSegmentationManager(): SegmentationManager {
-        return segmentationManager
+        return evalSegmentationManager.get() ?: segmentationManager
+    }
+
+    /**
+     * Binds a thread-local [SegmentationManager] for the current getFlags evaluation worker.
+     *
+     * @param manager Segmentation manager scoped to this evaluation thread.
+     */
+    internal fun setEvalSegmentationManager(manager: SegmentationManager) {
+        evalSegmentationManager.set(manager)
+    }
+
+    /**
+     * Clears the thread-local [SegmentationManager] after a getFlags evaluation worker finishes.
+     */
+    internal fun clearEvalSegmentationManager() {
+        evalSegmentationManager.remove()
     }
 
     /**

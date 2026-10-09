@@ -23,9 +23,32 @@ import com.vwo.models.user.VWOInitOptions
 import com.wingify.models.user.WingifyInitOptions
 import com.wingify.services.SettingsManager
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class ServiceContainerResolveHostTest {
+
+    @Test
+    fun `nested deferImmediateBatchUpload uses refcount`() {
+        val container = createContainer(newEndpoints = true)
+
+        assertFalse(container.deferImmediateBatchUpload)
+
+        container.beginDeferImmediateBatchUpload()
+        container.beginDeferImmediateBatchUpload()
+        assertTrue(container.deferImmediateBatchUpload)
+
+        assertFalse(container.endDeferImmediateBatchUpload())
+        assertTrue(container.deferImmediateBatchUpload)
+
+        assertTrue(container.endDeferImmediateBatchUpload())
+        assertFalse(container.deferImmediateBatchUpload)
+
+        // Extra end must not go negative or report a flush.
+        assertFalse(container.endDeferImmediateBatchUpload())
+        assertFalse(container.deferImmediateBatchUpload)
+    }
 
     @Test
     fun `resolveHost uses edge for GET when new endpoints enabled`() {

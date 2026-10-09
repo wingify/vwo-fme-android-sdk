@@ -17,6 +17,7 @@ package com.vwo
 
 import com.vwo.interfaces.IVwoInitCallback
 import com.vwo.interfaces.IVwoListener
+import com.vwo.models.user.FlagCollection
 import com.vwo.models.user.VWOInitOptions
 import com.vwo.models.user.VWOUserContext
 import com.wingify.Wingify
@@ -111,5 +112,16 @@ class VWO private constructor(
                 listener.onFailure(e.message ?: e.toString())
             }
         }
+    }
+
+    /**
+     * Evaluates multiple feature flags synchronously.
+     *
+     * @param flagNames Feature keys to evaluate, or null/empty to evaluate all flags from settings.
+     * @param context User context for evaluation.
+     * @return [FlagCollection] keyed by feature key.
+     */
+    fun getFlags(flagNames: Array<String>?, context: VWOUserContext): FlagCollection {
+        return FlagCollection.wrap(super.getFlags(flagNames, context))
     }
 }

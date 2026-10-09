@@ -28,6 +28,7 @@ import com.wingify.models.Variation
 import com.wingify.models.user.WingifyUserContext
 import com.wingify.packages.decision_maker.DecisionMaker
 import com.vwo.packages.logger.enums.LogLevelEnum
+import com.wingify.Wingify
 import com.wingify.services.CampaignDecisionService
 import com.wingify.services.HoldoutGroupService
 import com.wingify.services.StorageService
@@ -40,6 +41,9 @@ import kotlin.collections.iterator
  * This object provides helper methods for working with MEG.
  */
 class MegUtil {
+
+    private val mapper by lazy { WingifyClient.objectMapper }
+
     /**
      * Evaluates groups for a given feature and group ID.
      *
@@ -85,11 +89,11 @@ class MegUtil {
 
             val storedDataMap: Map<String, Any>? =
                 StorageDecorator().getFeatureFromStorage(featureKey, context, storageService)
-            val storageMapAsString: String = WingifyClient.objectMapper.writeValueAsString(
+            val storageMapAsString: String = mapper.writeValueAsString(
                 storedDataMap?.toMap() ?: emptyMap<String, Any>()
             )
             val storedData: Storage? =
-                WingifyClient.objectMapper.readValue(storageMapAsString, Storage::class.java)
+                mapper.readValue(storageMapAsString, Storage::class.java)
 
             val isInHoldout = (storedData?.holdoutIds != null)
                     && storedData.holdoutIds?.values.isNullOrEmpty().not()
@@ -327,11 +331,14 @@ class MegUtil {
                     StorageDecorator().getFeatureFromStorage(featureKey, context, storageService)
                 try {
 
-                    val storageMapAsString: String = WingifyClient.objectMapper.writeValueAsString(
+                    val storageMapAsString: String = mapper.writeValueAsString(
                         storedDataMap ?: emptyMap<String, Any>()
                     )
                     val storedData: Storage? =
-                        WingifyClient.objectMapper.readValue(storageMapAsString, Storage::class.java)
+                        mapper.readValue(
+                            storageMapAsString,
+                            Storage::class.java
+                        )
                     if (storedData != null && storedData.isDecisionExpired()) {
                         serviceContainer.getLoggerService()?.log(
                             level = LogLevelEnum.WARN,
@@ -434,11 +441,11 @@ class MegUtil {
             ) group.getEt()!! else Constants.RANDOM_ALGO
             if (eligibleCampaignsWithStorage!!.size == 1) {
                 try {
-                    val campaignModel: String = WingifyClient.objectMapper.writeValueAsString(
+                    val campaignModel: String = mapper.writeValueAsString(
                         eligibleCampaignsWithStorage[0]
                     )
                     winnerCampaign =
-                        WingifyClient.objectMapper.readValue(campaignModel, Variation::class.java)
+                        mapper.readValue(campaignModel, Variation::class.java)
                 } catch (e: JsonProcessingException) {
                     throw RuntimeException(e)
                 }
@@ -480,11 +487,13 @@ class MegUtil {
             if (eligibleCampaignsWithStorage.isEmpty()) {
                 if (eligibleCampaigns!!.size == 1) {
                     try {
-                        val campaignModel: String = WingifyClient.objectMapper.writeValueAsString(
+                        val campaignModel: String = mapper.writeValueAsString(
                             eligibleCampaigns[0]
                         )
-                        winnerCampaign =
-                            WingifyClient.objectMapper.readValue(campaignModel, Variation::class.java)
+                        winnerCampaign = mapper.readValue(
+                            campaignModel,
+                            Variation::class.java
+                        )
                     } catch (e: JsonProcessingException) {
                         throw RuntimeException(e)
                     }
@@ -554,18 +563,47 @@ class MegUtil {
         serviceContainer: ServiceContainer
     ): Variation? {
         try {
-            shortlistedCampaigns?.forEach { campaign: Campaign ->
-                campaign.weight = Math.round(100.0 / shortlistedCampaigns.size) * 10000 / 10000.0
-            }
-
-            val variations: List<Variation> = shortlistedCampaigns?.mapNotNull { campaign ->
+            // Clone so equal-weight assignment does not mutate shared Settings campaigns.
+            val campaignClonesForEqualWeighting = shortlistedCampaigns?.mapNotNull { campaign ->
                 try {
-                    val campaignModel = WingifyClient.objectMapper.writeValueAsString(campaign)
-                    WingifyClient.objectMapper.readValue(campaignModel, Variation::class.java)
+                    val campaignModel = mapper.writeValueAsString(campaign)
+                    mapper.readValue(campaignModel, Campaign::class.java)
                 } catch (e: JsonProcessingException) {
-                    null // Optionally log the error or handle it as needed
+                    serviceContainer.getLoggerService()?.log(
+                        level = LogLevelEnum.ERROR,
+                        key = "MEG_CAMPAIGN_CLONE_FAILED",
+                        map = mapOf(
+                            "campaignKey" to "${campaign.key}",
+                            "err" to "${e.message}"
+                        )
+                    )
+                    null
                 }
             } ?: emptyList()
+
+            campaignClonesForEqualWeighting.forEach { campaign ->
+                campaign.weight =
+                    Math.round(Constants.MAX_TRAFFIC_PERCENT.toDouble() / campaignClonesForEqualWeighting.size) *
+                        Constants.MAX_TRAFFIC_VALUE / Constants.MAX_TRAFFIC_VALUE.toDouble()
+            }
+
+            val variations: List<Variation> =
+                campaignClonesForEqualWeighting.mapNotNull { campaign ->
+                    try {
+                        val campaignModel = mapper.writeValueAsString(campaign)
+                        mapper.readValue(campaignModel, Variation::class.java)
+                    } catch (e: JsonProcessingException) {
+                        serviceContainer.getLoggerService()?.log(
+                            level = LogLevelEnum.ERROR,
+                            key = "MEG_CAMPAIGN_VARIATION_MAPPING_FAILED",
+                            map = mapOf(
+                                "campaignKey" to "${campaign.key}",
+                                "err" to "${e.message}"
+                            )
+                        )
+                        null
+                    }
+                }
 
 
             CampaignUtil.setCampaignAllocation(variations)
@@ -664,20 +702,20 @@ class MegUtil {
             for (integer in priorityOrder!!) {
                 for (shortlistedCampaign in shortlistedCampaigns) {
                     if (shortlistedCampaign.id.toString() == integer) {
-                        val campaignModel = WingifyClient.objectMapper.writeValueAsString(
+                        val campaignModel = mapper.writeValueAsString(
                             FunctionUtil.cloneObject(shortlistedCampaign)!!
                         )
-                        winnerCampaign = WingifyClient.objectMapper.readValue(
+                        winnerCampaign = mapper.readValue(
                             campaignModel,
                             Variation::class.java
                         )
                         found = true
                         break
                     } else if ((shortlistedCampaign.id.toString() + "_" + shortlistedCampaign.variations!![0].id) == integer) {
-                        val campaignModel = WingifyClient.objectMapper.writeValueAsString(
+                        val campaignModel = mapper.writeValueAsString(
                             FunctionUtil.cloneObject(shortlistedCampaign)
                         )
-                        winnerCampaign = WingifyClient.objectMapper.readValue(
+                        winnerCampaign = mapper.readValue(
                             campaignModel,
                             Variation::class.java
                         )
@@ -707,8 +745,9 @@ class MegUtil {
                 val variations =
                     participatingCampaignList.filterNotNull().map { campaign: Campaign ->
                         try {
-                            val campaignModel = WingifyClient.objectMapper.writeValueAsString(campaign)
-                            return@map WingifyClient.objectMapper.readValue<Variation>(
+                            val campaignModel =
+                                mapper.writeValueAsString(campaign)
+                            return@map mapper.readValue<Variation>(
                                 campaignModel,
                                 Variation::class.java
                             )

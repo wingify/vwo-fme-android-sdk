@@ -21,6 +21,7 @@ import com.wingify.constants.Constants.SDK_NAME
 import com.wingify.interfaces.IWingifyInitCallback
 import com.wingify.interfaces.IWingifyListener
 import com.wingify.models.user.GetFlag
+import com.wingify.models.user.FlagCollection
 import com.wingify.models.user.WingifyInitOptions
 import com.wingify.models.user.WingifyUserContext
 import com.vwo.packages.logger.enums.LogLevelEnum
@@ -69,6 +70,22 @@ open class Wingify protected constructor(
      */
     fun getFlag(featureKey: String, context: WingifyUserContext): GetFlag {
         return GetFlag.wrap(super.getFlag(featureKey, context))
+    }
+
+    /**
+     * Evaluates multiple feature flags synchronously.
+     *
+     * @param flagNames Feature keys to evaluate, or null/empty to evaluate all flags from settings.
+     * @param context User context for evaluation.
+     * @param publicApi Unused; retained for binary compatibility with hybrid SDK callers.
+     * @return [FlagCollection] keyed by feature key.
+     */
+    fun getFlags(
+        flagNames: Array<String>?,
+        context: WingifyUserContext,
+        @Suppress("UNUSED_PARAMETER") publicApi: Boolean = true,
+    ): FlagCollection {
+        return super.getFlags(flagNames, context)
     }
 
     companion object {

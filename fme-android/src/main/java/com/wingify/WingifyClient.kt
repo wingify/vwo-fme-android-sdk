@@ -21,6 +21,7 @@ import com.google.gson.JsonDeserializationContext
 import com.google.gson.JsonDeserializer
 import com.google.gson.JsonElement
 import com.wingify.api.GetFlagAPI
+import com.wingify.api.GetFlagsAPI
 import com.wingify.api.SetAttributeAPI.setAttribute
 import com.wingify.api.TrackEventAPI
 import com.wingify.constants.Constants
@@ -30,6 +31,7 @@ import com.wingify.models.HoldoutGroup
 import com.wingify.models.Settings
 import com.wingify.models.schemas.SettingsSchema
 import com.vwo.models.user.GetFlag
+import com.wingify.models.user.FlagCollection
 import com.wingify.models.user.WingifyInitOptions
 import com.wingify.models.user.WingifyUserContext
 import com.wingify.ServiceContainer
@@ -229,6 +231,81 @@ open class WingifyClient(
     }
 
     /**
+     * Evaluates multiple feature flags in parallel and returns a [FlagCollection].
+     *
+     * @param flagNames Feature keys to evaluate, or null/empty to evaluate all flags from settings.
+     * @param context User context (resolved once; each flag gets an isolated copy for evaluation).
+     * @return [FlagCollection] keyed by feature key.
+     */
+    fun getFlags(flagNames: Array<String>?, context: WingifyUserContext): FlagCollection {
+        val apiName = ApiEnum.GET_FLAGS.value
+        val serviceContainer = createServiceContainer()
+        if (serviceContainer == null) {
+            return FlagCollection.createDisabled(flagNames, context)
+        }
+        try {
+            serviceContainer.getLoggerService()?.log(
+                LogLevelEnum.DEBUG,
+                "API_CALLED",
+                mapOf("apiName" to apiName)
+            )
+
+            val userId = UserIdUtil.getUserId(context, options, serviceContainer)
+            if (userId.isNullOrEmpty()) {
+                LoggerService.errorLog(
+                    key = "API_CONTEXT_INVALID",
+                    data = emptyMap(),
+                    debugData = mapOf("an" to ApiEnum.GET_FLAGS.value),
+                    shouldSendToVWO = true,
+                    serviceContainer = serviceContainer
+                )
+                throw IllegalArgumentException("User ID is required")
+            }
+
+            if (context.id != userId) {
+                context.id = userId
+            }
+
+            val procSettings = this.processedSettings
+            if (procSettings == null || !isSettingsValid) {
+                LoggerService.errorLog(
+                    key = "INVALID_SETTINGS_SCHEMA",
+                    data = emptyMap(),
+                    debugData = mapOf(
+                        "an" to ApiEnum.GET_FLAGS.value,
+                        "uuid" to context.getUuid(serviceContainer),
+                    ),
+                    shouldSendToVWO = false,
+                    serviceContainer = serviceContainer
+                )
+                return FlagCollection.createDisabled(flagNames, context)
+            }
+
+            return GetFlagsAPI.getFlags(
+                flagNames,
+                procSettings,
+                context,
+                serviceContainer,
+            )
+        } catch (exception: Exception) {
+            LoggerService.errorLog(
+                key = "EXECUTION_FAILED",
+                data = mapOf(
+                    "apiName" to apiName,
+                    Constants.ERR to getFormattedErrorMessage(exception)
+                ),
+                debugData = mapOf(
+                    "an" to ApiEnum.GET_FLAGS.value,
+                    "uuid" to context.getUuid(serviceContainer),
+                ),
+                shouldSendToVWO = true,
+                serviceContainer = serviceContainer
+            )
+            return FlagCollection.createDisabled(flagNames, context)
+        }
+    }
+
+    /**
      * This method is used to track the event
      * @param eventName Event name to be tracked
      * @param context User context
@@ -422,7 +499,10 @@ open class WingifyClient(
             LoggerService.errorLog(
                 key = "EXECUTION_FAILED",
                 data = mapOf("apiName" to apiName, Constants.ERR to exception.toString()),
-                debugData = mapOf("an" to apiName, "uuid" to context.getUuid(serviceContainer = sc2)),
+                debugData = mapOf(
+                    "an" to apiName,
+                    "uuid" to context.getUuid(serviceContainer = sc2)
+                ),
                 shouldSendToVWO = true,
                 serviceContainer = sc2
             )
@@ -460,7 +540,10 @@ open class WingifyClient(
 
             val msgMap = mapOf("key" to "WingifyInitOptions.isAliasingEnabled to true.")
             val debugData =
-                mutableMapOf("an" to ApiEnum.SET_ALIAS.value, "uuid" to context.getUuid(serviceContainer))
+                mutableMapOf(
+                    "an" to ApiEnum.SET_ALIAS.value,
+                    "uuid" to context.getUuid(serviceContainer)
+                )
             LoggerService.errorLog(
                 key = "ALIAS_NOT_ENABLED",
                 data = msgMap,
@@ -473,7 +556,10 @@ open class WingifyClient(
 
         if (options?.gatewayService?.isEmpty() == true) {
             val debugData =
-                mutableMapOf("an" to ApiEnum.SET_ALIAS.value, "uuid" to context.getUuid(serviceContainer))
+                mutableMapOf(
+                    "an" to ApiEnum.SET_ALIAS.value,
+                    "uuid" to context.getUuid(serviceContainer)
+                )
             LoggerService.errorLog(
                 key = "INVALID_GATEWAY_URL",
                 data = null,

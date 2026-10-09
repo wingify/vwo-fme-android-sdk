@@ -5,6 +5,70 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.75.2] - 2026-10-09
+
+### Added
+
+- Added `getFlags()` to evaluate multiple feature flags in one call. Pass feature keys to evaluate a subset, or `null` / empty to evaluate every flag in settings. The call is synchronous and returns a `FlagCollection` keyed by feature key.
+
+  Use `get(featureKey)` for a single result (`isEnabled()`, `getVariable()`, `getVariables()` — same as `getFlag()`). A missing key returns a **disabled** flag, not null. Use `keys()`, `size()`, and `iterator()` to inspect or walk the whole collection.
+
+  Independent flags are evaluated in parallel. Flags that share a mutually exclusive group (MEG) are evaluated sequentially within that group so MEG winners stay consistent with `getFlag()`. Variation-shown impressions from one `getFlags()` call are queued and flushed together.
+
+  ```kotlin
+  // Kotlin — Wingify (recommended)
+  val flags = wingifyClient.getFlags(arrayOf("checkout", "pricing"), context)
+
+  val checkout = flags.get("checkout")
+  if (checkout.isEnabled()) {
+      val theme = checkout.getVariable("theme", "light") as String
+  }
+
+  // Walk every evaluated flag
+  val iterator = flags.iterator()
+  while (iterator.hasNext()) {
+      val (key, flag) = iterator.next()
+      if (flag.isEnabled()) {
+          // apply flag for `key`
+      }
+  }
+
+  // Evaluate every flag from settings
+  val allFlags = wingifyClient.getFlags(null, context)
+
+  // Kotlin — VWO (legacy)
+  val vwoFlags = vwoClient.getFlags(arrayOf("checkout", "pricing"), context)
+  val vwoCheckout = vwoFlags.get("checkout")
+  ```
+
+  ```java
+  // Java — Wingify (recommended)
+  FlagCollection flags = wingifyClient.getFlags(new String[] {"checkout", "pricing"}, context);
+
+  GetFlag checkout = flags.get("checkout");
+  if (checkout.isEnabled()) {
+      String theme = (String) checkout.getVariable("theme", "light");
+  }
+
+  java.util.Iterator<Map.Entry<String, GetFlag>> iterator = flags.iterator();
+  while (iterator.hasNext()) {
+      Map.Entry<String, GetFlag> entry = iterator.next();
+      if (entry.getValue().isEnabled()) {
+          // apply flag for entry.getKey()
+      }
+  }
+
+  FlagCollection allFlags = wingifyClient.getFlags(null, context);
+
+  // Java — VWO (legacy)
+  FlagCollection vwoFlags = vwoClient.getFlags(new String[] {"checkout", "pricing"}, context);
+  GetFlag vwoCheckout = vwoFlags.get("checkout");
+  ```
+
+### Changed
+
+- Improved force users handing on Rollout, when using both Force On and Force Off together.
+
 ## [1.70.0] - 2026-09-03
 
 ### Added

@@ -652,41 +652,12 @@ class DecisionUtil {
         if (campaign.type != CampaignTypeEnum.ROLLOUT.value) {
             return false
         }
-        val operand = forceOffOperand(campaign.variations?.getOrNull(0)?.whitelistedSegments)
+        val operand = ForceListOperands.off(campaign.variations?.getOrNull(0)?.whitelistedSegments)
             ?: return false
         return serviceContainer.getSegmentationManager().validateSegmentation(
             operand,
             context.variationTargetingVariables
         )
-    }
-
-    /**
-     * Unwraps the Force Off operand from [Variation.whitelistedSegments].
-     *
-     * Backend encodes Force Off as a `not` node. That node is either the root of
-     * [segments] (Off list only) or nested under `and` when Force On and Force Off
-     * are both present:
-     *
-     * - Off only: `{ "not": { "or": [{ "user": "..." }] } }`
-     * - On + Off: `{ "and": [ { "or": [...] }, { "not": { "or": [...] } } ] }`
-     *
-     * Returns the inner operand of `not` so [isRolloutForceOff] can run the same
-     * [com.wingify.packages.segmentation_evaluator] path as Force On. A match
-     * means the user is on the Off list.
-     *
-     * @param segments [Variation.whitelistedSegments], or null if unset.
-     * @return Inner map of the first `not` node, or null when there is no Off list.
-     */
-    @Suppress("UNCHECKED_CAST")
-    private fun forceOffOperand(segments: Map<String, Any>?): Map<String, Any>? {
-        if (segments == null) return null
-        (segments["not"] as? Map<String, Any>)?.let { return it }
-        val andList = segments["and"] as? List<*> ?: return null
-        for (item in andList) {
-            val map = item as? Map<*, *> ?: continue
-            (map["not"] as? Map<String, Any>)?.let { return it }
-        }
-        return null
     }
 
     /**
@@ -715,9 +686,13 @@ class DecisionUtil {
             return null
         }
 
+        // Recursive strip: `not` is Force Off only (already ran in [isRolloutForceOff]).
+        // Evaluating `not` here would invert and Force On everyone not on the Off list.
+        val forceOnSegments = ForceListOperands.on(whitelistSegments) ?: return null
+
         val segmentationResult =
             serviceContainer.getSegmentationManager().validateSegmentation(
-                whitelistSegments,
+                forceOnSegments,
                 context.variationTargetingVariables
             )
         if (!segmentationResult) {
