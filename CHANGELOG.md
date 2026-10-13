@@ -5,6 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.76.0] - 2026-10-13
+
+### Added
+
+- Local pre-segmentation for operating system and device type (mobile, tablet, tv). `os` and `device_type` are evaluated on-device and no longer flag a gateway fetch; leftover `browser_string`/`device` OR criteria still use the gateway user-agent parser.
+
 ## [1.75.2] - 2026-10-09
 
 ### Added

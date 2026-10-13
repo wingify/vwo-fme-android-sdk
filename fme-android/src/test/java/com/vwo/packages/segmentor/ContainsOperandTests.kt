@@ -454,14 +454,30 @@ class ContainsOperandTests {
     }
 
     @Test
+    fun operatingSystemTest() {
+        val dsl = "{ \"or\": [ { \"os\": \"wildcard(*android*)\" } ] }"
+        val customVariables: Map<String?, Any?> = mapOf(
+            "expectation" to true
+        )
+        verifyExpectation(dsl, removeNullValues(customVariables))
+    }
+
+    @Test
+    fun wrongOperatingSystemTest() {
+        val dsl = "{ \"or\": [ { \"os\": \"wildcard(*iOS*)\" } ] }"
+        val customVariables: Map<String?, Any?> = mapOf(
+            "expectation" to false
+        )
+        verifyExpectation(dsl, removeNullValues(customVariables))
+    }
+
+    @Test
     fun userAgentTest() {
         val dsl = "{ \"or\": [ { \"ua\": \"wildcard(*Android*)\" } ] }"
-        val customVariables: Map<String?, Any?> = object : HashMap<String?, Any?>() {
-            init {
-                put("eq", 'E')
-                put("expectation", true)
-            }
-        }
+        val customVariables: Map<String?, Any?> = mapOf(
+            "eq" to 'E',
+            "expectation" to true
+        )
         StorageProvider.userAgent = "VWO FME $PLATFORM ${BuildConfig.SDK_VERSION} ($PLATFORM/${Build.VERSION.RELEASE})"
         verifyExpectation(dsl, removeNullValues(customVariables))
     }
@@ -469,12 +485,10 @@ class ContainsOperandTests {
     @Test
     fun wrongUserAgentTest() {
         val dsl = "{ \"or\": [ { \"ua\": \"wildcard(*iOS*)\" } ] }"
-        val customVariables: Map<String?, Any?> = object : HashMap<String?, Any?>() {
-            init {
-                put("eq", 'E')
-                put("expectation", false)
-            }
-        }
+        val customVariables: Map<String?, Any?> = mapOf(
+            "eq" to 'E',
+            "expectation" to false
+        )
         StorageProvider.userAgent = "VWO FME $PLATFORM ${BuildConfig.SDK_VERSION} ($PLATFORM/${Build.VERSION.RELEASE})"
         verifyExpectation(dsl, removeNullValues(customVariables))
     }

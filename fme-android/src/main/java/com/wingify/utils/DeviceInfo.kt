@@ -17,6 +17,7 @@
 package com.wingify.utils
 
 import android.content.Context
+import android.content.res.Configuration
 import android.os.Build
 import com.wingify.constants.Constants.APP_VERSION
 import com.wingify.constants.Constants.DEVICE_MODEL
@@ -24,6 +25,8 @@ import com.wingify.constants.Constants.LOCALE
 import com.wingify.constants.Constants.MANUFACTURER
 import com.wingify.constants.Constants.OS_VERSION
 import java.util.Locale
+
+private const val TABLET_SMALLEST_WIDTH_DP = 600
 
 class DeviceInfo {
 
@@ -57,6 +60,17 @@ class DeviceInfo {
      */
     fun getDeviceModel(): String {
         return Build.MODEL ?: valueUnknown
+    }
+
+    /**
+     * Pre-segmentation device type: mobile, tablet, or tv.
+     */
+    fun getDeviceType(context: Context): String {
+        val config = context.resources.configuration
+        return when (config.uiMode and Configuration.UI_MODE_TYPE_MASK) {
+            Configuration.UI_MODE_TYPE_TELEVISION -> "tv"
+            else -> if (config.smallestScreenWidthDp >= TABLET_SMALLEST_WIDTH_DP) "tablet" else "mobile"
+        }
     }
 
     /**

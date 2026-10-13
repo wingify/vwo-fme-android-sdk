@@ -93,7 +93,7 @@ object Constants {
     const val HTTP_STATUS_CODE_401 = 401
 
     const val REGEX_REQUIRES_GATEWAY_SERVICE =
-        "\\b(country|region|city|os|device_type|browser_string|ua)\\b"
+        "\\b(country|region|city|browser_string)\\b"
 
     const val REGEX_SEGMENTATION_FULL =
         "$REGEX_REQUIRES_GATEWAY_SERVICE|\"custom_variable\"\\s*:\\s*\\{\\s*\"name\"\\s*:\\s*\"inlist\\([^)]*\\)\""

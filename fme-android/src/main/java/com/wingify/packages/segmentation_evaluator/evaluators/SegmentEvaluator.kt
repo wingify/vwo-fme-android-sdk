@@ -97,6 +97,14 @@ class SegmentEvaluator(val serviceContainer: ServiceContainer) {
                 context
             )
 
+            SegmentOperatorValueEnum.DEVICE_TYPE -> {
+                val appContext = StorageProvider.contextRef.get() ?: return false
+                return SegmentOperandEvaluator(serviceContainer).evaluateStringOperandDSL(
+                    subDsl.asText(),
+                    DeviceInfo().getDeviceType(appContext)
+                )
+            }
+
             SegmentOperatorValueEnum.DEVICE_MODEL -> return SegmentOperandEvaluator(serviceContainer).evaluateStringOperandDSL(
                 subDsl.asText(),
                 DeviceInfo().getDeviceModel()
@@ -105,6 +113,11 @@ class SegmentEvaluator(val serviceContainer: ServiceContainer) {
             SegmentOperatorValueEnum.LOCALE -> return SegmentOperandEvaluator(serviceContainer).evaluateStringOperandDSL(
                 subDsl.asText(),
                 DeviceInfo().getLocale()
+            )
+
+            SegmentOperatorValueEnum.OPERATING_SYSTEM -> return SegmentOperandEvaluator(serviceContainer).evaluateStringOperandDSL(
+                subDsl.asText(),
+                Constants.PLATFORM
             )
 
             SegmentOperatorValueEnum.OS_VERSION -> return SegmentOperandEvaluator(serviceContainer).evaluateStringOperandDSL(
@@ -137,9 +150,7 @@ class SegmentEvaluator(val serviceContainer: ServiceContainer) {
      * @return A boolean indicating if any of the nodes are valid.
      */
     fun some(dslNodes: JsonNode, customVariables: Map<String, Any>): Boolean {
-        val uaParserMap: MutableMap<String, MutableList<String>> = HashMap()
-        var keyCount = 0 // Initialize count of keys encountered
-        var isUaParser = false
+        val uaParserMap: MutableMap<String, MutableList<String>> = mutableMapOf()
 
         for (dsl in dslNodes) {
             val fieldNames: Iterator<String> = dsl.fieldNames()
@@ -148,8 +159,7 @@ class SegmentEvaluator(val serviceContainer: ServiceContainer) {
                 // Check for user agent related keys
                 val keyEnum: SegmentOperatorValueEnum =
                     SegmentOperatorValueEnum.Companion.fromValue(key)
-                if (keyEnum == SegmentOperatorValueEnum.OPERATING_SYSTEM || keyEnum == SegmentOperatorValueEnum.BROWSER_AGENT || keyEnum == SegmentOperatorValueEnum.DEVICE_TYPE || keyEnum == SegmentOperatorValueEnum.DEVICE) {
-                    isUaParser = true
+                if (keyEnum == SegmentOperatorValueEnum.BROWSER_AGENT || keyEnum == SegmentOperatorValueEnum.DEVICE) {
                     val value: JsonNode? = dsl.get(key)
 
                     if (!uaParserMap.containsKey(key)) {
@@ -168,8 +178,6 @@ class SegmentEvaluator(val serviceContainer: ServiceContainer) {
                             uaParserMap[key]!!.add(it.asText())
                         }
                     }
-
-                    keyCount++ // Increment count of keys encountered
                 }
 
                 // Check for feature toggle based on feature ID
@@ -217,32 +225,41 @@ class SegmentEvaluator(val serviceContainer: ServiceContainer) {
                 }
             }
 
-            // Check if the count of keys encountered is equal to dslNodes.size()
-            if (isUaParser && keyCount == dslNodes.size()) {
-                try {
-                    val uaParserResult = checkUserAgentParser(uaParserMap)
-                    return uaParserResult
-                } catch (err: Exception) {
-                    LoggerService.errorLog(
-                        key = "USER_AGENT_VALIDATION_ERROR",
-                        data = mapOf(Constants.ERR to err),
-                        debugData = mapOf(
-                            "an" to ApiEnum.GET_FLAG.value,
-                            "uuid" to (context?.getUuid(serviceContainer) ?: ""),
-                            "sId" to (context?.sessionId ?: 0)
-                        ),
-                        shouldSendToVWO = true,
-                        serviceContainer = serviceContainer
-                    )
-                }
-            }
-
-            // Recursively check each DSL node
+            // Recursively check each DSL node (local os/device_type, custom vars, …)
             if (isSegmentationValid(dsl, customVariables)) {
                 return true
             }
         }
-        return false
+
+        return evaluateUaParserMap(uaParserMap)
+    }
+
+    /**
+     * Evaluates leftover browser_string/device keys after local OR operands miss.
+     *
+     * Returns false when [uaParserMap] is empty. Validation errors are logged and treated as a miss.
+     *
+     * @param uaParserMap Map of expected user agent values collected from the OR nodes.
+     * @return A boolean indicating if the leftover user agent criteria match.
+     */
+    internal fun evaluateUaParserMap(uaParserMap: Map<String, MutableList<String>>): Boolean {
+        if (uaParserMap.isEmpty()) return false
+        return try {
+            checkUserAgentParser(uaParserMap)
+        } catch (err: Exception) {
+            LoggerService.errorLog(
+                key = "USER_AGENT_VALIDATION_ERROR",
+                data = mapOf(Constants.ERR to err),
+                debugData = mapOf(
+                    "an" to ApiEnum.GET_FLAG.value,
+                    "uuid" to (context?.getUuid(serviceContainer) ?: ""),
+                    "sId" to (context?.sessionId ?: 0)
+                ),
+                shouldSendToVWO = true,
+                serviceContainer = serviceContainer
+            )
+            false
+        }
     }
 
     /**
@@ -252,7 +269,7 @@ class SegmentEvaluator(val serviceContainer: ServiceContainer) {
      * @return A boolean indicating if all nodes are valid.
      */
     fun every(dslNodes: JsonNode, customVariables: Map<String, Any>): Boolean {
-        val locationMap: MutableMap<String, Any> = HashMap()
+        val locationMap: MutableMap<String, Any> = mutableMapOf()
         for (dsl in dslNodes) {
             val fieldNames: Iterator<String> = dsl.fieldNames()
             while (fieldNames.hasNext()) {
