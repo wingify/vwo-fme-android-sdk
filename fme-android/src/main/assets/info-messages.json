@@ -30,27 +30,40 @@
   "MEG_CAMPAIGN_ELIGIBLE": "Campaign {campaignKey} is eligible for user ID:{userId}",
   "MEG_WINNER_CAMPAIGN": "MEG: Campaign {campaignKey} is the winner for group {groupId} for user ID:{userId} {algo}",
 
-  "BATCH_PROCESSING_STARTED": "Batch: Starting to upload events, triggered by {name}.",
-  "BATCH_PROCESSING_FINISHED": "Batch: Finished uploading {count} events with status: {status}, triggered by {name}.",
+  "BATCH_PROCESSING_STARTED": "Batch: Starting to upload events, triggered by {name}",
+  "BATCH_PROCESSING_FINISHED": "Batch: Finished uploading {count} events with status: {status}, triggered by {name}",
   "CACHED_EVALUATION_RESPONSE": "Found evaluation result of list attribute in cache: {value}",
-  "ONLINE_BATCH_PROCESSING_STATUS": "Batch: Events batching is {status}.",
+  "ONLINE_BATCH_PROCESSING_STATUS": "Batch: Events batching is {status}",
   "BATCH_UPLOAD_ERROR": "Event batch could not be uploaded. Error: {err}",
 
-  "USER_ID_NULL": "UserId not set & device ID fallback disabled; user id dependent operations may fail.",
-  "USER_ID_INFO": "UserId: Using '{id}' as user identifier.",
+  "USER_ID_NULL": "UserId not set & device ID fallback disabled; user id dependent operations may fail",
+  "USER_ID_INFO": "UserId: Using '{id}' as user identifier",
 
-  "INFO_SDK_INITIALIZING": "VWO is already initializing.",
+  "INFO_SDK_INITIALIZING": "VWO is already initializing",
   "NETWORK_CALL_SUCCESS_WITH_RETRIES": "Network call for {extraData} succeeded after {attempts} retry attempt(s). Previous attempts failed with error: {err}",
   "ERROR_READING_DATA_FROM_BROWSER_STORAGE": "Error while reading from storage. Error: {err}",
 
-  "STORED_HOLDOUT_DECISION_FOUND": "User id: {userId} already part of holdout id: {holdoutId} feature key: {featureKey}.",
-  "HOLDOUT_SHOULD_EXCLUDE_USER": "User {userId} ({bucketValue}%) is in HOLDOUT named: {holdoutGroupName} with targeted traffic percent: {percentTraffic}% for feature with id: {featureId}.",
+  "STORED_HOLDOUT_DECISION_FOUND": "User id: {userId} already part of holdout id: {holdoutId} feature key: {featureKey}",
+  "HOLDOUT_SHOULD_EXCLUDE_USER": "User {userId} ({bucketValue}%) is in HOLDOUT named: {holdoutGroupName} with targeted traffic percent: {percentTraffic}% for feature with id: {featureId}",
 
   "USER_IN_HOLDOUT_GROUP": "User {userId} is in holdout group {holdoutGroupName} for feature {featureKey} - feature excluded",
 
-  "HOLDOUT_SEGMENTATION_SKIP": "No segments found for holdout with id: {holdoutId} for user ID:{userId}; Hence skipping segmentation.",
+  "HOLDOUT_SEGMENTATION_SKIP": "No segments found for holdout with id: {holdoutId} for user ID:{userId}; Hence skipping segmentation",
   "USER_NOT_EXCLUDED_DUE_TO_HOLDOUT": "User ID:{userId} is not excluded from feature:{featureKey} due to any holdout groups",
   "SEGMENTATION_FAILED_HOLDOUT": "Segmentation failed for holdout ID:{holdoutId} for user ID:{userId}",
   "SEGMENTATION_PASSED_HOLDOUT": "Segmentation passed for holdout ID:{holdoutId} for user ID:{userId}",
-  "USER_EXCLUDED_DUE_TO_HOLDOUT": "User ID:{userId} is excluded from feature:{featureKey} due to holdout ID:{holdoutId}"
+  "USER_EXCLUDED_DUE_TO_HOLDOUT": "User ID:{userId} is excluded from feature:{featureKey} due to holdout ID:{holdoutId}",
+
+  "PANIC_MODE_ACTIVATED": "SDK is in disable mode (disable timestamp: {panicTs}). All client-facing API calls will not execute until the SDK is enabled again.",
+  "PANIC_MODE_CLEARED_VIA_SETTINGS": "SDK enabled again via settings update. Feature flag evaluations have resumed.",
+  "PANIC_MODE_CLEARED_VIA_RESPONSE": "SDK enabled again via network response. Feature flag evaluations have resumed.",
+  "PANIC_MODE_TIMESTAMP_UPDATED": "SDK disable mode control timestamp updated to {panicTs}.",
+  "PANIC_TIMESTAMP_STALE": "Panic timestamp is old, skipping panic mode activation (timestamp: {panicTs}).",
+  "FORCE_REFRESH_TRIGGERED": "Force settings refresh triggered by {source} (refresh timestamp: {refreshTs}). Fetching latest settings.",
+  "FORCE_REFRESH_COMPLETED": "Force settings refresh completed. SDK is now running with updated settings.",
+  "SDK_REENABLED": "SDK is enabled again and updated settings fetched.",
+  "EVENTS_DISCARDED_DUE_TO_PANIC_MODE": "Discarded {count} queued batch event(s) because SDK entered disable mode.",
+  "SETTINGS_UPDATE_SKIPPED_STALE": "Skipped applying settings snapshot because it is stale or duplicate (timestamp: {timestamp})",
+  "POLLING_SETTINGS_STALE": "Skipped polling settings because the snapshot is stale (timestamp: {timestamp})",
+  "API_BLOCKED_BY_PANIC_MODE": "API {apiName} is blocked because SDK is in disable mode."
 }

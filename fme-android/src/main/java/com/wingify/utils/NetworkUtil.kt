@@ -39,6 +39,7 @@ import com.vwo.packages.logger.enums.LogLevelEnum
 import com.wingify.packages.network_layer.manager.NetworkManager
 import com.wingify.packages.network_layer.models.RequestModel
 import com.wingify.providers.StorageProvider
+import com.wingify.services.PeriodicDataUploader
 import java.util.Calendar
 import kotlin.collections.set
 
@@ -435,7 +436,16 @@ class NetworkUtil {
         }
 
         /**
-         * Returns the payload data for the user tracking evaluation event.
+         * Returns the payload data for the user tracking evaluation event
+         * ([EventEnum.VWO_FE_TRACK_USAGE]).
+         *
+         * @param settings Account settings used for account id and logging.
+         * @param context User context for the evaluation.
+         * @param userId Effective user id to attach to the event.
+         * @param featureKey Feature key being evaluated.
+         * @param featureId Feature id when known; omitted from props when null.
+         * @param serviceContainer SDK service container for payload construction and logging.
+         * @return Non-null payload map ready to POST.
          */
         fun getUserTrackingPayloadData(
             settings: Settings,
@@ -511,6 +521,9 @@ class NetworkUtil {
         /**
          * Builds an initConfig map from the init options stored in the service container.
          * Keys match the Node SDK init event so the dashboard can read them the same way.
+         *
+         * @param serviceContainer Container holding [WingifyInitOptions], or null.
+         * @return Init-config map, or null when [serviceContainer] or its options are missing.
          */
         private fun buildInitConfig(serviceContainer: ServiceContainer?): Map<String, Any>? {
             val options = serviceContainer?.getInitOptions() ?: return null
@@ -519,8 +532,10 @@ class NetworkUtil {
 
         /**
          * Returns the payload data for the SDK init event.
-         * @param eventName The name of the event.
-         * @return Map containing the payload data.
+         *
+         * @param eventName The name of the event (typically [EventEnum.VWO_INIT_CALLED]).
+         * @param serviceContainer SDK service container for account id, sdk key, and payload helpers.
+         * @return Payload map, or empty when account id or sdk key is missing.
          */
         fun getSDKInitEventPayload(
             eventName: String,
@@ -554,11 +569,92 @@ class NetworkUtil {
         }
 
         /**
+         * Parses a collect/batch API response body for DaCDN panic-mode and force-refresh
+         * control signals and applies them to [serviceContainer]'s [PanicManager].
+         * A force-refresh is triggered at most once at a time (guarded by [PanicManager.tryStartRefresh]).
+         *
+         * @param responseData Raw collect or batch response body, or null.
+         * @param serviceContainer Container whose [PanicManager] should receive the control signals.
+         * @param statusCode HTTP status; non-2xx responses are ignored. Null skips the status check.
+         */
+        fun applyDaCdnControlFromNetworkResponse(
+            responseData: String?,
+            serviceContainer: ServiceContainer,
+            statusCode: Int? = null,
+        ) {
+            if (statusCode != null && (statusCode < 200 || statusCode >= 300)) return
+            val result = serviceContainer.panicManager.applyResponseControl(responseData.orEmpty())
+            if (result.shouldTriggerForceRefresh) {
+                serviceContainer.triggerForceRefresh(result.isRefreshFromPanicClear)
+            }
+        }
+
+        /**
+         * Fires a minimal collect event ([EventEnum.VWO_COLLECT_CONTROL_PING]).
+         * When [launchAsync] is true (API-block path), work runs on a background coroutine.
+         * Confirmation pings pass false and run on the caller's coroutine so the ping mutex can wrap completion.
+         *
+         * @param context User context used as the heartbeat visitor id.
+         * @param serviceContainer SDK service container for network, logging, and panic state.
+         * @param launchAsync true to run on a background coroutine; false to run synchronously.
+         */
+        fun sendPanicHeartbeat(
+            context: WingifyUserContext,
+            serviceContainer: ServiceContainer,
+            launchAsync: Boolean = true,
+        ) {
+            val work = {
+                try {
+                    NetworkManager.attachClient()
+                    val eventName = EventEnum.VWO_COLLECT_CONTROL_PING.value
+                    val properties =
+                        getEventsBaseProperties(eventName, null, null, serviceContainer)
+                    val payload = getEventBasePayload(
+                        serviceContainer.getSettings(), context, context.id,
+                        eventName, null, null, serviceContainer
+                    )
+                    val payloadMap =
+                        WingifyClient.objectMapper.convertValue(payload, MutableMap::class.java)
+                    val request = RequestModel(
+                        serviceContainer.getBaseUrl(), "POST", UrlEnum.EVENTS.url,
+                        properties, removeNullValues(payloadMap), createHeaders(null, null),
+                        serviceContainer.getSettingsManager()?.protocol,
+                        serviceContainer.getSettingsManager()?.port ?: 0
+                    )
+                    request.eventName = eventName
+                    serviceContainer.getLoggerService()?.log(
+                        LogLevelEnum.DEBUG, "PANIC_HEARTBEAT_SENT", mapOf("userId" to context.id)
+                    )
+                    val response = NetworkManager.post(request, serviceContainer)
+                    if (response != null && response.statusCode == 200) {
+                        serviceContainer.getLoggerService()?.log(
+                            LogLevelEnum.DEBUG, "PANIC_HEARTBEAT_RESPONSE_RECEIVED", null
+                        )
+                    } else {
+                        serviceContainer.getLoggerService()?.log(
+                            LogLevelEnum.WARN, "PANIC_HEARTBEAT_FAILED",
+                            mapOf(
+                                "statusCode" to (response?.statusCode?.toString() ?: "no_response")
+                            )
+                        )
+                    }
+                } catch (_: Exception) {
+                    serviceContainer.getLoggerService()
+                        ?.log(LogLevelEnum.ERROR, "FAILURE_PANIC_HEARTBEAT", mapOf())
+                }
+            }
+            if (launchAsync) serviceContainer.executeOnCoroutine { work() } else work()
+        }
+
+        /**
          * Sends a POST request to the VWO server.
+         *
          * @param properties The properties required for the request.
-         * @param payload  The payload data for the request.
+         * @param payload The payload data for the request.
          * @param userAgent The user agent of the user.
          * @param ipAddress The IP address of the user.
+         * @param serviceContainer SDK service container for host, batching, and logging.
+         * @param campaignInfo Optional campaign metadata attached to the request.
          */
         fun sendPostApiRequest(
             properties: MutableMap<String, String>,
@@ -581,6 +677,7 @@ class NetworkUtil {
                     serviceContainer.resolveScheme(),
                     serviceContainer.getSettingsManager()?.port ?: 0,
                 )
+                request.eventName = properties["en"].orEmpty()
                 request.campaignInfo = campaignInfo
                 NetworkManager.postAsync(request, serviceContainer)
                 if (serviceContainer.usageStats.getStats().isNotEmpty())
@@ -618,7 +715,8 @@ class NetworkUtil {
                     port = serviceContainer.getSettingsManager()?.port ?: 0
                 )
                 request.eventName = eventName
-                NetworkManager.postAsync(request, serviceContainer)
+                // Send immediately (do not enqueue in batch) so DaCDN panic/forceRefresh on the response is applied.
+                postCollectImmediately(request, serviceContainer)
             } catch (_: Exception) {
                 /*serviceContainer.getLoggerService()?.log(
                     LogLevelEnum.ERROR,
@@ -652,7 +750,8 @@ class NetworkUtil {
                     port = serviceContainer.getSettingsManager()?.port ?: 0
                 )
                 request.eventName = eventName
-                NetworkManager.postAsync(request, serviceContainer)
+                // Same as sendGatewayEvent: init / usage-stats / debug responses may carry panicMode / forceRefresh.
+                postCollectImmediately(request, serviceContainer)
             } catch (exception: Exception) {
                 serviceContainer.getLoggerService()?.log(
                     LogLevelEnum.DEBUG,
@@ -667,6 +766,25 @@ class NetworkUtil {
         }
 
         /**
+         * POSTs collect events immediately so DaCDN control fields on the response are applied now.
+         * Track/impression traffic still uses [NetworkManager.postAsync] (batching).
+         * Failed requests fall back to the offline queue.
+         *
+         * @param request Collect request to POST.
+         * @param serviceContainer SDK service container for network and offline fallback.
+         */
+        private fun postCollectImmediately(request: RequestModel, serviceContainer: ServiceContainer) {
+            serviceContainer.executeOnCoroutine {
+                val response = NetworkManager.post(request, serviceContainer)
+                if (StorageProvider.sdkDataManager == null) return@executeOnCoroutine
+                if (response == null || response.statusCode != 200) {
+                    NetworkManager.addToBatch(request, serviceContainer)
+                    StorageProvider.contextRef.get()?.let { PeriodicDataUploader().enqueue(it) }
+                }
+            }
+        }
+
+        /**
          * Constructs the payload for an SDK usage statistics event.
          *
          * This function generates a map representing the data payload that will be sent
@@ -677,6 +795,7 @@ class NetworkUtil {
          *              This is an enum value from `EventEnum`.
          * @param usageStatsAccountId The account ID specifically designated for tracking usage statistics.
          *                            This might be different from the main VWO account ID.
+         * @param serviceContainer SDK service container for payload construction.
          * @param settingsFetchTime Time taken to fetch settings in milliseconds.
          * @param sdkInitTime Time taken to initialize the SDK in milliseconds.
          * @return A map containing the non-null key-value pairs representing the payload

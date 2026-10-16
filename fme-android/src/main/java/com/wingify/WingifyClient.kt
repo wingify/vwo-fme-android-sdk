@@ -20,6 +20,8 @@ import com.google.gson.Gson
 import com.google.gson.JsonDeserializationContext
 import com.google.gson.JsonDeserializer
 import com.google.gson.JsonElement
+import com.vwo.models.user.GetFlag
+import com.vwo.packages.logger.enums.LogLevelEnum
 import com.wingify.api.GetFlagAPI
 import com.wingify.api.GetFlagsAPI
 import com.wingify.api.SetAttributeAPI.setAttribute
@@ -30,24 +32,22 @@ import com.wingify.enums.ApiEnum
 import com.wingify.models.HoldoutGroup
 import com.wingify.models.Settings
 import com.wingify.models.schemas.SettingsSchema
-import com.vwo.models.user.GetFlag
 import com.wingify.models.user.FlagCollection
 import com.wingify.models.user.WingifyInitOptions
 import com.wingify.models.user.WingifyUserContext
-import com.wingify.ServiceContainer
-import com.vwo.packages.logger.enums.LogLevelEnum
-import com.wingify.WingifyBuilder
 import com.wingify.providers.ServiceContainerProvider
 import com.wingify.services.LoggerService
+import com.wingify.services.SettingsControlApplyMode
 import com.wingify.utils.AliasIdentityManager
 import com.wingify.utils.DataTypeUtil.getType
 import com.wingify.utils.DataTypeUtil.isBoolean
 import com.wingify.utils.DataTypeUtil.isNumber
 import com.wingify.utils.DataTypeUtil.isString
-import com.wingify.utils.FunctionUtil.getFormattedErrorMessage
 import com.wingify.utils.EventsUtils
+import com.wingify.utils.FunctionUtil.getFormattedErrorMessage
 import com.wingify.utils.GsonUtil
 import com.wingify.utils.InternalEventSamplingUtil
+import com.wingify.utils.NetworkUtil
 import com.wingify.utils.SettingsUtil
 import com.wingify.utils.UserIdUtil
 import java.lang.reflect.Type
@@ -84,7 +84,16 @@ open class WingifyClient(
                 this.processedSettings?.let {
                     SettingsUtil.processSettings(it, serviceContainer)
                 }
-                serviceContainer?.getLoggerService()
+                // Register handler so NetworkUtil can trigger refresh without a circular reference.
+                serviceContainer.setForceRefreshHandler {
+                    val fetched = wingifyBuilder.getSettings(true, Constants.SETTINGS_PULL_ENDPOINT)
+                    if (fetched == null) return@setForceRefreshHandler false
+                    val applied = updateSettings(fetched, SettingsControlApplyMode.POST_PING_FETCH)
+                    if (applied) wingifyBuilder.syncOriginalSettings(fetched)
+                    applied
+                }
+                handleSettingsControlFlags(SettingsControlApplyMode.APPLY)
+                serviceContainer.getLoggerService()
                     ?.log(LogLevelEnum.INFO, "CLIENT_INITIALIZED", null)
             }
         } catch (exception: Exception) {
@@ -112,13 +121,33 @@ open class WingifyClient(
     }
 
     /**
-     * This method is used to update the settings
-     * @param newSettings New settings to be updated
+     * This method is used to update the settings.
+     * Stale or duplicate snapshots are skipped. After a successful parse, panic and
+     * force-refresh flags are evaluated according to [controlApplyMode].
+     *
+     * @param newSettings New settings JSON to be applied.
+     * @param controlApplyMode How this snapshot was obtained (init, polling, or post-ping fetch).
+     * @return true when the snapshot was parsed and applied.
      */
-    open fun updateSettings(newSettings: String?) {
+    open fun updateSettings(
+        newSettings: String?,
+        controlApplyMode: SettingsControlApplyMode = SettingsControlApplyMode.APPLY,
+    ): Boolean {
         try {
-            this.processedSettings = gson.fromJson(newSettings, Settings::class.java)
+            val parsed = gson.fromJson(newSettings, Settings::class.java) ?: return false
+            val sc = createServiceContainer()
+            if (!sc.panicManager.shouldApplySettingsSnapshot(parsed)) {
+                sc.getLoggerService()?.log(
+                    LogLevelEnum.INFO,
+                    "SETTINGS_UPDATE_SKIPPED_STALE",
+                    mapOf("timestamp" to (parsed.lastUpdatedOn ?: parsed.version)?.toString())
+                )
+                return false
+            }
+            this.processedSettings = parsed
             this.processedSettings?.let { SettingsUtil.processSettings(it) }
+            handleSettingsControlFlags(controlApplyMode)
+            return true
         } catch (exception: Exception) {
             val serviceContainer = createServiceContainer()
             LoggerService.errorLog(
@@ -132,11 +161,81 @@ open class WingifyClient(
                 shouldSendToVWO = true,
                 serviceContainer = serviceContainer
             )
+            return false
         }
     }
 
     /**
-     * This method is used to get the flag value for the given feature key
+     * Evaluates panic-mode and force-refresh control flags from the current settings.
+     * The [ServiceContainer.triggerForceRefresh] guard prevents concurrent refreshes.
+     *
+     * @param mode How the current settings snapshot was obtained.
+     */
+    private fun handleSettingsControlFlags(
+        mode: SettingsControlApplyMode = SettingsControlApplyMode.APPLY,
+    ) {
+        val settings = processedSettings ?: return
+        val sc = createServiceContainer()
+        val result = sc.panicManager.applySettingsControl(settings, mode)
+        if (result.needsCollectPingConfirmation) {
+            confirmControlViaCollectPing(sc)
+        }
+        if (result.shouldTriggerForceRefresh) {
+            sc.triggerForceRefresh(result.isRefreshFromPanicClear)
+        }
+    }
+
+    /**
+     * Confirms panic with a control ping. DaCDN response is the source of truth.
+     * Fail-safe: keep the current latch when the ping fails.
+     *
+     * @param serviceContainer Container whose panic manager and network stack to use.
+     */
+    private fun confirmControlViaCollectPing(serviceContainer: ServiceContainer) {
+        if (!serviceContainer.panicManager.tryStartPanicClearConfirmation()) return
+        val context = WingifyUserContext().apply {
+            id = "${serviceContainer.getAccountId()}_${serviceContainer.getSdkKey()}"
+        }
+        serviceContainer.executeOnCoroutine {
+            try {
+                NetworkUtil.sendPanicHeartbeat(context, serviceContainer, launchAsync = false)
+            } finally {
+                serviceContainer.panicManager.finishPanicClearConfirmation()
+            }
+        }
+    }
+
+    /**
+     * Blocks public API work while panic is latched.
+     * Fires a collector ping so DaCDN can push updated control. Does not send `vwo_sdkDebug`.
+     *
+     * @param apiName API name used in the blocked-by-panic log.
+     * @param serviceContainer Container whose panic manager and heartbeat to use.
+     * @param context User context for the heartbeat visitor id; omitted when null.
+     * @return true when the caller should abort (panic is active).
+     */
+    private fun logAndBlockIfPanicActive(
+        apiName: String,
+        serviceContainer: ServiceContainer,
+        context: WingifyUserContext? = null,
+    ): Boolean {
+        if (!serviceContainer.panicManager.isPanicActive()) return false
+        val placeholders: Map<String?, String?> = mapOf("apiName" to apiName)
+        serviceContainer.getLoggerService()?.log(
+            LogLevelEnum.INFO,
+            "API_BLOCKED_BY_PANIC_MODE",
+            placeholders
+        )
+        if (context != null) {
+            NetworkUtil.sendPanicHeartbeat(context, serviceContainer)
+        }
+        return true
+    }
+
+    /**
+     * This method is used to get the flag value for the given feature key.
+     * Returns a disabled flag while panic is latched and fires a collector heartbeat.
+     *
      * @param featureKey Feature key for which the flag value is to be fetched
      * @param context User context
      * @return GetFlag object containing the flag values
@@ -159,6 +258,17 @@ open class WingifyClient(
                         put("apiName", apiName)
                     }
                 })
+
+            // Panic mode: block before alias/gateway identity work or flag evaluation.
+            if (logAndBlockIfPanicActive(apiName, serviceContainer, context)) {
+                serviceContainer.getLoggerService()?.log(
+                    LogLevelEnum.DEBUG,
+                    "PANIC_MODE_ENABLED",
+                    mapOf("userId" to context.id, "featureKey" to (featureKey ?: ""))
+                )
+                getFlag.setIsEnabled(false)
+                return getFlag
+            }
 
             // Use effective user ID (either provided userId or generated deviceId)
             val userId = UserIdUtil.getUserId(context, options, serviceContainer)
@@ -185,6 +295,7 @@ open class WingifyClient(
                 getFlag.setIsEnabled(false)
                 throw IllegalArgumentException("Feature Key is required")
             }
+
             val procSettings = this.processedSettings
             if (procSettings == null || !SettingsSchema().isSettingsValid(procSettings)) {
                 getFlag.setIsEnabled(false)
@@ -196,11 +307,12 @@ open class WingifyClient(
                         "uuid" to context.getUuid(serviceContainer),
                         FEATURE_KEY to featureKey
                     ),
-                    shouldSendToVWO = false,
+                    shouldSendToVWO = true,
                     serviceContainer = serviceContainer
                 )
                 return getFlag
             }
+
             return GetFlagAPI.getFlag(
                 featureKey,
                 procSettings,
@@ -232,6 +344,7 @@ open class WingifyClient(
 
     /**
      * Evaluates multiple feature flags in parallel and returns a [FlagCollection].
+     * Returns disabled flags while panic is latched and fires a collector heartbeat.
      *
      * @param flagNames Feature keys to evaluate, or null/empty to evaluate all flags from settings.
      * @param context User context (resolved once; each flag gets an isolated copy for evaluation).
@@ -249,6 +362,10 @@ open class WingifyClient(
                 "API_CALLED",
                 mapOf("apiName" to apiName)
             )
+
+            if (logAndBlockIfPanicActive(apiName, serviceContainer, context)) {
+                return FlagCollection.createDisabled(flagNames, context)
+            }
 
             val userId = UserIdUtil.getUserId(context, options, serviceContainer)
             if (userId.isNullOrEmpty()) {
@@ -275,7 +392,7 @@ open class WingifyClient(
                         "an" to ApiEnum.GET_FLAGS.value,
                         "uuid" to context.getUuid(serviceContainer),
                     ),
-                    shouldSendToVWO = false,
+                    shouldSendToVWO = true,
                     serviceContainer = serviceContainer
                 )
                 return FlagCollection.createDisabled(flagNames, context)
@@ -306,7 +423,9 @@ open class WingifyClient(
     }
 
     /**
-     * This method is used to track the event
+     * This method is used to track the event.
+     * Returns false for the event while panic is latched and fires a collector heartbeat.
+     *
      * @param eventName Event name to be tracked
      * @param context User context
      * @param eventProperties event properties to be sent for the event
@@ -351,6 +470,11 @@ open class WingifyClient(
                 throw IllegalArgumentException("TypeError: Event-name should be a string")
             }
 
+            if (logAndBlockIfPanicActive(apiName, serviceContainer, context)) {
+                resultMap[eventName] = false
+                return resultMap
+            }
+
             // Use effective user ID (either provided userId or generated deviceId)
             val userId = UserIdUtil.getUserId(context, options, serviceContainer)
             require(!userId.isNullOrEmpty()) { "User ID is required. Please provide a user ID or enable device ID in the user context." }
@@ -367,7 +491,7 @@ open class WingifyClient(
                     key = "INVALID_SETTINGS_SCHEMA",
                     data = emptyMap(),
                     debugData = mapOf("an" to apiName),
-                    shouldSendToVWO = false,
+                    shouldSendToVWO = true,
                     serviceContainer = serviceContainer
                 )
                 return resultMap
@@ -435,10 +559,9 @@ open class WingifyClient(
         return track(eventName, context, HashMap())
     }
 
-
     /**
      * Sets an attribute for a user in the context provided.
-     * This method validates the types of the inputs before proceeding with the API call.
+     * While panic is latched, fires a collector ping, then returns.
      * @param attributes - Map of attribute key and value to be set
      * @param context User context
      */
@@ -452,6 +575,10 @@ open class WingifyClient(
             }
             serviceContainer.getLoggerService()
                 ?.log(LogLevelEnum.DEBUG, "API_CALLED", mapOf("apiName" to apiName))
+
+            if (logAndBlockIfPanicActive(apiName, serviceContainer, context)) {
+                return
+            }
 
             val attributes = immutableAttributes.toMutableMap()
 
@@ -487,7 +614,7 @@ open class WingifyClient(
                 LoggerService.errorLog(
                     key = "INVALID_SETTINGS_SCHEMA", emptyMap(),
                     debugData = mapOf("an" to apiName, "uuid" to context.getUuid(serviceContainer)),
-                    shouldSendToVWO = false,
+                    shouldSendToVWO = true,
                     serviceContainer = serviceContainer
                 )
                 return
@@ -535,6 +662,10 @@ open class WingifyClient(
     open fun setAlias(context: WingifyUserContext, aliasId: String) {
 
         val serviceContainer = createServiceContainer()
+
+        if (logAndBlockIfPanicActive(ApiEnum.SET_ALIAS.value, serviceContainer, context)) {
+            return
+        }
 
         if (options?.isAliasingEnabled != true) {
 
@@ -592,8 +723,17 @@ open class WingifyClient(
         }
     }
 
+    /**
+     * Sends the SDK init event (`vwo_initCalled`) when settings are valid and this
+     * is not a repeat init (`wasInitializedEarlier`). No-op while panic is latched.
+     *
+     * @param serviceContainer Optional container; a new one is created when null.
+     */
     fun sendSdkInitEvent(serviceContainer: ServiceContainer? = null) {
         val container = serviceContainer ?: createServiceContainer()
+        if (logAndBlockIfPanicActive(ApiEnum.INIT.value, container)) {
+            return
+        }
         val wasInitializedEarlier = processedSettings?.sdkMetaInfo?.wasInitializedEarlier
 
         if (isSettingsValid && wasInitializedEarlier != true) {
@@ -608,8 +748,14 @@ open class WingifyClient(
      * passes the usage-stats check. When `alwaysApplySampling.client` is true,
      * sampling uses `sampling.usage.client` (defaults to 1% when missing);
      * otherwise the event is always sent.
+     *
+     * @param sdkInitTime Time taken to initialize the SDK in milliseconds.
+     * @param serviceContainer SDK service container for sampling, panic, and the usage event.
      */
     fun sendUsageStats(sdkInitTime: Long, serviceContainer: ServiceContainer) {
+        if (logAndBlockIfPanicActive("usageStats", serviceContainer)) {
+            return
+        }
         val usageStatsAccountId = processedSettings?.usageStatsAccountId ?: return
         if (!InternalEventSamplingUtil.isUsageStatsEventQualified(processedSettings)) {
             return

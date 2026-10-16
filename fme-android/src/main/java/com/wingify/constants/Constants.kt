@@ -36,6 +36,7 @@ object Constants {
     const val EDGE_HOST_NAME: String = "edge.wingify.net"
     const val COLLECT_HOST_NAME: String = "collect.wingify.net"
     const val SETTINGS_ENDPOINT: String = "/server-side/v2-settings"
+    const val SETTINGS_PULL_ENDPOINT: String = "/server-side/v2-pull"
     const val EVENT_BATCH_ENDPOINT: String = "/server-side/batch-events-v2"
 
     const val VWO_FS_ENVIRONMENT: String = "vwo_fs_environment"

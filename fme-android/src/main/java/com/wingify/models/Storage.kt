@@ -57,6 +57,15 @@ class Storage {
         var values: List<Int>? = null
 
         class Adapter : JsonDeserializer<JsonArrayWrapper>, JsonSerializer<JsonArrayWrapper> {
+            /**
+             * Reads holdout id lists from a raw JSON array, `{"values":[...]}`, or
+             * the historical `{"myArrayList":[...]}` wrapper.
+             *
+             * @param json JSON array, object, or null.
+             * @param typeOfT Target type (unused).
+             * @param context Gson deserialization context (unused).
+             * @return Wrapper whose [JsonArrayWrapper.values] may be null when the payload is empty.
+             */
             override fun deserialize(
                 json: JsonElement?,
                 typeOfT: Type?,
@@ -103,6 +112,14 @@ class Storage {
                 return wrapper
             }
 
+            /**
+             * Writes holdout id lists as a raw JSON array to match [MobileDefaultStorage] persistence.
+             *
+             * @param src Wrapper to serialize, or null.
+             * @param typeOfSrc Source type (unused).
+             * @param context Gson serialization context.
+             * @return JSON array of ints, or [JsonNull] when [src] is null.
+             */
             override fun serialize(
                 src: JsonArrayWrapper?,
                 typeOfSrc: Type?,

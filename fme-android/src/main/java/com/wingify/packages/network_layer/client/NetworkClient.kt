@@ -25,6 +25,7 @@ import com.wingify.constants.Constants.MAX_RETRY_ATTEMPTS
 import com.wingify.constants.Constants.RETRY_DELAY
 import com.wingify.constants.Constants.SETTINGS_ENDPOINT
 import com.wingify.constants.Constants.SETTINGS_MAX_RETRY_ATTEMPTS
+import com.wingify.constants.Constants.SETTINGS_PULL_ENDPOINT
 import com.wingify.enums.ApiEnum
 import com.wingify.enums.CampaignTypeEnum
 import com.wingify.enums.DebuggerCategoryEnum
@@ -57,14 +58,15 @@ class NetworkClient : NetworkClientInterface {
 
     private val logLevel = LogLevelEnum.INFO
 
-    private fun getMaxRetryCount(request: RequestModel, response: ResponseModel? = null): Int {
+    private fun isSettingsFetch(path: String?): Boolean =
+        path == SETTINGS_ENDPOINT || path == SETTINGS_PULL_ENDPOINT
 
-        val isSettingsEndpoint = request.path?.contains(SETTINGS_ENDPOINT) == true
+    private fun getMaxRetryCount(request: RequestModel, response: ResponseModel? = null): Int {
 
         val statusCodeForCustomRetry = listOf(HTTP_STATUS_CODE_400, HTTP_STATUS_CODE_401)
 
         return when {
-            (isSettingsEndpoint && (response != null) && response.statusCode in statusCodeForCustomRetry)
+            (isSettingsFetch(request.path) && (response != null) && response.statusCode in statusCodeForCustomRetry)
                 -> SETTINGS_MAX_RETRY_ATTEMPTS
 
             // assume max retry count is 4 for SETTINGS_ENDPOINT,
@@ -277,7 +279,10 @@ class NetworkClient : NetworkClientInterface {
 
         // Set the total number of attempts made
         response.totalAttempts = countOfRetries - 1
-        if (countOfRetries > 1 && !request.eventName.contains(EventEnum.VWO_DEBUGGER_EVENT.value)) {
+        if (countOfRetries > 1
+            && !request.eventName.contains(EventEnum.VWO_DEBUGGER_EVENT.value)
+            && !request.eventName.contains(EventEnum.VWO_COLLECT_CONTROL_PING.value)
+        ) {
             val debugEventProps = createNetWorkAndRetryDebugEvent(request, response)
             serviceContainer?.let { sc ->
                 sendDebugEventToVWO(
@@ -286,7 +291,10 @@ class NetworkClient : NetworkClientInterface {
                 )
             } // maybe handle this discuss
         }
-        if (response.error != null && !request.eventName.contains(EventEnum.VWO_DEBUGGER_EVENT.value)) {
+        if (response.error != null
+            && !request.eventName.contains(EventEnum.VWO_DEBUGGER_EVENT.value)
+            && !request.eventName.contains(EventEnum.VWO_COLLECT_CONTROL_PING.value)
+        ) {
 
             LoggerService.errorLog(
                 key = "NETWORK_CALL_FAILURE_AFTER_MAX_RETRIES",
@@ -302,7 +310,7 @@ class NetworkClient : NetworkClientInterface {
         }
 
         if ((maxRetriesForRequest != MAX_RETRY_ATTEMPTS)
-            && (request.path?.contains(SETTINGS_ENDPOINT) == true)
+            && isSettingsFetch(request.path)
         ) {
             // IMPORTANT: inform devs that they have invalid AccountID and API Key
             LoggerService.log(
@@ -371,10 +379,13 @@ class NetworkClient : NetworkClientInterface {
                     }
                     apiEnum = ApiEnum.GET_FLAG
                 } else if (eventName != EventEnum.VWO_VARIATION_SHOWN.value) {
-                    if (eventName === EventEnum.VWO_SYNC_VISITOR_PROP.value) {
+                    if (eventName == EventEnum.VWO_SYNC_VISITOR_PROP.value) {
                         apiEnum = ApiEnum.SET_ATTRIBUTE
                         extraDataForMessage = apiEnum.value
-                    } else if (eventName !== EventEnum.VWO_DEBUGGER_EVENT.value && eventName !== EventEnum.VWO_INIT_CALLED.value) {
+                    } else if (eventName != EventEnum.VWO_DEBUGGER_EVENT.value
+                    && eventName != EventEnum.VWO_INIT_CALLED.value
+                    && eventName != EventEnum.VWO_COLLECT_CONTROL_PING.value
+                ) {
                         apiEnum = ApiEnum.TRACK_EVENT
                         extraDataForMessage = "event: $eventName"
                     }
@@ -428,6 +439,7 @@ class NetworkClient : NetworkClientInterface {
         if (payload == null) {
             return when (path) {
                 SETTINGS_ENDPOINT -> ApiEnum.INIT.value
+                SETTINGS_PULL_ENDPOINT -> ApiEnum.UPDATE_SETTINGS.value
                 UrlEnum.GET_USER_DATA.url -> ApiEnum.GET_USER_DATA.value
                 UrlEnum.ATTRIBUTE_CHECK.url -> ApiEnum.ATTRIBUTE_CHECK.value
                 UrlEnum.GET_ALIAS.url -> ApiEnum.GET_ALIAS.value
@@ -444,11 +456,14 @@ class NetworkClient : NetworkClientInterface {
         } else {
             if (eventName == EventEnum.VWO_SYNC_VISITOR_PROP.value) {
                 ApiEnum.SET_ATTRIBUTE
-            } else if (eventName != EventEnum.VWO_DEBUGGER_EVENT.value && eventName != EventEnum.VWO_INIT_CALLED.value) {
-                ApiEnum.TRACK_EVENT
-            } else {
-                null
-            }
+        } else if (eventName != EventEnum.VWO_DEBUGGER_EVENT.value
+            && eventName != EventEnum.VWO_INIT_CALLED.value
+            && eventName != EventEnum.VWO_COLLECT_CONTROL_PING.value
+        ) {
+            ApiEnum.TRACK_EVENT
+        } else {
+            null
+        }
         }
         return api?.value
     }

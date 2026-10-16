@@ -93,6 +93,13 @@ object GetFlagAPI {
 
         // Captures all invariant params so each exit point is a single line.
         // variationShownSent is the only value that differs per exit.
+        /**
+         * Returns [getFlag] after optionally sending a user-tracked event when no
+         * variationShown impression was dispatched for this evaluation.
+         *
+         * @param variationShownSent true when a variationShown impression was already sent.
+         * @return The [GetFlag] result of this evaluation.
+         */
         fun returnWithUserTrackingGate(variationShownSent: Boolean) =
             UserTrackingUsageUtil.evaluateFlagAndTrackUsage(
                 settings = settings,
@@ -860,6 +867,20 @@ object GetFlagAPI {
         return returnWithUserTrackingGate(variationShownSent)
     }
 
+    /**
+     * Queues not-in-holdout impressions for holdout ids that are on the server but were
+     * not present in local storage, then persists the updated not-in-holdout id list.
+     *
+     * @param settings Account settings for the impression.
+     * @param context User context for the evaluation.
+     * @param feature Feature being evaluated, or null.
+     * @param newIds Holdout ids newly seen as not-in-holdout.
+     * @param impressionPayload Payload collection to append impressions to.
+     * @param storageService Storage used to persist the updated id list.
+     * @param storedData Previously stored decision, or null.
+     * @param serviceContainer SDK service container for uploads.
+     * @param shouldUploadImmediately true to POST impressions now instead of batching.
+     */
     private fun sendNotInHoldoutForNewlyAddedHoldouts(
         settings: Settings,
         context: WingifyUserContext,
@@ -938,6 +959,10 @@ object GetFlagAPI {
      *
      * This keeps the integration hook payload shape consistent regardless of which code path
      * produced the decision, so callback consumers can rely on a fixed set of keys.
+     *
+     * @param decision Integration decision map to backfill.
+     * @param context User context for `_vwoUserId` injection.
+     * @param settings Account settings used to resolve campaign and UUID.
      */
     private fun ensureDecisionDefaults(
         decision: MutableMap<String, Any>,
@@ -958,6 +983,11 @@ object GetFlagAPI {
     /**
      * Injects `_vwoUserId` into `customVariables` (always) and into
      * `variationTargetingVariables` for AB/experiment decisions, matching [DecisionUtil].
+     *
+     * @param decision Integration decision map to update.
+     * @param context User context used when stored maps are missing.
+     * @param campaign Resolved campaign, or null when unknown.
+     * @param vwoUserId Value to inject as `_vwoUserId`, or null to skip.
      */
     private fun enrichDecisionContextVariables(
         decision: MutableMap<String, Any>,
@@ -989,6 +1019,11 @@ object GetFlagAPI {
      * Resolves the campaign referenced by [decision] (experiment key preferred, else rollout key)
      * and the `_vwoUserId` value to inject into integration payload maps — matching
      * [DecisionUtil] (`UUID` when [Campaign.isUserListEnabled], otherwise [WingifyUserContext.id]).
+     *
+     * @param decision Integration decision map that may contain experiment or rollout keys.
+     * @param context User context for id / UUID.
+     * @param settings Account settings used to look up the campaign.
+     * @return Pair of resolved campaign (nullable) and `_vwoUserId` (nullable).
      */
     private fun resolveCampaignAndVwoUserId(
         decision: Map<String, Any>,
@@ -1019,6 +1054,11 @@ object GetFlagAPI {
      *
      * No-op when the keys were never persisted (legacy storage before these keys on first storage)
      * or when stored and current values match.
+     *
+     * @param context Current caller context (source of truth).
+     * @param storedDataMap Persisted storage map from the last evaluation, or null.
+     * @param feature Feature being evaluated, or null.
+     * @param storageService Storage used to write the update.
      */
     private fun syncContextVarsToStorageIfDiverged(
         context: WingifyUserContext,
@@ -1065,6 +1105,10 @@ object GetFlagAPI {
      *
      * Returns `null` when the key is absent so callers can distinguish "never persisted" from
      * "persisted as empty map".
+     *
+     * @param data Persisted storage map, or null.
+     * @param key Storage key for custom or variation-targeting variables.
+     * @return Parsed map, or null when the key is missing or not a map.
      */
     private fun readContextMapFromStorage(
         data: Map<String, Any>?,

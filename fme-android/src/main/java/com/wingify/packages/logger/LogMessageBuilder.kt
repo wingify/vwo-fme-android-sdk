@@ -54,6 +54,10 @@ class LogMessageBuilder(
     /**
      * Formats a log message with level, prefix, and message (no ANSI colors or timestamp).
      * Suitable for Android Logcat where timestamps are provided by the platform.
+     *
+     * @param level Log level used as the `[LEVEL]` label.
+     * @param message Message body, or null.
+     * @return Plain formatted log line.
      */
     fun formatPlainMessage(level: LogLevelEnum, message: String?): String {
         val levelLabel = level.name.uppercase(Locale.getDefault())

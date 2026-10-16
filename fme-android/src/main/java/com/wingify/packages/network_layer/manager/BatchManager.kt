@@ -53,8 +53,12 @@ internal object BatchManager {
      * Starts the batch upload process.
      *
      * This function initiates the process of sending batches of offline events to the server.
-     * It acquires a lock using a `Mutex` to ensure that only one batch upload operation is in progress at a time.* It then calls the `sendBatches()` function to perform the actual upload.
+     * It acquires a lock using a `Mutex` to ensure that only one batch upload operation is in progress at a time.
+     * It then calls the `sendBatches()` function to perform the actual upload.
+     * While panic is latched, queued events are discarded instead of uploaded.
      *
+     * @param entryName Caller label used in logs (for example SDK Initialization).
+     * @param serviceContainer Account container used to scope events and panic, or null for all accounts.
      * @return `true` if all batches were uploaded successfully, `false` otherwise.
      */
     suspend fun start(entryName: String, serviceContainer: ServiceContainer?): Boolean {
@@ -62,6 +66,18 @@ internal object BatchManager {
             return true
         } else
             isInitUploadingStarted = true
+
+        if (isPanicActiveForContainer(serviceContainer)) {
+            val dropped = discardQueuedEvents(serviceContainer)
+            if (dropped > 0) {
+                serviceContainer?.getLoggerService()?.log(
+                    LogLevelEnum.DEBUG,
+                    "BATCH_FLUSH_BLOCKED_BY_PANIC_MODE",
+                    mapOf("name" to entryName, "count" to dropped.toString())
+                )
+            }
+            return true
+        }
 
         // When using mutex.withLock, the coroutine is suspended until the lock is available, and
         // the thread remains free to execute other coroutines. This leads to better scalability in
@@ -73,12 +89,46 @@ internal object BatchManager {
     }
 
     /**
+     * Drops queued events without sending them. Called as soon as panic latches from off to on.
+     *
+     * @param serviceContainer When non-null, only that account's queue is dropped; otherwise all accounts.
+     * @return Number of events discarded.
+     */
+    fun discardQueuedEvents(serviceContainer: ServiceContainer?): Int {
+        val batches = if (serviceContainer == null) {
+            getData()
+        } else {
+            getData(serviceContainer.getAccountId().toLong(), serviceContainer.getSdkKey())
+        }
+        var droppedCount = 0
+        batches.forEach { batch ->
+            if (batch.isEmpty()) return@forEach
+            droppedCount += batch.size
+            removeStoredData(batch)
+        }
+        return droppedCount
+    }
+
+    /**
+     * Returns whether panic is latched for [serviceContainer].
+     *
+     * @param serviceContainer Account container, or null (treated as not in panic).
+     * @return true when that container's [com.wingify.services.PanicManager] is active.
+     */
+    private fun isPanicActiveForContainer(serviceContainer: ServiceContainer?): Boolean {
+        return serviceContainer?.panicManager?.isPanicActive() == true
+    }
+
+    /**
      * Sends batches of offline events to the server.
      *
      * This function retrieves event data from the database, groups it into batches, and uploads them using the `BatchUploader`.
      * It runs on the IO dispatcher to avoid blocking the main thread.
+     * Batches for an account in panic are discarded without uploading.
      *
-     * @return `true` if all batches were uploaded successfully, `false` otherwise.
+     * @param entryName Caller label used in logs.
+     * @param serviceContainer Account container used to scope events, or null for all accounts.
+     * @return Upload success flag and the number of events processed.
      */
     private suspend fun sendBatches(entryName: String, serviceContainer:ServiceContainer?): BatchUploadResult = withContext(Dispatchers.IO) {
         var result = true
@@ -98,8 +148,26 @@ internal object BatchManager {
                     firstItem.accountId.toInt(),
                     firstItem.sdkKey
                 )
+                if (batchServiceContainer?.panicManager?.isPanicActive() == true) {
+                    removeStoredData(batch)
+                    batchServiceContainer.getLoggerService()?.log(
+                        LogLevelEnum.DEBUG,
+                        "BATCH_FLUSH_BLOCKED_BY_PANIC_MODE",
+                        mapOf("name" to entryName, "count" to batch.size.toString())
+                    )
+                    return@forEach
+                }
                 val values = batch.map {
                     WingifyClient.objectMapper.readValue(it.payload, MutableMap::class.java)
+                }
+                if (batchServiceContainer?.panicManager?.isPanicActive() == true) {
+                    removeStoredData(batch)
+                    batchServiceContainer.getLoggerService()?.log(
+                        LogLevelEnum.DEBUG,
+                        "BATCH_FLUSH_BLOCKED_BY_PANIC_MODE",
+                        mapOf("name" to entryName, "count" to batch.size.toString())
+                    )
+                    return@forEach
                 }
                 val isUploaded = batchUploader.uploadBatch(firstItem.accountId, firstItem.sdkKey, values, serviceContainer)
                 if (isUploaded) {

@@ -18,16 +18,24 @@
   "HOLDOUT_GROUP_FOUND_IN_STORAGE": "Holdout group assignment found in storage for user {userId} in holdout group {holdoutName} for feature {featureKey}",
 
   "HOLDOUT_SEGMENTATION_FAIL": "User: {userId} did not qualify segmentation for Holdout: {holdoutGroupName}",
-  "HOLDOUT_SHOULD_NOT_EXCLUDE_USER": "User {userId} is NOT part of HOLDOUT named {holdoutGroupName}.",
-  "HOLDOUT_NOT_CONFIGURED": "Holdout configuration was not found in the received server settings.",
+  "HOLDOUT_SHOULD_NOT_EXCLUDE_USER": "User {userId} is NOT part of HOLDOUT named {holdoutGroupName}",
+  "HOLDOUT_NOT_CONFIGURED": "Holdout configuration was not found in the received server settings",
   "HOLDOUT_SETTINGS_INVALID": "Invalid value detected in holdout settings, review configuration in App",
 
-  "STORED_HOLDOUT_DECISION_FOUND": "User id: {userId} already part of holdout id: {holdoutId} feature key: {featureKey}.",
+  "STORED_HOLDOUT_DECISION_FOUND": "User id: {userId} already part of holdout id: {holdoutId} feature key: {featureKey}",
 
-  "PART_OF_HOLDOUT_IN_MEG": "MEG: User id {userId} is part of holdout: {holdoutId} for feature key: {featureKey}.",
+  "PART_OF_HOLDOUT_IN_MEG": "MEG: User id {userId} is part of holdout: {holdoutId} for feature key: {featureKey}",
   "HOLDOUT_SKIP_EVALUATION": "Skip holdout reevaluation for holdout id : {holdoutName} because {reason}",
   "SAVE_NOT_IN_HOLDOUT": "User id: {userId} was not part of any applicable holdout: {holdoutIds}",
 
   "IMPRESSION_FOR_USER_TRACKED": "Impression built for vwo_feTrackUsage event for Account ID:{accountId}, User ID:{userId}, and feature key:{featureKey}",
-  "USER_TRACKED": "User with ID:{userId} tracked for Account ID:{accountId} and Feature-key:{featureKey}"
+  "USER_TRACKED": "User with ID:{userId} tracked for Account ID:{accountId} and Feature-key:{featureKey}",
+
+  "PANIC_MODE_ENABLED": "Panic mode is active for user {userId} and feature {featureKey}; returning disabled flag",
+  "PANIC_NO_CHANGE": "Panic mode remains active (timestamp: {panicTs}). Awaiting DaCDN signal to clear",
+  "PANIC_HEARTBEAT_SENT": "Panic heartbeat (vwo_collectControlPing) dispatched for user: {userId}",
+  "PANIC_HEARTBEAT_RESPONSE_RECEIVED": "Panic heartbeat received HTTP 200 response; processing control signals",
+  "FORCE_REFRESH_ALREADY_IN_PROGRESS": "Force settings refresh was requested but one is already in progress; request dropped",
+  "COLLECT_RESPONSE_BATCH_ECHO_IGNORED": "DaCDN returned a batch/collect echo only. No panic-mode or settings-refresh update was included; SDK control state unchanged",
+  "BATCH_FLUSH_BLOCKED_BY_PANIC_MODE": "Batch upload skipped and {count} queued event(s) discarded because panic mode is active (trigger: {name})"
 }

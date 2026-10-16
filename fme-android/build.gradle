@@ -56,14 +56,14 @@ android {
     testOptions {
         unitTests.returnDefaultValues = true
         unitTests {
-            includeAndroidResources = true
+            // AGP 7.2 NPEs in mergeDebugUnitTestResources (Node.getLocalName on null)
+            // when this is true. Tests load assets from the classpath and use
+            // Robolectric Config.NONE, so merged Android resources are unused.
+            includeAndroidResources = false
             all {
                 jvmArgs '-Xmx2048m', '-Dfile.encoding=UTF-8'
-                // Fix for XML parsing issues with mergeDebugUnitTestResources
                 systemProperty 'robolectric.dependency.repo.url', 'https://repo1.maven.org/maven2'
                 systemProperty 'robolectric.dependency.repo.id', 'central'
-                // Prevent XML node null pointer exceptions
-                systemProperty 'javax.xml.parsers.DocumentBuilderFactory', 'com.sun.org.apache.xerces.internal.jaxp.DocumentBuilderFactoryImpl'
             }
         }
     }

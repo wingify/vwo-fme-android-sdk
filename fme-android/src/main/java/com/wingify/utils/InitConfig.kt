@@ -27,6 +27,13 @@ import com.wingify.packages.storage.MobileDefaultStorage
  */
 internal object InitConfig {
 
+    /**
+     * Builds a dashboard-compatible initConfig map from [options].
+     * Omits default/empty values; custom interfaces are sent as booleans.
+     *
+     * @param options SDK init options captured at initialization.
+     * @return Map of Node-SDK-compatible initConfig keys.
+     */
     fun from(options: WingifyInitOptions): Map<String, Any> {
         val initConfig = mutableMapOf<String, Any?>()
         initConfig["accountId"] = options.accountId
@@ -70,6 +77,12 @@ internal object InitConfig {
         return initConfig.filterValues { it != null }.mapValues { it.value as Any }
     }
 
+    /**
+     * Builds a compact logger subsection for initConfig.
+     *
+     * @param logger Logger options from [WingifyInitOptions.logger].
+     * @return Map with level/prefix/transports when present; null when empty.
+     */
     private fun loggerConfig(logger: Map<String, Any>): Map<String, Any>? {
         if (logger.isEmpty()) return null
         val out = mutableMapOf<String, Any>()

@@ -46,6 +46,7 @@ class SettingsTest {
         assertNull(settings.campaigns)
         assertNull(settings.groups)
         assertNull(settings.version)
+        assertNull(settings.lastUpdatedOn)
         assertNull(settings.campaignGroups) // Added assertion for campaignGroups
         assertNull(settings.collectionPrefix) // Added assertion for collectionPrefix
 
@@ -199,5 +200,14 @@ class SettingsTest {
         assertEquals(true, settings.isNB) // Added assertion
         assertEquals("test_prefix", settings.collectionPrefix) // Added assertion
         assertEquals(testFeatures, settings.features) // Added assertion
+    }
+
+    @Test
+    fun `parses lastUpdatedOn from number or string`() {
+        val gson = com.google.gson.Gson()
+        val fromNumber = gson.fromJson("""{"lastUpdatedOn":1777026135}""", Settings::class.java)
+        assertEquals(1777026135L, fromNumber.lastUpdatedOn)
+        val fromString = gson.fromJson("""{"lastUpdatedOn":"1777026135"}""", Settings::class.java)
+        assertEquals(1777026135L, fromString.lastUpdatedOn)
     }
 }

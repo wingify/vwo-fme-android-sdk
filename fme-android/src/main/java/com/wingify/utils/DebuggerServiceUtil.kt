@@ -62,14 +62,24 @@ fun extractDecisionKeys(decisionObj: Map<String, Any> = emptyMap()): Map<String,
  * subject to sampling when `alwaysApplySampling.client` is true (`sampling.debug.client` from
  * DaCDN settings). When that flag is false or missing, sampled keys are always sent.
  * Keys not listed in [ErrorLogSamplingKeys.sampled] are sent without sampling.
+ * No-op while panic is latched.
  *
  * @param eventProps The properties for the debug event (must include `msg_t` for error keys).
  * @param serviceContainer ServiceContainer for account-specific settings and context.
  */
 fun sendDebugEventToVWO(
     eventProps: Map<String, Any> = emptyMap(),
-    serviceContainer: ServiceContainer
+    serviceContainer: ServiceContainer,
 ) {
+    if (serviceContainer.panicManager.isPanicActive()) {
+        serviceContainer.getLoggerService()?.log(
+            com.vwo.packages.logger.enums.LogLevelEnum.INFO,
+            "API_BLOCKED_BY_PANIC_MODE",
+            mapOf("apiName" to "debug")
+        )
+        return
+    }
+
     try {
         val errorKey = eventProps["msg_t"] as? String
         if (ErrorLogSamplingKeys.isSampled(errorKey)) {

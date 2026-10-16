@@ -34,7 +34,7 @@
   "GET_ALIAS_ERROR": "The call to get alias did not succeed. Error: {err}",
   "ALIAS_NETWORK_SDK_ERROR": "Could not send request to server. Error: {err}",
   "ALIAS_NOT_ENABLED": "Aliasing is not enabled, you can enable it by setting {key}",
-  "ATTRIBUTES_NOT_FOUND": "{key} passed to the {apiName} API is empty. Please provide {expectedFormat}.",
+  "ATTRIBUTES_NOT_FOUND": "{key} passed to the {apiName} API is empty. Please provide {expectedFormat}",
   "SEGMENTATION_CONTEXT_ERROR": "Error in setting contextual data for segmentation. Got error: {err}",
   "FEATURE_NOT_FOUND_WITH_ID": "Feature not found with featureIdKey {featureIdKey}",
   "USER_AGENT_VALIDATION_ERROR": "Failed to validate User Agent. Error: {err}",
@@ -49,8 +49,8 @@
   "INVALID_BATCH_EVENTS_CONFIG": "Invalid batch events config, should be an object, eventsPerRequest should be a number greater than 0 and requestTimeInterval should be a number greater than 0",
   "ATTRIBUTES_MAP_ERROR": "Attributes map must contain atleast 1 key-value pair",
   "ATTRIBUTES_MAP_INVALID": "Attributes should be an object containing key-value pairs",
-  "BATCHING_NOT_ENABLED": "Batching is not enabled. Pass batchEventData in the SDK configuration while invoking init API.",
-  "INTEGRATION_CALLBACK_MISSING": "shouldTriggerIntegrationCallbackAlways is enabled but integrations callback is not configured. Pass integrations in the SDK configuration while invoking init API.",
+  "BATCHING_NOT_ENABLED": "Batching is not enabled. Pass batchEventData in the SDK configuration while invoking init API",
+  "INTEGRATION_CALLBACK_MISSING": "shouldTriggerIntegrationCallbackAlways is enabled but integrations callback is not configured. Pass integrations in the SDK configuration while invoking init API",
   "NETWORK_CALL_FAILED_AFTER_MAX_RETRIES": "Max retries reached. Request failed for {endPoint}, Error: {err}",
   "NETWORK_CALL_RETRY_ATTEMPT": "Request failed for {endPoint}, Error: {err}. Retrying in {delay} seconds, attempt {attempt} of {maxRetries}",
   "STORING_DATA_ERROR": "Key:{featureKey} is not valid. Not able to store data into storage",
@@ -65,9 +65,11 @@
   "INVALID_ATTRIBUTE_LIST_FORMAT": "Invalid inList operand format",
   "ERROR_FETCHING_SETTINGS_WITH_POLLING": "Settings could not be fetched with polling. Error:{err}",
 
-  "INVALID_CREDENTIALS": "Invalid Account ID, SDK Key, or both provided during initialization.",
+  "INVALID_CREDENTIALS": "Invalid Account ID, SDK Key, or both provided during initialization",
 
   "HOLDOUT_FEATURE_ID_NULL": "While evaluating holdouts, featureId = null, only checking global holdouts.",
+
+  "FAILURE_PANIC_HEARTBEAT": "Could not send panic mode heartbeat signal to out server",
 
   "MEG_CAMPAIGN_CLONE_FAILED": "MEG: failed to clone campaign {campaignKey}. Error: {err}",
   "MEG_CAMPAIGN_VARIATION_MAPPING_FAILED": "MEG: failed to convert campaign {campaignKey} to variation. Error: {err}"

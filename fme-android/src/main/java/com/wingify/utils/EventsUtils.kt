@@ -37,6 +37,8 @@ class EventsUtils {
     /**
      * Sends an init event to VWO.
      * This event is triggered when the init function is called.
+     *
+     * @param serviceContainer SDK service container used to build and send the event.
      */
     fun sendSdkInitEvent(serviceContainer: ServiceContainer) {
         // Create the query parameters
@@ -68,6 +70,7 @@ class EventsUtils {
      *
      * @param usageStatsAccountId The account ID specifically designated for tracking usage statistics.
      *                            This might be different from the main VWO account ID.
+     * @param serviceContainer SDK service container used to build and send the event.
      * @param settingsFetchTime Time taken to fetch settings in milliseconds.
      * @param sdkInitTime Time taken to initialize the SDK in milliseconds.
      */
@@ -116,6 +119,7 @@ class EventsUtils {
      *
      * @param dsl The DSL to evaluate.
      * @param context The VWO context containing user information.
+     * @param serviceContainer SDK service container for host, logging, and UUID.
      * @return `true` if the event should be tracked before segmentation, `false` otherwise.
      */
     fun getEventsPreSegmentation(

@@ -5,7 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [1.76.0] - 2026-10-13
+## [1.80.0] - 2026-10-16
+
+### Added
+
+- Added panic mode support. When the server signals panic, `getFlag()` returns a disabled flag and other SDK APIs are blocked until the signal is cleared. The SDK also honors a force-settings-refresh signal so it can fetch updated configuration immediately.
+
+## [1.76.0] - 2026-10-09
 
 ### Added
 

@@ -52,6 +52,11 @@ class Settings {
     @SerializedName("version")
     var version: Int? = null
 
+    /** DaCDN snapshot timestamp. Preferred over [version] for stale-settings checks. */
+    @JsonAdapter(FlexibleLongAdapter::class)
+    @SerializedName("lastUpdatedOn")
+    var lastUpdatedOn: Long? = null
+
     @SerializedName("collectionPrefix")
     var collectionPrefix: String? = null
 

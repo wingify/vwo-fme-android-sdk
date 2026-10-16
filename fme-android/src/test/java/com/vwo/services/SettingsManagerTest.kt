@@ -26,10 +26,12 @@ import com.vwo.packages.logger.enums.LogLevelEnum
 import com.wingify.packages.network_layer.manager.NetworkManager
 import com.wingify.packages.network_layer.models.RequestModel
 import com.wingify.packages.network_layer.models.ResponseModel
+import com.wingify.providers.StorageProvider
 import com.wingify.services.LoggerService
 import com.wingify.services.SettingsManager
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Assume
 import org.junit.Before
@@ -43,6 +45,7 @@ class SettingsManagerTest {
 
     @Before
     fun setUp() {
+        StorageProvider.settingsStore = null
         // Attach a mock client that returns a controlled settings response
         val mockClient = object : NetworkClientInterface {
             override fun GET(
@@ -338,6 +341,102 @@ class SettingsManagerTest {
         // Ensure no error logs were emitted
         val hasError = loggedLevels.any { it == LogLevelEnum.ERROR }
         assertTrue("No error logs should be emitted", !hasError)
+    }
+
+    @Test
+    fun `getSettings sends invalid schema error on init fetch`() {
+        NetworkManager.attachClient(object : NetworkClientInterface {
+            override fun GET(
+                request: RequestModel,
+                serviceContainer: ServiceContainer?,
+            ): ResponseModel {
+                return ResponseModel().apply {
+                    statusCode = 200
+                    data = "{\"version\":1}"
+                    error = null
+                }
+            }
+
+            override fun POST(
+                request: RequestModel,
+                serviceContainer: ServiceContainer?,
+            ): ResponseModel {
+                return ResponseModel().apply {
+                    statusCode = 200
+                    data = "{}"
+                }
+            }
+        })
+
+        val options = VWOInitOptions().apply {
+            sdkKey = "dummy-sdk-key"
+            accountId = 123456
+            cachedSettingsExpiryTime = 0
+        }
+        val settingsManager = SettingsManager(options)
+        testServiceContainer.setSettingsManager(settingsManager)
+        settingsManager.serviceContainer = testServiceContainer
+
+        val settingsJson = settingsManager.getSettings(false)
+
+        assertNull(settingsJson)
+        assertTrue(
+            "INVALID_SETTINGS_SCHEMA should be logged so it can be sent to VWO. logs=$loggedMessages",
+            loggedMessages.any { it.contains("Settings are not valid") }
+        )
+    }
+
+    @Test
+    fun `force fetch uses v2-settings by default`() {
+        val paths = attachPathCapturingClient()
+        settingsManager().getSettings(true)
+        assertEquals(listOf(Constants.SETTINGS_ENDPOINT), paths)
+    }
+
+    @Test
+    fun `force fetch with pull endpoint uses v2-pull`() {
+        val paths = attachPathCapturingClient()
+        settingsManager().getSettings(true, Constants.SETTINGS_PULL_ENDPOINT)
+        assertEquals(listOf(Constants.SETTINGS_PULL_ENDPOINT), paths)
+    }
+
+    private fun settingsManager(): SettingsManager {
+        val options = VWOInitOptions().apply {
+            sdkKey = "dummy-sdk-key"
+            accountId = 123456
+            cachedSettingsExpiryTime = 0
+        }
+        return SettingsManager(options)
+    }
+
+    private fun attachPathCapturingClient(): MutableList<String?> {
+        val paths = mutableListOf<String?>()
+        val settingsJson =
+            "{\"sdkKey\":\"a62215fc384a4fc1bd672ff9d0107f63\",\"collectionPrefix\":\"as01\",\"features\":{},\"version\":1,\"accountId\":1116972,\"campaigns\":{}}"
+        NetworkManager.attachClient(object : NetworkClientInterface {
+            override fun GET(
+                request: RequestModel,
+                serviceContainer: ServiceContainer?,
+            ): ResponseModel {
+                paths.add(request.path)
+                return ResponseModel().apply {
+                    statusCode = 200
+                    data = settingsJson
+                    error = null
+                }
+            }
+
+            override fun POST(
+                request: RequestModel,
+                serviceContainer: ServiceContainer?,
+            ): ResponseModel {
+                return ResponseModel().apply {
+                    statusCode = 200
+                    data = "{}"
+                }
+            }
+        })
+        return paths
     }
 }
 

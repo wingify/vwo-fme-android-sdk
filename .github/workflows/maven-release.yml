@@ -15,6 +15,8 @@
 #
 # Unit tests run first unless skip_tests is checked. Publish waits for them when they run.
 # Missing secrets fail the job. Slack notifies only when SLACK_NOTIFICATIONS_BOT_TOKEN is set.
+# After publish, if the latest GitHub release version differs from this tag, create or
+# update that release from the matching CHANGELOG.md section (GITHUB_TOKEN, contents: write).
 name: Maven Central Release
 
 on:
@@ -48,7 +50,7 @@ jobs:
     runs-on: ubuntu-latest
     environment: release
     permissions:
-      contents: read
+      contents: write
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -90,6 +92,7 @@ jobs:
           fi
 
           echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
+          echo "tag=${TAG}" >> "$GITHUB_OUTPUT"
           echo "artifact=${ARTIFACT}" >> "$GITHUB_OUTPUT"
 
       - name: Check secrets
@@ -163,12 +166,47 @@ jobs:
             *) ./gradlew "$VWO_TASK" "$WINGIFY_TASK" --no-daemon ;;
           esac
 
+      - name: GitHub release
+        if: success()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.meta.outputs.tag }}
+          VERSION: ${{ steps.meta.outputs.version }}
+          ARTIFACT: ${{ steps.meta.outputs.artifact }}
+        run: |
+          set -euo pipefail
+          case "$ARTIFACT" in
+            vwo) TITLE="[VWO] ${TAG}" ;;
+            wingify) TITLE="[Wingify] ${TAG}" ;;
+            *) TITLE="${TAG}" ;;
+          esac
+          EXISTING="$(gh release view --json tagName --jq .tagName 2>/dev/null || true)"
+          echo "latest=${EXISTING:-<none>} tag=${TAG} title=${TITLE}"
+          if [ "${EXISTING#v}" = "$VERSION" ]; then
+            echo "Latest GitHub release already matches ${TAG}. Skipping."
+            exit 0
+          fi
+          awk -v ver="$VERSION" '
+            $0 ~ "^## \\[" ver "\\]" { capture=1 }
+            capture && seen && /^## \[/ { exit }
+            capture { print; seen=1 }
+          ' CHANGELOG.md > notes.md
+          if [ ! -s notes.md ]; then
+            echo "::error::CHANGELOG.md has no section for ${VERSION}"
+            exit 1
+          fi
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            gh release edit "$TAG" --title "$TITLE" --notes-file notes.md
+          else
+            gh release create "$TAG" --title "$TITLE" --notes-file notes.md --target "$TAG" --verify-tag
+          fi
+
       - name: Notification
         if: always() && steps.secrets.outputs.slack_ok == 'true'
         uses: wingify/slack-github-action@v1.15.1-wingify
         with:
           channel-id: 'vwo-fs-fme-sdk-job-status'
-          slack-message: "${{ job.status == 'success' && format('<!here> Android FME Maven release *{0}* ({1}) uploaded to the Maven Central Portal 🎉🎉\nPublish the draft: https://central.sonatype.com/publishing/deployments\nhttps://github.com/{2}/actions/runs/{3}', steps.meta.outputs.version || github.ref_name, steps.meta.outputs.artifact || github.event.inputs.artifact || 'both', github.repository, github.run_id) || format('<!here> Android FME Maven release *{0}* ({1}) failed :x:{2}\nhttps://github.com/{3}/actions/runs/{4}', steps.meta.outputs.version || github.ref_name, steps.meta.outputs.artifact || github.event.inputs.artifact || 'both', steps.secrets.outputs.missing && format('\nMissing secrets: `{0}`', steps.secrets.outputs.missing) || '', github.repository, github.run_id) }}"
+          slack-message: "${{ job.status == 'success' && format('<!here> :rocket: *Android FME {0}*\n{1}\n<https://central.sonatype.com/publishing/deployments|Publish the draft>  ·  <https://github.com/{2}/releases/latest|Latest release>  ·  <https://github.com/{2}/actions/runs/{3}|View run>', steps.meta.outputs.version || github.ref_name, steps.meta.outputs.artifact == 'vwo' && '*VWO* published to the Maven Central Portal.' || steps.meta.outputs.artifact == 'wingify' && '*Wingify* published to the Maven Central Portal.' || '*VWO* & *Wingify* both published to the Maven Central Portal.', github.repository, github.run_id) || format('<!here> Android FME Maven release *{0}* ({1}) failed :x:{2}\nhttps://github.com/{3}/actions/runs/{4}', steps.meta.outputs.version || github.ref_name, steps.meta.outputs.artifact || github.event.inputs.artifact || 'both', steps.secrets.outputs.missing && format('\nMissing secrets: `{0}`', steps.secrets.outputs.missing) || '', github.repository, github.run_id) }}"
           color: "${{ job.status == 'success' && '#00FF00' || '#FF0000' }}"
         env:
           SLACK_BOT_TOKEN: ${{ secrets.SLACK_NOTIFICATIONS_BOT_TOKEN }}

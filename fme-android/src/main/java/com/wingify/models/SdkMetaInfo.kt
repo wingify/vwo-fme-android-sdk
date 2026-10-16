@@ -17,9 +17,19 @@
 
 package com.wingify.models
 
+import com.google.gson.annotations.JsonAdapter
 import com.google.gson.annotations.SerializedName
 
+@JsonAdapter(SdkMetaInfoAdapter::class)
 data class SdkMetaInfo(
     @SerializedName("wasInitializedEarlier")
-    var wasInitializedEarlier: Boolean = false
+    var wasInitializedEarlier: Boolean = false,
+
+    /** Present with a valid timestamp → panic mode ON; absent/null → OFF. */
+    @SerializedName("panic")
+    val panic: Long? = null,
+
+    /** When this timestamp changes, the SDK triggers a force settings refresh. */
+    @SerializedName("refresh")
+    val refresh: Long? = null,
 )

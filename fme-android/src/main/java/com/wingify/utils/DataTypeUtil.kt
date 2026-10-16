@@ -221,6 +221,12 @@ object DataTypeUtil {
     }
 }
 
+/**
+ * Converts this [JSONObject] into a nested Kotlin map, unwrapping JSONArray/JSONObject
+ * values so Gson does not serialize org.json internals.
+ *
+ * @return Mutable map of unwrapped values.
+ */
 fun JSONObject.toMap(): MutableMap<String, Any> {
     val map = mutableMapOf<String, Any>()
     val keys = this.keys()
@@ -235,6 +241,9 @@ fun JSONObject.toMap(): MutableMap<String, Any> {
  * Converts org.json types into plain Kotlin/Java collections so downstream Gson
  * serialization does not reflect into JSONArray's private `myArrayList` field
  * (which breaks [com.wingify.models.Storage.JsonArrayWrapper] parsing).
+ *
+ * @param value JSONObject, JSONArray, or a primitive already unwrapped.
+ * @return Nested Map/List tree, or [value] when it is not an org.json type.
  */
 private fun unwrapJsonValue(value: Any?): Any {
     return when (value) {

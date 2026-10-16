@@ -139,6 +139,9 @@ class MobileDefaultStorage(private val initOptions: WingifyInitOptions) : Connec
      * Wraps a [Map]/[JSONObject] value into a [JSONObject] so that nested maps are persisted as
      * structured JSON instead of `Object.toString()`. Other types are returned as-is and let the
      * default [JSONObject] handling deal with them.
+     *
+     * @param value Value from the storage map (typically a nested map or JSONObject).
+     * @return JSONObject when [value] is a map, otherwise [value] unchanged.
      */
     private fun wrapAsJsonObject(value: Any): Any {
         return when (value) {

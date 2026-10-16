@@ -1,6 +1,10 @@
 {
-  "ATTRIBUTES_NOT_FOUND": "{key} passed to the {apiName} API is empty. Please provide {expectedFormat}.",
-  "DECISION_EXPIRED": "Stored decision expired for feature: {featureKey} and user: {id}, re-evaluating.",
-  "MEG_DECISION_EXPIRED": "Stored MEG decision expired for group: {groupId} and user: {id}, re-evaluating.",
-  "MEG_FEATURE_DECISION_EXPIRED": "Stored MEG decision expired for feature: {featureKey} and user: {id}, re-evaluating."
+  "ATTRIBUTES_NOT_FOUND": "{key} passed to the {apiName} API is empty. Please provide {expectedFormat}",
+  "DECISION_EXPIRED": "Stored decision expired for feature: {featureKey} and user: {id}, re-evaluating",
+  "MEG_DECISION_EXPIRED": "Stored MEG decision expired for group: {groupId} and user: {id}, re-evaluating",
+  "MEG_FEATURE_DECISION_EXPIRED": "Stored MEG decision expired for feature: {featureKey} and user: {id}, re-evaluating",
+
+  "PANIC_HEARTBEAT_FAILED": "Panic heartbeat returned HTTP {statusCode} or no response; cannot process DaCDN control signals this cycle",
+  "FORCE_REFRESH_HANDLER_NOT_REGISTERED": "Force settings refresh was triggered but no handler is registered; refresh skipped. This may indicate an SDK wiring issue",
+  "COLLECT_RESPONSE_PARSE_ERROR": "Failed to parse DaCDN collect response for control signals; panic state unchanged. Error: {err}"
 }

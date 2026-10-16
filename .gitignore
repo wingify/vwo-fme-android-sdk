@@ -19,3 +19,6 @@ local.properties
 /.cursor/
 # Optional local dev/QA Reposilite publish overlay (use dev-qa-publish.gradle.example)
 /dev-qa-publish.gradle
+
+# Local only catalog custom AI code that should (not be a part of the SDK)
+/local-for-dev/

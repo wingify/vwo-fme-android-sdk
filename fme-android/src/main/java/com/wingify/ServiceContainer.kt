@@ -15,18 +15,24 @@
  */
 package com.wingify
 
+import com.vwo.packages.logger.enums.LogLevelEnum
 import com.wingify.constants.Constants
 import com.wingify.interfaces.networking.HttpMethods
-import com.wingify.services.HooksManager
-import com.wingify.services.LoggerService
-import com.wingify.services.SettingsManager
 import com.wingify.models.Settings
 import com.wingify.models.user.WingifyInitOptions
 import com.wingify.packages.network_layer.manager.BatchManager
 import com.wingify.packages.network_layer.manager.OnlineBatchUploadManager
 import com.wingify.packages.segmentation_evaluator.core.SegmentationManager
 import com.wingify.packages.storage.Storage
+import com.wingify.services.HooksManager
+import com.wingify.services.LoggerService
+import com.wingify.services.PanicManager
+import com.wingify.services.SettingsManager
 import com.wingify.utils.UsageStats
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.launch
 import java.util.concurrent.atomic.AtomicInteger
 
 /**
@@ -40,6 +46,7 @@ class ServiceContainer(
     private var settings: Settings?,
     private var loggerService: LoggerService?
 ) {
+    private val scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
     private val hooksManager: HooksManager = HooksManager(options.integrations)
     private val segmentationManager = SegmentationManager()
     /**
@@ -57,6 +64,13 @@ class ServiceContainer(
     private val deferImmediateBatchUploadCount = AtomicInteger(0)
     lateinit var usageStats: UsageStats
     internal var storage: Storage? = null
+
+    /** Manages panic-mode and force-refresh signals from DaCDN. Long-lived per account. */
+    val panicManager = PanicManager()
+
+    /** Registered by WingifyClient so NetworkUtil can trigger a settings refresh without a circular import. */
+    @Volatile
+    private var forceRefreshHandler: (() -> Boolean)? = null
 
     /** True while at least one getFlags evaluation is deferring immediate uploads. */
     val deferImmediateBatchUpload: Boolean
@@ -82,8 +96,18 @@ class ServiceContainer(
     }
 
     init {
-        // Set the ServiceContainer reference in SettingsManager for logging
         settingsManager?.serviceContainer = this
+        panicManager.loggerService = loggerService
+        panicManager.setOnPanicActivated {
+            val discardedCount = batchManager.discardQueuedEvents(this)
+            if (discardedCount > 0) {
+                getLoggerService()?.log(
+                    LogLevelEnum.INFO,
+                    "EVENTS_DISCARDED_DUE_TO_PANIC_MODE",
+                    mapOf("count" to discardedCount.toString())
+                )
+            }
+        }
     }
 
     /**
@@ -96,6 +120,7 @@ class ServiceContainer(
 
     fun setLoggerService(loggerService: LoggerService) {
         this.loggerService = loggerService
+        panicManager.loggerService = loggerService
     }
 
     /**
@@ -251,5 +276,62 @@ class ServiceContainer(
 
     fun getSdkKey(): String {
         return settingsManager?.sdkKey ?: options?.sdkKey ?: ""
+    }
+
+    /**
+     * Registers the handler that WingifyClient uses to perform a force settings refresh.
+     *
+     * @param handler Callback that fetches and applies fresh settings.
+     */
+    fun setForceRefreshHandler(handler: () -> Boolean) {
+        forceRefreshHandler = handler
+    }
+
+    /**
+     * Runs [target] on this container's background coroutine scope.
+     *
+     * @param target Work to execute off the calling thread.
+     */
+    fun executeOnCoroutine(target: () -> Unit) {
+        scope.launch { target() }
+    }
+
+    /**
+     * Triggers a force settings refresh if one isn't already in progress.
+     * Runs the registered [forceRefreshHandler] on a background coroutine and releases
+     * the refresh lock when done.
+     *
+     * @param isRefreshFromPanicClear true when the refresh followed a panic clear (SDK_REENABLED log).
+     */
+    fun triggerForceRefresh(isRefreshFromPanicClear: Boolean = false) {
+        if (!panicManager.tryStartRefresh()) {
+            getLoggerService()?.log(LogLevelEnum.DEBUG, "FORCE_REFRESH_ALREADY_IN_PROGRESS", null)
+            return
+        }
+        val handler = forceRefreshHandler ?: run {
+            getLoggerService()?.log(LogLevelEnum.WARN, "FORCE_REFRESH_HANDLER_NOT_REGISTERED", null)
+            panicManager.abandonPendingForceRefresh()
+            panicManager.finishRefresh(shouldLog = false)
+            return
+        }
+        executeOnCoroutine {
+            var refreshSucceeded = false
+            try {
+                refreshSucceeded = handler()
+            } finally {
+                if (refreshSucceeded) {
+                    panicManager.recordForceRefreshApplied()
+                } else {
+                    panicManager.abandonPendingForceRefresh()
+                }
+                panicManager.finishRefresh(
+                    isRefreshFromPanicClear,
+                    shouldLog = refreshSucceeded,
+                )
+                if (panicManager.hasPendingForceRefresh()) {
+                    triggerForceRefresh()
+                }
+            }
+        }
     }
 }

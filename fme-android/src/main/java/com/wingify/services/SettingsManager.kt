@@ -160,22 +160,48 @@ class SettingsManager(internal val options: WingifyInitOptions) {
 
     private fun cachedSettingsAllowed() = cachedSettingsExpiryInterval != 0
 
-    private fun fetchAndCacheServerSettings(): String? {
-        val response: String? = fetchSettings()
-        if (response != null && isJSONValidSettings(response)) {
+    private fun fetchAndCacheServerSettings(
+        endpoint: String = Constants.SETTINGS_ENDPOINT,
+    ): String? {
+        val response: String? = fetchSettings(endpoint)
+        if (response == null) return null
+        if (isJSONValidSettings(response)) {
             updateSettingsCache(response)
             return response
         }
+        LoggerService.errorLog(
+            key = "INVALID_SETTINGS_SCHEMA",
+            data = mapOf(Constants.ERR to "Setting is invalid"),
+            debugData = mapOf(
+                "an" to if (endpoint == Constants.SETTINGS_PULL_ENDPOINT) {
+                    ApiEnum.UPDATE_SETTINGS.value
+                } else {
+                    ApiEnum.INIT.value
+                }
+            ),
+            shouldSendToVWO = true,
+            serviceContainer = serviceContainer
+        )
         return null
     }
 
     private fun isJSONValidSettings(response: String): Boolean {
         return try {
             val settings = WingifyClient.objectMapper.readValue(response, Settings::class.java)
-            SettingsSchema().isSettingsValid(settings)
+            isSettingsAcceptable(settings)
         } catch (_: Exception) {
             false
         }
+    }
+
+    /**
+     * Returns whether settings are usable. During panic mode the backend may return partial
+     * settings (e.g. empty campaigns); accept them when `sdkMetaInfo.panic` is present so the
+     * SDK can latch panic and block client APIs until full settings are fetched.
+     */
+    internal fun isSettingsAcceptable(settings: Settings): Boolean {
+        if (SettingsSchema().isSettingsValid(settings)) return true
+        return settings.sdkMetaInfo?.panic != null
     }
 
     private fun updateSettingsCache(responseString: String) {
@@ -210,10 +236,12 @@ class SettingsManager(internal val options: WingifyInitOptions) {
     }
 
     /**
-     * Fetches settings from the server
-     * @return settings
+     * Fetches settings from the server.
+     *
+     * @param endpoint Path to GET (`v2-settings` or `v2-pull`).
+     * @return settings JSON, or null on failure.
      */
-    private fun fetchSettings(): String? {
+    private fun fetchSettings(endpoint: String = Constants.SETTINGS_ENDPOINT): String? {
         require(!(sdkKey == null || accountId == null)) { "SDK Key and Account ID are required to fetch settings. Aborting!" }
 
         val options = NetworkUtil().getSettingsPath(sdkKey, accountId)
@@ -232,7 +260,7 @@ class SettingsManager(internal val options: WingifyInitOptions) {
             val request = RequestModel(
                 service.resolveHost(HttpMethods.GET),
                 HttpMethods.GET.value,
-                Constants.SETTINGS_ENDPOINT,
+                endpoint,
                 options,
                 null,
                 null,
@@ -264,7 +292,13 @@ class SettingsManager(internal val options: WingifyInitOptions) {
             LoggerService.errorLog(
                 key = "ERROR_FETCHING_SETTINGS",
                 data = mapOf(Constants.ERR to getFormattedErrorMessage(e)),
-                debugData = mapOf("an" to ApiEnum.INIT),
+                debugData = mapOf(
+                    "an" to if (endpoint == Constants.SETTINGS_PULL_ENDPOINT) {
+                        ApiEnum.UPDATE_SETTINGS.value
+                    } else {
+                        ApiEnum.INIT.value
+                    }
+                ),
                 shouldSendToVWO = false,
                 serviceContainer = serviceContainer
             )
@@ -299,13 +333,18 @@ class SettingsManager(internal val options: WingifyInitOptions) {
     /**
      * Fetches settings from the server
      * @param forceFetch forceFetch, if pooling - true, else - false
+     * @param endpoint Path to GET. Panic force-refresh uses [Constants.SETTINGS_PULL_ENDPOINT].
      * @return settings
      */
-    fun getSettings(forceFetch: Boolean): String? {
+    fun getSettings(
+        forceFetch: Boolean,
+        endpoint: String = Constants.SETTINGS_ENDPOINT,
+    ): String? {
         if (forceFetch) {
+            val source = if (endpoint == Constants.SETTINGS_PULL_ENDPOINT) "v2-pull" else "ServerPoll"
             serviceContainer?.getLoggerService()
-                ?.log(LogLevelEnum.INFO, "Settings: Fetched from: ServerPoll")
-            return fetchAndCacheServerSettings()
+                ?.log(LogLevelEnum.INFO, "Settings: Fetched from: $source")
+            return fetchAndCacheServerSettings(endpoint)
         } else {
             try {
                 val settings = fetchFromCacheOrServer()
@@ -319,9 +358,8 @@ class SettingsManager(internal val options: WingifyInitOptions) {
                     )
                     return null
                 }
-                isSettingsValid = SettingsSchema().isSettingsValid(
-                    WingifyClient.objectMapper.readValue(settings, Settings::class.java)
-                )
+                val parsedSettings = WingifyClient.objectMapper.readValue(settings, Settings::class.java)
+                isSettingsValid = isSettingsAcceptable(parsedSettings)
                 if (isSettingsValid) {
                     return settings
                 } else {
@@ -329,7 +367,7 @@ class SettingsManager(internal val options: WingifyInitOptions) {
                         key = "INVALID_SETTINGS_SCHEMA",
                         data = mapOf(Constants.ERR to "Setting is invalid"),
                         debugData = mapOf("an" to ApiEnum.INIT.value),
-                        shouldSendToVWO = false,
+                        shouldSendToVWO = true,
                         serviceContainer = serviceContainer
                     )
                     return null
@@ -339,7 +377,7 @@ class SettingsManager(internal val options: WingifyInitOptions) {
                     key = "INVALID_SETTINGS_SCHEMA",
                     data = mapOf(Constants.ERR to getFormattedErrorMessage(e)),
                     debugData = mapOf("an" to ApiEnum.INIT.value),
-                    shouldSendToVWO = false,
+                    shouldSendToVWO = true,
                     serviceContainer = serviceContainer
                 )
                 return null

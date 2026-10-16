@@ -30,6 +30,11 @@ import com.vwo.packages.logger.enums.LogLevelEnum
 class LogcatTransport(private val level: LogLevelEnum, private val initOptions: WingifyInitOptions) :
     LogTransport {
 
+    /**
+     * Logcat tag: `Wingify-FME-Android` when the Wingify SDK is active, else `Vwo-fme-android`.
+     *
+     * @return Tag string for [android.util.Log] calls.
+     */
     @VisibleForTesting(otherwise = VisibleForTesting.PRIVATE)
     internal fun resolveTag(): String = when {
         initOptions.isWingifySDKActive -> "Wingify-FME-Android"

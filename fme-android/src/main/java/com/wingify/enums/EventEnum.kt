@@ -27,6 +27,9 @@ enum class EventEnum(val value: String) {
      * Event triggered when a variation is shown to the user.
      */
     VWO_VARIATION_SHOWN("vwo_variationShown"),
+
+    /** Minimal collect fired during panic so DaCDN can return updated control fields in the response. */
+    VWO_COLLECT_CONTROL_PING("vwo_collectControlPing"),
     /**
      * Event triggered when a user attribute is set.
      */

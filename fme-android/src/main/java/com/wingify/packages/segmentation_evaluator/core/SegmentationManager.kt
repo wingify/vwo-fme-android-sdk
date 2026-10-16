@@ -126,6 +126,8 @@ class SegmentationManager {
                 serviceContainer.getAccountId(),
                 serviceContainer.getSdkKey()
             )
+        } else if (serviceContainer.panicManager.isPanicActive()) {
+            null
         } else {
             val response =
                 GatewayServiceUtil.getFromGatewayService(

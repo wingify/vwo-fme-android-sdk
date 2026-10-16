@@ -17,6 +17,7 @@ import com.wingify.packages.storage.Storage
 import com.wingify.providers.ServiceContainerProvider
 import com.wingify.providers.StorageProvider
 import com.wingify.services.LoggerService
+import com.wingify.services.SettingsControlApplyMode
 import com.wingify.services.SettingsManager
 import com.wingify.utils.DataTypeUtil
 import com.wingify.utils.FunctionUtil
@@ -55,6 +56,7 @@ open class WingifyBuilder(private val options: WingifyInitOptions) {
     private val settings: String? = null
     private var originalSettings: String? = null
     private var isSettingsFetchInProgress = false
+    private var isPullFetchInProgress = false
     internal var isSettingsValid = false
     internal var settingsFetchTime: Long = 0
 
@@ -141,62 +143,70 @@ open class WingifyBuilder(private val options: WingifyInitOptions) {
     }
 
     /**
-     * Fetches settings asynchronously, ensuring no parallel fetches.
+     * Fetches settings. Poll (`v2-settings`) and panic pull (`v2-pull`) use separate in-flight flags.
      * @param forceFetch - Force fetch ignoring cache.
+     * @param endpoint Path to GET (`v2-settings` or panic `v2-pull`).
      * @return The fetched settings.
      */
-    private fun fetchSettings(forceFetch: Boolean): String? {
-        // Check if a fetch operation is already in progress
-        if (isSettingsFetchInProgress || settingFileManager == null) {
-            // Avoid parallel fetches
-            return null // Or throw an exception, or handle as needed
+    private fun fetchSettings(
+        forceFetch: Boolean,
+        endpoint: String = Constants.SETTINGS_ENDPOINT,
+    ): String? {
+        if (settingFileManager == null) return null
+        val isPull = endpoint == Constants.SETTINGS_PULL_ENDPOINT
+        if (isPull) {
+            if (isPullFetchInProgress) return null
+            isPullFetchInProgress = true
+        } else if (isSettingsFetchInProgress) {
+            return null
+        } else {
+            isSettingsFetchInProgress = true
         }
 
-        // Set the flag to indicate that a fetch operation is in progress
-        isSettingsFetchInProgress = true
-
         try {
-            // Retrieve the settings synchronously
-            val settings = settingFileManager!!.getSettings(forceFetch)
+            val settings = settingFileManager!!.getSettings(forceFetch, endpoint)
             this.isSettingsValid = this.settingFileManager?.isSettingsValid ?: false
             this.settingsFetchTime = this.settingFileManager?.settingsFetchTime ?: 0
 
             if (!forceFetch) {
-                // Store the original settings
                 originalSettings = settings
             }
-
-            // Clear the flag to indicate that the fetch operation is complete
-            isSettingsFetchInProgress = false
-
-            // Return the fetched settings
             return settings
         } catch (e: Exception) {
-
             LoggerService.Companion.errorLog(
                 "ERROR_FETCHING_SETTINGS",
                 mapOf(Constants.ERR to FunctionUtil.getFormattedErrorMessage(e)),
                 mapOf(
-                    "an" to if (forceFetch) Constants.POLLING else ApiEnum.INIT.value
+                    "an" to when {
+                        isPull -> ApiEnum.UPDATE_SETTINGS.value
+                        forceFetch -> Constants.POLLING
+                        else -> ApiEnum.INIT.value
+                    }
                 ),
                 false,
                 serviceContainer
             )
-            // Clear the flag to indicate that the fetch operation is complete
-            isSettingsFetchInProgress = false
-
-            // Return null or handle the error as needed
             return null
+        } finally {
+            if (isPull) {
+                isPullFetchInProgress = false
+            } else {
+                isSettingsFetchInProgress = false
+            }
         }
     }
 
     /**
      * Gets the settings, fetching them if not cached or if forced.
      * @param forceFetch - Force fetch ignoring cache.
+     * @param endpoint Path to GET. Panic force-refresh uses [Constants.SETTINGS_PULL_ENDPOINT].
      * @return The fetched settings.
      */
-    fun getSettings(forceFetch: Boolean): String? {
-        return fetchSettings(forceFetch)
+    fun getSettings(
+        forceFetch: Boolean,
+        endpoint: String = Constants.SETTINGS_ENDPOINT,
+    ): String? {
+        return fetchSettings(forceFetch, endpoint)
     }
 
     /**
@@ -332,6 +342,7 @@ open class WingifyBuilder(private val options: WingifyInitOptions) {
                 Thread.sleep(pollingInterval.toLong())
 
                 val latestSettings = getSettings(true)
+                maybeTriggerForceRefreshFromPoll(latestSettings)
                 // Store in local variable for smart cast
                 val originalSettingsValue = originalSettings
                 if (originalSettingsValue != null && latestSettings != null) {
@@ -340,7 +351,15 @@ open class WingifyBuilder(private val options: WingifyInitOptions) {
                     val originalSettingsJsonNode: JsonNode =
                         WingifyClient.objectMapper.readTree(originalSettingsValue)
                     if (!latestSettingJsonNode.equals(originalSettingsJsonNode)) {
-                        setNewSettings(latestSettings)
+                        if (shouldSkipStalePollingSettings(latestSettings)) {
+                            loggerService?.log(
+                                LogLevelEnum.INFO,
+                                "POLLING_SETTINGS_STALE",
+                                mapOf("timestamp" to pollingSnapshotId(latestSettings))
+                            )
+                        } else {
+                            setNewSettings(latestSettings)
+                        }
                     } else {
                         loggerService?.log(LogLevelEnum.INFO, "POLLING_NO_CHANGE_IN_SETTINGS", null)
                     }
@@ -363,11 +382,74 @@ open class WingifyBuilder(private val options: WingifyInitOptions) {
         }
     }
 
+    /**
+     * Applies a polled settings snapshot through [WingifyClient.updateSettings] in POLLING mode.
+     *
+     * @param latestSettings Latest settings JSON from polling, or null.
+     */
     private fun setNewSettings(latestSettings: String?) {
         originalSettings = latestSettings
         loggerService?.log(LogLevelEnum.INFO, "POLLING_SET_SETTINGS", null)
-        // Update WingifyClient settings
-        wingifyClient?.updateSettings(originalSettings)
+        wingifyClient?.updateSettings(originalSettings, SettingsControlApplyMode.POLLING)
+    }
+
+    /**
+     * Updates the polling baseline after a force-refresh fetch.
+     *
+     * @param settings Settings JSON that should become the next polling comparison baseline.
+     */
+    fun syncOriginalSettings(settings: String?) {
+        originalSettings = settings
+    }
+
+    /**
+     * Triggers v2-pull when a poll response carries a fresh `sdkMetaInfo.refresh`, even if the
+     * snapshot id is older than the last applied settings (e.g. after a prior v2-pull).
+     */
+    private fun maybeTriggerForceRefreshFromPoll(latestSettings: String?) {
+        if (latestSettings.isNullOrEmpty()) return
+        val parsed = try {
+            WingifyClient.gson.fromJson(latestSettings, Settings::class.java)
+        } catch (_: Exception) {
+            return
+        } ?: return
+        val container = serviceContainer ?: return
+        val result = container.panicManager.evaluateForceRefreshFromPollMeta(parsed)
+        if (result.shouldTriggerForceRefresh) {
+            container.triggerForceRefresh()
+        }
+    }
+
+    /**
+     * Returns true when the polled snapshot is older than or equal to the last applied settings.
+     * Unparseable payloads are not skipped so polling can still attempt an update.
+     *
+     * @param latestSettings Polled settings JSON.
+     * @return true when [WingifyClient.updateSettings] should be skipped.
+     */
+    private fun shouldSkipStalePollingSettings(latestSettings: String): Boolean {
+        val parsed = try {
+            WingifyClient.gson.fromJson(latestSettings, Settings::class.java)
+        } catch (_: Exception) {
+            return false
+        } ?: return false
+        val panicManager = serviceContainer?.panicManager ?: return false
+        return !panicManager.shouldApplySettingsSnapshot(parsed)
+    }
+
+    /**
+     * Snapshot id used in polling logs: [Settings.lastUpdatedOn], else [Settings.version].
+     *
+     * @param latestSettings Polled settings JSON.
+     * @return Timestamp string, or empty when parsing fails.
+     */
+    private fun pollingSnapshotId(latestSettings: String): String {
+        return try {
+            val parsed = WingifyClient.gson.fromJson(latestSettings, Settings::class.java)
+            (parsed?.lastUpdatedOn ?: parsed?.version)?.toString().orEmpty()
+        } catch (_: Exception) {
+            ""
+        }
     }
 
     /**
