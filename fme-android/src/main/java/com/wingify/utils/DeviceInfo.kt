@@ -21,6 +21,9 @@ import android.content.res.Configuration
 import android.os.Build
 import com.wingify.constants.Constants.APP_VERSION
 import com.wingify.constants.Constants.DEVICE_MODEL
+import com.wingify.constants.Constants.DEVICE_TYPE_MOBILE
+import com.wingify.constants.Constants.DEVICE_TYPE_TABLET
+import com.wingify.constants.Constants.DEVICE_TYPE_TV
 import com.wingify.constants.Constants.LOCALE
 import com.wingify.constants.Constants.MANUFACTURER
 import com.wingify.constants.Constants.OS_VERSION
@@ -64,12 +67,19 @@ class DeviceInfo {
 
     /**
      * Pre-segmentation device type: mobile, tablet, or tv.
+     *
+     * Returns an empty string when [context] has no resources, so init can continue.
+     * Callers log [deviceTypeLookupError] in that case.
      */
     fun getDeviceType(context: Context): String {
-        val config = context.resources.configuration
+        val config = context.resources?.configuration ?: return ""
         return when (config.uiMode and Configuration.UI_MODE_TYPE_MASK) {
-            Configuration.UI_MODE_TYPE_TELEVISION -> "tv"
-            else -> if (config.smallestScreenWidthDp >= TABLET_SMALLEST_WIDTH_DP) "tablet" else "mobile"
+            Configuration.UI_MODE_TYPE_TELEVISION -> DEVICE_TYPE_TV
+            else -> if (config.smallestScreenWidthDp >= TABLET_SMALLEST_WIDTH_DP) {
+                DEVICE_TYPE_TABLET
+            } else {
+                DEVICE_TYPE_MOBILE
+            }
         }
     }
 
@@ -97,4 +107,15 @@ class DeviceInfo {
             LOCALE to getLocale()
         )
     }
+}
+
+/**
+ * Log key in `error-messages.json` when the device type cannot be read.
+ *
+ * @return `DEVICE_CONTEXT_MISSING` or `DEVICE_RESOURCES_MISSING`, otherwise null.
+ */
+internal fun deviceTypeLookupError(context: Context?): String? = when {
+    context == null -> "DEVICE_CONTEXT_MISSING"
+    context.resources == null -> "DEVICE_RESOURCES_MISSING"
+    else -> null
 }

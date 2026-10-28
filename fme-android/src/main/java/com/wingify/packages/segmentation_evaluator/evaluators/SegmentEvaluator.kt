@@ -32,6 +32,7 @@ import com.wingify.providers.StorageProvider
 import com.wingify.services.LoggerService
 import com.wingify.services.StorageService
 import com.wingify.utils.DeviceInfo
+import com.wingify.utils.deviceTypeLookupError
 import com.wingify.utils.JsonNode
 import com.wingify.utils.asText
 import com.wingify.utils.fieldNames
@@ -98,10 +99,14 @@ class SegmentEvaluator(val serviceContainer: ServiceContainer) {
             )
 
             SegmentOperatorValueEnum.DEVICE_TYPE -> {
-                val appContext = StorageProvider.contextRef.get() ?: return false
+                val appContext = StorageProvider.contextRef.get()
+                deviceTypeLookupError(appContext)?.let { key ->
+                    serviceContainer.getLoggerService()?.log(LogLevelEnum.ERROR, key, null)
+                    return false
+                }
                 return SegmentOperandEvaluator(serviceContainer).evaluateStringOperandDSL(
                     subDsl.asText(),
-                    DeviceInfo().getDeviceType(appContext)
+                    DeviceInfo().getDeviceType(requireNotNull(appContext))
                 )
             }
 

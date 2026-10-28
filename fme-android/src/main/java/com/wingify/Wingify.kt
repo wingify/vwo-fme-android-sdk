@@ -15,7 +15,7 @@
  */
 package com.wingify
 
-import android.os.Build
+import com.wingify.constants.Constants.DEVICE_TYPE_MOBILE
 import com.wingify.constants.Constants.PLATFORM
 import com.wingify.constants.Constants.SDK_NAME
 import com.wingify.interfaces.IWingifyInitCallback
@@ -30,7 +30,11 @@ import com.wingify.providers.StorageProvider
 import com.vwo.sdk.fme.BuildConfig
 import com.wingify.SDKState
 import com.wingify.ServiceContainer
+import com.wingify.utils.DeviceInfo
 import com.wingify.utils.SDKMetaUtil
+import com.wingify.utils.deviceTypeLookupError
+import com.wingify.utils.formatUserAgent
+import com.wingify.utils.unsupportedDeviceWarning
 import com.wingify.utils.UsageStats
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -127,8 +131,22 @@ open class Wingify protected constructor(
                 .initPolling()
 
             SDKMetaUtil.configureFromInitOptions(options)
-            StorageProvider.userAgent =
-                "VWO FME $PLATFORM ${BuildConfig.SDK_VERSION} ($PLATFORM/${Build.VERSION.RELEASE})"
+            val deviceInfo = DeviceInfo()
+            val context = options.context
+            deviceTypeLookupError(context)?.let { key ->
+                builder.getLoggerService()?.log(LogLevelEnum.ERROR, key, null)
+            }
+            val deviceType = context?.let(deviceInfo::getDeviceType).orEmpty()
+                .ifBlank { DEVICE_TYPE_MOBILE }
+            unsupportedDeviceWarning(deviceType)?.let { key ->
+                builder.getLoggerService()?.log(LogLevelEnum.WARN, key, null)
+            }
+            StorageProvider.userAgent = formatUserAgent(
+                platform = PLATFORM,
+                sdkVersion = BuildConfig.SDK_VERSION,
+                osRelease = deviceInfo.getOsVersion(),
+                deviceType = deviceType,
+            )
             val serviceContainer = builder.createServiceContainer(null, options)
             val settings = builder.getSettings(false)
 

@@ -71,5 +71,8 @@
   "FAILURE_PANIC_HEARTBEAT": "Could not send panic mode heartbeat signal to out server",
 
   "MEG_CAMPAIGN_CLONE_FAILED": "MEG: failed to clone campaign {campaignKey}. Error: {err}",
-  "MEG_CAMPAIGN_VARIATION_MAPPING_FAILED": "MEG: failed to convert campaign {campaignKey} to variation. Error: {err}"
+  "MEG_CAMPAIGN_VARIATION_MAPPING_FAILED": "MEG: failed to convert campaign {campaignKey} to variation. Error: {err}",
+
+  "DEVICE_CONTEXT_MISSING": "Context is null. The User-Agent classifies this device as a phone, and device-type segmentation does not match.",
+  "DEVICE_RESOURCES_MISSING": "Context resources are null. The User-Agent classifies this device as a phone, and device-type segmentation does not match."
 }

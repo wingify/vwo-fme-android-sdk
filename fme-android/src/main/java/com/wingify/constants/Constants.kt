@@ -69,6 +69,45 @@ object Constants {
     const val DEVICE_MODEL = "vwo_dm"
     const val LOCALE = "vwo_loc"
 
+    /**
+     * Pre-segmentation device type for a phone.
+     *
+     * Returned by [com.wingify.utils.DeviceInfo.getDeviceType] when the screen is smaller than a
+     * tablet and the UI mode is not television. This value also selects the mobile User-Agent
+     * suffix [USER_AGENT_MOBILE_PRODUCTS].
+     */
+    const val DEVICE_TYPE_MOBILE: String = "mobile"
+
+    /**
+     * Pre-segmentation device type for a tablet.
+     *
+     * Returned when the smallest screen width is at least 600dp and the UI mode is not television.
+     * Tablets use the base User-Agent, without [USER_AGENT_MOBILE_PRODUCTS].
+     */
+    const val DEVICE_TYPE_TABLET: String = "tablet"
+
+    /**
+     * Pre-segmentation device type for Android TV.
+     *
+     * Returned when the UI mode is television. Android TV is unsupported; initialization logs
+     * `ANDROID_TV_UNSUPPORTED` because post-segmentation classifies this device as a tablet/others.
+     */
+    const val DEVICE_TYPE_TV: String = "tv"
+
+    /**
+     * RFC 9110 User-Agent product token for this SDK.
+     *
+     * The product line is `VWO_FME_<platform>/<sdkVersion> (<platform> <osRelease>)`.
+     */
+    const val USER_AGENT_PRODUCT: String = "VWO_FME"
+
+    /**
+     * Extra User-Agent product tokens sent for [DEVICE_TYPE_MOBILE].
+     *
+     * Appended so gateway user-agent parsing classifies the client as a phone browser.
+     */
+    const val USER_AGENT_MOBILE_PRODUCTS: String = "Mobile Safari"
+
     // Debugger constants
     const val V2_SETTINGS = "v2-settings"
     const val POLLING = "polling"

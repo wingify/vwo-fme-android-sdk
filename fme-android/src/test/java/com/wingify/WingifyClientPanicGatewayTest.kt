@@ -46,15 +46,19 @@ class WingifyClientPanicGatewayTest {
 
     private lateinit var client: VWOClient
     private val postedRequests = CopyOnWriteArrayList<RequestModel>()
+    private val accountId = 12345
+    private val sdkKey = "panic-gateway-sdk"
 
     @Before
     fun setUp() {
         ServiceContainerProvider.clearAllServiceContainers()
         postedRequests.clear()
 
+        val testAccountId = accountId
+        val testSdkKey = sdkKey
         val options = VWOInitOptions().apply {
-            accountId = 12345
-            sdkKey = "panic-gateway-sdk"
+            accountId = testAccountId
+            sdkKey = testSdkKey
             isAliasingEnabled = true
             gatewayService = mapOf(
                 "url" to "https://gateway.example.com",
@@ -144,7 +148,9 @@ class WingifyClientPanicGatewayTest {
 
     private fun postsNamed(eventName: String): List<RequestModel> {
         return postedRequests.filter { request ->
-            request.eventName == eventName || request.query?.get("en") == eventName
+            request.query?.get("a") == accountId.toString() &&
+                request.query?.get("env") == sdkKey &&
+                (request.eventName == eventName || request.query?.get("en") == eventName)
         }
     }
 }

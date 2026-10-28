@@ -24,8 +24,10 @@ import com.wingify.packages.segmentation_evaluator.core.SegmentationManager
 import com.wingify.packages.segmentation_evaluator.evaluators.SegmentEvaluator
 import com.wingify.providers.StorageProvider
 import com.wingify.utils.DeviceInfo
+import com.wingify.utils.deviceTypeLookupError
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
@@ -61,6 +63,7 @@ class DeviceTypeOperandTests {
 
     @Test
     fun deviceTypeIsMobileOnPhone() {
+        assertNull(deviceTypeLookupError(context))
         assertEquals("mobile", DeviceInfo().getDeviceType(context))
     }
 

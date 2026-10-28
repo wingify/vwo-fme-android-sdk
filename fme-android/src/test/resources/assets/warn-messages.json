@@ -6,5 +6,6 @@
 
   "PANIC_HEARTBEAT_FAILED": "Panic heartbeat returned HTTP {statusCode} or no response; cannot process DaCDN control signals this cycle",
   "FORCE_REFRESH_HANDLER_NOT_REGISTERED": "Force settings refresh was triggered but no handler is registered; refresh skipped. This may indicate an SDK wiring issue",
-  "COLLECT_RESPONSE_PARSE_ERROR": "Failed to parse DaCDN collect response for control signals; panic state unchanged. Error: {err}"
+  "COLLECT_RESPONSE_PARSE_ERROR": "Failed to parse DaCDN collect response for control signals; panic state unchanged. Error: {err}",
+  "ANDROID_TV_UNSUPPORTED": "Android TV is unsupported. Post-segmentation will classify this device as a tablet/others."
 }
