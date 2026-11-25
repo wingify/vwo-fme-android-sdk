@@ -25,6 +25,7 @@ import com.wingify.models.Campaign
 import com.wingify.models.Feature
 import com.wingify.models.Settings
 import com.wingify.models.Variation
+import com.vwo.models.user.GetFlag
 import com.wingify.models.user.WingifyUserContext
 import com.wingify.packages.decision_maker.DecisionMaker
 import com.vwo.packages.logger.enums.LogLevelEnum
@@ -49,6 +50,9 @@ class DecisionUtil {
      * @param evaluatedFeatureMap  Map containing the evaluated feature map.
      * @param megGroupWinnerCampaigns  Map containing the MEG group winner campaigns.
      * @param decision  Map containing the decision object.
+     * @param shouldSendImpressionToServer When false, MEG rollout whitelists are stashed for exposeResult.
+     * @param getFlag Flag that owns deferred impressions for this evaluation.
+     * @param impressionOwnerFeatureKey Feature whose exposeResult should send stashed MEG whitelists.
      * @return   Map containing the result of the evaluation.
      */
     fun checkWhitelistingAndPreSeg(
@@ -60,7 +64,10 @@ class DecisionUtil {
         megGroupWinnerCampaigns: MutableMap<Int, String>?,
         storageService: StorageService?,
         decision: MutableMap<String, Any>,
-        serviceContainer: ServiceContainer
+        serviceContainer: ServiceContainer,
+        shouldSendImpressionToServer: Boolean = true,
+        getFlag: GetFlag? = null,
+        impressionOwnerFeatureKey: String? = null,
     ): MutableMap<String, Any?> {
         val vwoUserId = UUIDUtils.getUUID(context.id, settings.accountId.toString())
         val campaignId = campaign.id!!
@@ -286,7 +293,10 @@ class DecisionUtil {
                 evaluatedFeatureMap,
                 context,
                 storageService!!,
-                serviceContainer
+                serviceContainer,
+                shouldSendImpressionToServer,
+                getFlag,
+                impressionOwnerFeatureKey,
             )
             // this condition would be true only when the current campaignId match with group winner campaignId
             // for personalise campaign, all personalise variations have same campaignId, so we check for campaignId_variationId

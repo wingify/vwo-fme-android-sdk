@@ -5,6 +5,66 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.85.0] - 2026-11-25
+
+### Added
+
+- Added `fetchFlag()` and `fetchFlags()` to evaluate feature flags without enqueueing `vwo_variationShown`. Both calls are synchronous. `fetchFlag()` returns one `GetFlag`. `fetchFlags()` matches `getFlags()`: pass feature keys, or `null` / empty to evaluate every flag in settings, and returns a `FlagCollection`.
+
+  Call `GetFlag.exposeResult()` when that result is shown, including each flag from `fetchFlags()`. It returns `true` when a deferred impression was enqueued, and `false` when there is nothing to send or it was already sent. A later default `getFlag()` / `getFlags()` does not auto-send a decision left with `variationShownSent=false`.
+
+  Added `exposeResult(featureKey, context)` on the client for the case where the flag object from an earlier process is gone. It rebuilds the deferred impression from local storage, so a `fetchFlag()` / `fetchFlags()` decision can still be exposed after process death. It returns `false` when there is no valid stored decision, it was already sent, or settings are missing. While panic mode is latched it returns `false` and leaves the decision pending, so retry after panic clears.
+
+  ```kotlin
+  // Kotlin — Wingify (recommended)
+  wingifyClient.exposeResult("checkout", context)
+
+  // Kotlin — VWO (legacy)
+  vwoClient.exposeResult("checkout", context)
+  ```
+
+  ```kotlin
+  // Kotlin — Wingify (recommended)
+  val checkout = wingifyClient.fetchFlag("checkout", context)
+  if (checkout.isEnabled()) {
+      val theme = checkout.getVariable("theme", "light") as String
+      checkout.exposeResult()
+  }
+
+  val flags = wingifyClient.fetchFlags(arrayOf("checkout", "pricing"), context)
+  flags.get("checkout").exposeResult()
+
+  // Kotlin — VWO (legacy)
+  val vwoCheckout = vwoClient.fetchFlag("checkout", context)
+  vwoCheckout.exposeResult()
+  val vwoFlags = vwoClient.fetchFlags(arrayOf("checkout", "pricing"), context)
+  vwoFlags.get("pricing").exposeResult()
+  ```
+
+  ```java
+  // Java — Wingify (recommended)
+  GetFlag checkout = wingifyClient.fetchFlag("checkout", context);
+  if (checkout.isEnabled()) {
+      String theme = (String) checkout.getVariable("theme", "light");
+      checkout.exposeResult();
+  }
+
+  FlagCollection flags = wingifyClient.fetchFlags(new String[] {"checkout", "pricing"}, context);
+  flags.get("checkout").exposeResult();
+
+  // Java — VWO (legacy)
+  GetFlag vwoCheckout = vwoClient.fetchFlag("checkout", context);
+  vwoCheckout.exposeResult();
+  FlagCollection vwoFlags = vwoClient.fetchFlags(new String[] {"checkout", "pricing"}, context);
+  vwoFlags.get("pricing").exposeResult();
+  ```
+
+### Fixed
+
+- Flags that evaluated **disabled** now persist their decision to storage, like enabled flags already did. Previously the storage write sat inside the enabled branch, so a disabled `fetchFlag()` / `fetchFlags()` left no sticky record: the deferred impact-campaign impression could not be rebuilt after process death, and every later call re-evaluated from scratch instead of serving the stored decision. Enabled flags are unaffected.
+
+- On accounts with user-tracking (MAU) billing, `fetchFlag()` / `fetchFlags()` now sends the `vwo_feTrackUsage` event. A stashed impression was never dispatched to the server, so it cannot cover the evaluation for billing; previously the stash suppressed the event entirely, so a prefetch-only integration was never billed. An impression that is actually sent still suppresses it, and `exposeResult()` never adds a second MAU event.
+
 ## [1.81.0] - 2026-10-28
 
 ### Changed

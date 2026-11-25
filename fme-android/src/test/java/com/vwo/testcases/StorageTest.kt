@@ -52,6 +52,9 @@ class StorageTest : Connector() {
         value["rolloutId"] = data["rolloutId"]
         value["experimentId"] = data["experimentId"]
         data["decisionExpiryTime"]?.let { value["decisionExpiryTime"] = it }
+        data["variationShownSent"]?.let { value["variationShownSent"] = it }
+        data["holdoutIds"]?.let { value["holdoutIds"] = it }
+        data["notInHoldoutIds"]?.let { value["notInHoldoutIds"] = it }
 
         // Store the value in the storage
         storage[key] = value

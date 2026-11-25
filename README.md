@@ -656,7 +656,7 @@ wingifyClient.getFlag("featureKey", context, object : IWingifyListener {
 To retrieve several feature flags at once, use the `getFlags` API.
 The `getFlags` API evaluates multiple flags for a specific user in a single call. It returns a `FlagCollection` that you can use to check each flag's status and access its variables. Unlike `getFlag()`, this API is synchronous and does not use a listener.
 
-Pass feature keys to evaluate a subset, or `null` / empty to evaluate every flag from settings.
+Pass feature keys to evaluate a subset, or `null` / empty to evaluate every flag from settings. Independent flags run in parallel; flags that share a mutually exclusive group (MEG) are evaluated sequentially so results stay consistent with calling `getFlag()` one by one. Variation-shown impressions from the call are queued and flushed together.
 
 | Parameter   | Description                                                                 | Required | Type            | Example                                     |
 | ----------- | --------------------------------------------------------------------------- | -------- | --------------- | ------------------------------------------- |
@@ -672,7 +672,7 @@ The returned `FlagCollection` provides:
 | `size()` | Number of evaluated flags. |
 | `iterator()` | Walks each feature-key → `GetFlag` entry. |
 
-Each `GetFlag` is the same type as `getFlag()`: `isEnabled()`, `getVariable(key, default)`, `getVariables()`.
+Each `GetFlag` is the same type as `getFlag()`: `isEnabled()`, `getVariable(key, default)`, `getVariables()`, `exposeResult()`.
 
 Example usage:
 
@@ -708,6 +708,105 @@ val variable: String = featureFlag.getVariable("feature_flag_variable", "default
 
 // Evaluate every flag from settings
 val allFlags = wingifyClient.getFlags(null, context)
+```
+
+</details>
+
+### Deferring variation-shown impressions
+
+`getFlag()` and `getFlags()` enqueue a `vwo_variationShown` impression as soon as a flag is evaluated. Use `fetchFlag()` or `fetchFlags()` when the user has not seen the result yet. Evaluation is the same, but the impression is held until you expose the visitor.
+
+Both fetch calls are synchronous. A later default `getFlag()` or `getFlags()` does not send an impression that was deferred; call expose explicitly. A second expose is a no-op.
+
+| Method | On | Returns | Description |
+| --- | --- | --- | --- |
+| `fetchFlag(featureKey, context)` | Client | `GetFlag` | Evaluates one flag and does not enqueue `vwo_variationShown`. |
+| `fetchFlags(flagNames, context)` | Client | `FlagCollection` | Same as `getFlags()`, without enqueueing `vwo_variationShown`. `null` or empty `flagNames` evaluates every flag. |
+| `exposeResult()` | `GetFlag` | `Boolean` | Enqueues the deferred impression for that flag. `true` when one was queued. |
+| `exposeResult(featureKey, context)` | Client | `Boolean` | Enqueues the deferred impression using only the feature key, rebuilding it from local storage. For the case where the `GetFlag` from the earlier call is gone, e.g. after process death. Resolves a device id the same way `getFlag()` does. |
+
+#### fetchFlag
+
+`fetchFlag()` evaluates one feature flag and returns a `GetFlag`. Call `exposeResult()` when that result is shown. `exposeResult()` returns `true` when a deferred impression was enqueued, and `false` when there is nothing to send or it was already sent.
+
+| Parameter    | Description                                                      | Required | Type   | Example            |
+| ------------ | ---------------------------------------------------------------- | -------- | ------ | ------------------ |
+| `featureKey` | Unique identifier of the feature flag                            | Yes      | String | `'new_checkout'`   |
+| `context`    | Object containing user identification and contextual information | Yes      | Object | `VWOUserContext()` |
+
+Example usage:
+
+<details>
+<summary>VWO (legacy)</summary>
+
+```kotlin
+val context = VWOUserContext()
+context.id = "unique_user_id"
+
+val featureFlag = vwoClient.fetchFlag("feature_key_1", context)
+if (featureFlag.isEnabled()) {
+    val variable: String = featureFlag.getVariable("feature_flag_variable", "default-value") as String
+    featureFlag.exposeResult()
+}
+```
+
+</details>
+
+<details>
+<summary>Wingify — recommended</summary>
+
+```kotlin
+val context = WingifyUserContext()
+context.id = "unique_user_id"
+
+val featureFlag = wingifyClient.fetchFlag("feature_key_1", context)
+if (featureFlag.isEnabled()) {
+    val variable: String = featureFlag.getVariable("feature_flag_variable", "default-value") as String
+    featureFlag.exposeResult()
+}
+```
+
+</details>
+
+#### fetchFlags
+
+`fetchFlags()` takes the same arguments as `getFlags()` and returns the same `FlagCollection`. Pass feature keys to evaluate a subset, or `null` / empty to evaluate every flag from settings. Independent flags run in parallel; flags that share a mutually exclusive group (MEG) are evaluated sequentially.
+
+Call `exposeResult()` on each `GetFlag` when that result is shown. It returns `true` when a deferred impression was enqueued, and `false` when there is nothing to send or it was already sent.
+
+| Parameter   | Description                                                                 | Required | Type            | Example                                     |
+| ----------- | --------------------------------------------------------------------------- | -------- | --------------- | ------------------------------------------- |
+| `flagNames` | Feature keys to evaluate. `null` or empty evaluates all flags from settings | No       | `Array<String>` | `arrayOf("feature_key_1", "feature_key_2")` |
+| `context`   | Object containing user identification and contextual information            | Yes      | Object          | `VWOUserContext()`                          |
+
+Example usage:
+
+<details>
+<summary>VWO (legacy)</summary>
+
+```kotlin
+val context = VWOUserContext()
+context.id = "unique_user_id"
+
+val flags = vwoClient.fetchFlags(arrayOf("feature_key_1", "feature_key_2"), context)
+val featureFlag = flags.get("feature_key_1")
+val isFeatureFlagEnabled = featureFlag.isEnabled()
+featureFlag.exposeResult()
+```
+
+</details>
+
+<details>
+<summary>Wingify — recommended</summary>
+
+```kotlin
+val context = WingifyUserContext()
+context.id = "unique_user_id"
+
+val flags = wingifyClient.fetchFlags(arrayOf("feature_key_1", "feature_key_2"), context)
+val featureFlag = flags.get("feature_key_1")
+val isFeatureFlagEnabled = featureFlag.isEnabled()
+featureFlag.exposeResult()
 ```
 
 </details>

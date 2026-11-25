@@ -115,6 +115,17 @@ class VWO private constructor(
     }
 
     /**
+     * Fetches one feature flag without enqueueing variationShown.
+     *
+     * @param featureKey Feature key to evaluate.
+     * @param context User context for evaluation.
+     * @return [com.vwo.models.user.GetFlag]. Call [com.vwo.models.user.GetFlag.exposeResult] to send the deferred impression.
+     */
+    fun fetchFlag(featureKey: String, context: VWOUserContext): com.vwo.models.user.GetFlag {
+        return super.fetchFlag(featureKey, context)
+    }
+
+    /**
      * Evaluates multiple feature flags synchronously.
      *
      * @param flagNames Feature keys to evaluate, or null/empty to evaluate all flags from settings.
@@ -123,5 +134,29 @@ class VWO private constructor(
      */
     fun getFlags(flagNames: Array<String>?, context: VWOUserContext): FlagCollection {
         return FlagCollection.wrap(super.getFlags(flagNames, context))
+    }
+
+    /**
+     * Fetches multiple feature flags without enqueueing variationShown.
+     *
+     * @param flagNames Feature keys to evaluate, or null/empty to evaluate all flags from settings.
+     * @param context User context for evaluation.
+     * @return [FlagCollection] keyed by feature key. Call [com.vwo.models.user.GetFlag.exposeResult] on each flag to send deferred impressions.
+     */
+    fun fetchFlags(flagNames: Array<String>?, context: VWOUserContext): FlagCollection {
+        return FlagCollection.wrap(super.fetchFlags(flagNames, context))
+    }
+
+    /**
+     * Exposes a deferred variationShown impression using only the feature key and user context.
+     *
+     * Use after process death, when the flag returned by [fetchFlag] / [fetchFlags] is gone.
+     *
+     * @param featureKey Feature key whose deferred impression should be sent.
+     * @param context User context for the evaluation.
+     * @return `true` when an impression was enqueued.
+     */
+    fun exposeResult(featureKey: String, context: VWOUserContext): Boolean {
+        return super.exposeResult(featureKey, context)
     }
 }

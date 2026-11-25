@@ -55,6 +55,7 @@ object GetFlagsAPI {
         settings: Settings,
         context: WingifyUserContext,
         serviceContainer: ServiceContainer,
+        shouldSendImpressionToServer: Boolean = true,
     ): FlagCollection {
         val keys = resolveFlagKeys(flagNames, settings)
         if (keys.isEmpty()) {
@@ -77,6 +78,7 @@ object GetFlagsAPI {
                                 context,
                                 serviceContainer,
                                 results,
+                                shouldSendImpressionToServer,
                             )
                         }
                     }
@@ -116,9 +118,16 @@ object GetFlagsAPI {
         baseContext: WingifyUserContext,
         serviceContainer: ServiceContainer,
         results: MutableMap<String, GetFlag>,
+        shouldSendImpressionToServer: Boolean,
     ) {
         for (key in batch.keys) {
-            val flag = evaluateSingleFlag(key, settings, baseContext, serviceContainer)
+            val flag = evaluateSingleFlag(
+                key,
+                settings,
+                baseContext,
+                serviceContainer,
+                shouldSendImpressionToServer,
+            )
             synchronized(results) {
                 results[key] = flag
             }
@@ -133,6 +142,7 @@ object GetFlagsAPI {
         settings: Settings,
         baseContext: WingifyUserContext,
         serviceContainer: ServiceContainer,
+        shouldSendImpressionToServer: Boolean,
     ): GetFlag {
         val clonedContext = baseContext.clone()
         val evalSegmentationManager = SegmentationManager().apply {
@@ -146,6 +156,7 @@ object GetFlagsAPI {
                 clonedContext,
                 serviceContainer,
                 serviceContainer.getHooksManager(),
+                shouldSendImpressionToServer,
             )
         } finally {
             serviceContainer.clearEvalSegmentationManager()

@@ -17,6 +17,11 @@ package com.wingify.models.user
 
 /**
  * Feature flag result for the Wingify SDK.
+ *
+ * When evaluation used `fetchFlag` / `fetchFlags`, call [exposeResult] to enqueue the deferred
+ * `vwo_variationShown` impression.
+ * A later default getFlag/getFlags does **not** auto-send when storage has an explicit
+ * `variationShownSent=false`.
  */
 class GetFlag private constructor(
     private val delegate: com.vwo.models.user.GetFlag,
@@ -31,6 +36,17 @@ class GetFlag private constructor(
         delegate.getRecommendationDisplayConfig(key)
 
     fun getVariables(): List<Map<String, Any>> = delegate.getVariables()
+
+    /**
+     * Enqueues a deferred `vwo_variationShown` impression for this flag result.
+     *
+     * No-op when the impression was already sent, or when there is nothing to expose.
+     * Use after [com.wingify.Wingify.fetchFlag] or on each flag from [com.wingify.Wingify.fetchFlags].
+     *
+     * @return `true` when an impression was enqueued.
+     * @see com.vwo.models.user.GetFlag.exposeResult
+     */
+    fun exposeResult(): Boolean = delegate.exposeResult()
 
     internal companion object {
         fun wrap(flag: com.vwo.models.user.GetFlag): GetFlag = GetFlag(flag)

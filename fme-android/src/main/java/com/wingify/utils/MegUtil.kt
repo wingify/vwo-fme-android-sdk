@@ -25,6 +25,7 @@ import com.wingify.models.Feature
 import com.wingify.models.Settings
 import com.wingify.models.Storage
 import com.wingify.models.Variation
+import com.vwo.models.user.GetFlag
 import com.wingify.models.user.WingifyUserContext
 import com.wingify.packages.decision_maker.DecisionMaker
 import com.vwo.packages.logger.enums.LogLevelEnum
@@ -52,6 +53,9 @@ class MegUtil {
      * @param groupId - The ID of the group.
      * @param evaluatedFeatureMap - A map containing evaluated features.
      * @param context - The context model.
+     * @param shouldSendImpressionToServer When false, rollout whitelists are stashed for exposeResult.
+     * @param getFlag Flag that owns deferred impressions for this evaluation.
+     * @param impressionOwnerFeatureKey Feature whose exposeResult should send stashed whitelists.
      * @return The evaluation result.
      */
     fun evaluateGroups(
@@ -61,7 +65,10 @@ class MegUtil {
         evaluatedFeatureMap: MutableMap<String, Any>,
         context: WingifyUserContext,
         storageService: StorageService,
-        serviceContainer: ServiceContainer
+        serviceContainer: ServiceContainer,
+        shouldSendImpressionToServer: Boolean = true,
+        getFlag: GetFlag? = null,
+        impressionOwnerFeatureKey: String? = null,
     ): Variation? {
 
         val featureToSkip: MutableList<String?> = ArrayList()
@@ -166,7 +173,10 @@ class MegUtil {
                 featureToSkip,
                 context,
                 storageService,
-                serviceContainer
+                serviceContainer,
+                shouldSendImpressionToServer,
+                getFlag,
+                impressionOwnerFeatureKey ?: feature?.key,
             )
             if (isRolloutRulePassed) {
                 for (feature1 in settings.features) {
@@ -242,7 +252,10 @@ class MegUtil {
         settings: Settings, feature: Feature, evaluatedFeatureMap: MutableMap<String, Any>,
         featureToSkip: MutableList<String?>, context: WingifyUserContext,
         storageService: StorageService,
-        serviceContainer: ServiceContainer
+        serviceContainer: ServiceContainer,
+        shouldSendImpressionToServer: Boolean,
+        getFlag: GetFlag?,
+        impressionOwnerFeatureKey: String?,
     ): Boolean {
         val featureKey = feature.key ?: return false
         if (evaluatedFeatureMap.containsKey(featureKey) &&
@@ -266,7 +279,10 @@ class MegUtil {
                     null,
                     storageService,
                     HashMap(),
-                    serviceContainer
+                    serviceContainer,
+                    getFlag = getFlag,
+                    shouldSendImpressionToServer = shouldSendImpressionToServer,
+                    impressionOwnerFeatureKey = impressionOwnerFeatureKey,
                 )
                 if ((preSegmentationResult["preSegmentationResult"] as Boolean?)!!) {
                     ruleToTestForTraffic = rule

@@ -21,7 +21,6 @@ import com.wingify.enums.ApiEnum
 import com.wingify.models.Feature
 import com.wingify.models.user.WingifyUserContext
 import com.wingify.packages.storage.Connector
-import com.wingify.utils.KeyedLockUtil
 
 /**
  * Provides data storage and retrieval services.
@@ -40,7 +39,9 @@ class StorageService(private val serviceContainer: ServiceContainer? = null) {
     fun getDataInStorage(featureKey: String?, context: WingifyUserContext): Map<String, Any>? {
         val storageInstance = serviceContainer?.storage?.getConnector() ?: return null
         try {
-            return (storageInstance as Connector).get(featureKey, context.id) as? Map<String, Any>
+            val result =
+                (storageInstance as Connector).get(featureKey, context.id) as? Map<String, Any>
+            return result
         } catch (e: Exception) {
             LoggerService.errorLog(
                 key = "ERROR_READING_STORED_DATA_IN_STORAGE",
@@ -63,9 +64,11 @@ class StorageService(private val serviceContainer: ServiceContainer? = null) {
      */
     fun setDataInStorage(data: Map<String, Any>): Boolean {
         val featureKey = data["featureKey"]?.toString() ?: return false
-        return KeyedLockUtil.withLock(featureKey) {
+        val userId = data[Constants.USER_ID]?.toString()
+        val container = serviceContainer ?: return false
+        return container.withFlagLock(featureKey, userId) {
             val storageInstance =
-                serviceContainer?.storage?.getConnector() ?: return@withLock false
+                container.storage?.getConnector() ?: return@withFlagLock false
             try {
                 (storageInstance as Connector).set(data)
                 true
@@ -82,11 +85,14 @@ class StorageService(private val serviceContainer: ServiceContainer? = null) {
     ): Boolean {
         if (feature == null) return false
         val featureKey = feature.key ?: return false
+        val container = serviceContainer ?: return false
 
-        return KeyedLockUtil.withLock(featureKey) {
+        return container.withFlagLock(featureKey, context.id) {
             val existingData =
                 getDataInStorage(featureKey = featureKey, context = context)?.toMutableMap()
-                    ?: return@withLock false
+                    ?: run {
+                        return@withFlagLock false
+                    }
 
             existingData["featureKey"] = featureKey
             existingData["userId"] = "${context.id}"
@@ -97,7 +103,7 @@ class StorageService(private val serviceContainer: ServiceContainer? = null) {
             }
 
             val storageInstance =
-                serviceContainer?.storage?.getConnector() ?: return@withLock false
+                container.storage?.getConnector() ?: return@withFlagLock false
             try {
                 (storageInstance as Connector).set(existingData)
                 true

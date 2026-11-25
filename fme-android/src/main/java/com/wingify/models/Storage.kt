@@ -50,6 +50,15 @@ class Storage {
     var notInHoldoutIds: JsonArrayWrapper? = null
 
     /**
+     * Whether a `vwo_variationShown` impression was already enqueued for this decision.
+     *
+     * - `null` (absent) + a stored decision → treat as already sent (legacy-safe).
+     * - `false` → deferred; requires [com.vwo.models.user.GetFlag.exposeResult].
+     * - `true` → already sent; expose is a no-op.
+     */
+    var variationShownSent: Boolean? = null
+
+    /**
      * Holds a list of integer IDs that MobileDefaultStorage persists as a raw JSON array
      * (e.g. `[1,2]`), while older / intermediate forms may use `{"values":[1,2]}`.
      */
@@ -134,6 +143,27 @@ class Storage {
     }
 
     var decisionExpiryTime: Long? = null
+
+    /**
+     * Returns whether a durable decision (experiment, rollout, or holdout) is present.
+     */
+    fun hasStoredDecision(): Boolean {
+        if (experimentVariationId != null) return true
+        if (rolloutVariationId != null) return true
+        if (!holdoutIds?.values.isNullOrEmpty()) return true
+        return false
+    }
+
+    /**
+     * Legacy-safe read: absent key with a decision means already sent.
+     */
+    fun isVariationShownAlreadySent(): Boolean {
+        return when (variationShownSent) {
+            true -> true
+            false -> false
+            null -> hasStoredDecision()
+        }
+    }
 
     /**
      * Checks whether this stored decision has expired.

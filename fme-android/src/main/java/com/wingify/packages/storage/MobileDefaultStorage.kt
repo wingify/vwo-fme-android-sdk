@@ -100,6 +100,9 @@ class MobileDefaultStorage(private val initOptions: WingifyInitOptions) : Connec
         data[Constants.Holdouts.KEY_STORAGE_NOT_IN_HOLDOUT_IDS]?.let {
             value[Constants.Holdouts.KEY_STORAGE_NOT_IN_HOLDOUT_IDS] = it
         }
+        data[Constants.KEY_VARIATION_SHOWN_SENT]?.let {
+            value[Constants.KEY_VARIATION_SHOWN_SENT] = it
+        }
 
         val jsonValue = JSONObject(value)
         // Store the value in the storage

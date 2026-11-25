@@ -46,6 +46,7 @@ import com.wingify.utils.DataTypeUtil.isString
 import com.wingify.utils.EventsUtils
 import com.wingify.utils.FunctionUtil.getFormattedErrorMessage
 import com.wingify.utils.GsonUtil
+import com.wingify.utils.ImpressionExposureHelper
 import com.wingify.utils.InternalEventSamplingUtil
 import com.wingify.utils.NetworkUtil
 import com.wingify.utils.SettingsUtil
@@ -241,6 +242,17 @@ open class WingifyClient(
      * @return GetFlag object containing the flag values
      */
     fun getFlag(featureKey: String?, context: WingifyUserContext): GetFlag {
+        return getFlag(featureKey, context, shouldSendImpressionToServer = true)
+    }
+
+    /**
+     * @param shouldSendImpressionToServer When false, stashes variationShown for [GetFlag.exposeResult].
+     */
+    private fun getFlag(
+        featureKey: String?,
+        context: WingifyUserContext,
+        shouldSendImpressionToServer: Boolean,
+    ): GetFlag {
         val apiName = ApiEnum.GET_FLAG.value
         val getFlag = GetFlag(context)
         // Create ServiceContainer for this API call
@@ -318,7 +330,8 @@ open class WingifyClient(
                 procSettings,
                 context,
                 serviceContainer,
-                serviceContainer.getHooksManager()
+                serviceContainer.getHooksManager(),
+                shouldSendImpressionToServer,
             )
 
         } catch (exception: Exception) {
@@ -343,6 +356,14 @@ open class WingifyClient(
     }
 
     /**
+     * Evaluates a feature flag without enqueueing variationShown (Flagship-style fetch).
+     * Call [GetFlag.exposeResult] later to send the deferred impression.
+     */
+    fun fetchFlag(featureKey: String?, context: WingifyUserContext): GetFlag {
+        return getFlag(featureKey, context, shouldSendImpressionToServer = false)
+    }
+
+    /**
      * Evaluates multiple feature flags in parallel and returns a [FlagCollection].
      * Returns disabled flags while panic is latched and fires a collector heartbeat.
      *
@@ -351,6 +372,17 @@ open class WingifyClient(
      * @return [FlagCollection] keyed by feature key.
      */
     fun getFlags(flagNames: Array<String>?, context: WingifyUserContext): FlagCollection {
+        return getFlags(flagNames, context, shouldSendImpressionToServer = true)
+    }
+
+    /**
+     * @param shouldSendImpressionToServer When false, stashes variationShown for [GetFlag.exposeResult].
+     */
+    private fun getFlags(
+        flagNames: Array<String>?,
+        context: WingifyUserContext,
+        shouldSendImpressionToServer: Boolean,
+    ): FlagCollection {
         val apiName = ApiEnum.GET_FLAGS.value
         val serviceContainer = createServiceContainer()
         if (serviceContainer == null) {
@@ -403,6 +435,7 @@ open class WingifyClient(
                 procSettings,
                 context,
                 serviceContainer,
+                shouldSendImpressionToServer,
             )
         } catch (exception: Exception) {
             LoggerService.errorLog(
@@ -420,6 +453,36 @@ open class WingifyClient(
             )
             return FlagCollection.createDisabled(flagNames, context)
         }
+    }
+
+    /**
+     * Evaluates multiple feature flags without enqueueing variationShown (Flagship-style fetch).
+     * Call [GetFlag.exposeResult] on each flag later to send deferred impressions.
+     */
+    open fun fetchFlags(flagNames: Array<String>?, context: WingifyUserContext): FlagCollection {
+        return getFlags(flagNames, context, shouldSendImpressionToServer = false)
+    }
+
+    /**
+     * Exposes a deferred variationShown impression using only the feature key and user context.
+     *
+     * Use after process death, when the `GetFlag` returned by `fetchFlag`/`fetchFlags` is gone:
+     * the decision is rebuilt from local storage. Returns `false` when there is no valid stored
+     * decision, it was already sent, or settings are missing or invalid.
+     *
+     * Blocked while panic mode is latched: the sticky decision keeps its pending state, so
+     * retry after panic clears. Sending during panic would be discarded with the event queue.
+     *
+     * @param featureKey Feature key whose deferred impression should be sent.
+     * @param context User context for the evaluation.
+     * @return `true` when an impression was enqueued.
+     */
+    open fun exposeResult(featureKey: String, context: WingifyUserContext): Boolean {
+        val serviceContainer = createServiceContainer()
+        if (logAndBlockIfPanicActive(ApiEnum.GET_FLAG.value, serviceContainer, context)) {
+            return false
+        }
+        return ImpressionExposureHelper.exposeByKey(featureKey, context, serviceContainer)
     }
 
     /**

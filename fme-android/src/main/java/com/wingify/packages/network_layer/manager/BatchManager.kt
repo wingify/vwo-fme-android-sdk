@@ -130,7 +130,10 @@ internal object BatchManager {
      * @param serviceContainer Account container used to scope events, or null for all accounts.
      * @return Upload success flag and the number of events processed.
      */
-    private suspend fun sendBatches(entryName: String, serviceContainer:ServiceContainer?): BatchUploadResult = withContext(Dispatchers.IO) {
+    private suspend fun sendBatches(
+        entryName: String,
+        serviceContainer: ServiceContainer?
+    ): BatchUploadResult = withContext(Dispatchers.IO) {
         var result = true
         var count = 0
         try {
@@ -144,10 +147,11 @@ internal object BatchManager {
                 //Upload one batch at a time, and wait till it finishes, then start second batch
                 val firstItem = batch.first()
 
-                val batchServiceContainer = serviceContainer ?: ServiceContainerProvider.getServiceContainer(
-                    firstItem.accountId.toInt(),
-                    firstItem.sdkKey
-                )
+                val batchServiceContainer =
+                    serviceContainer ?: ServiceContainerProvider.getServiceContainer(
+                        firstItem.accountId.toInt(),
+                        firstItem.sdkKey
+                    )
                 if (batchServiceContainer?.panicManager?.isPanicActive() == true) {
                     removeStoredData(batch)
                     batchServiceContainer.getLoggerService()?.log(
@@ -169,7 +173,12 @@ internal object BatchManager {
                     )
                     return@forEach
                 }
-                val isUploaded = batchUploader.uploadBatch(firstItem.accountId, firstItem.sdkKey, values, serviceContainer)
+                val isUploaded = batchUploader.uploadBatch(
+                    firstItem.accountId,
+                    firstItem.sdkKey,
+                    values,
+                    serviceContainer
+                )
                 if (isUploaded) {
                     count += batch.size
                     removeStoredData(batch)
@@ -221,8 +230,6 @@ internal object BatchManager {
             val batch = sdkDataManager?.getSdkData(it.accountId, it.sdkKey)
             if (batch?.isNotEmpty() == true) {
                 result.add(batch)
-            } else {
-                println("No data found for ${it.accountId} and ${it.sdkKey}")
             }
         }
         return result
@@ -241,8 +248,6 @@ internal object BatchManager {
         val batch = sdkDataManager?.getSdkData(accountId, sdkKey)
         if (batch?.isNotEmpty() == true) {
             result.add(batch)
-        } else {
-            println("No data found for $accountId and $sdkKey")
         }
         return result
     }
@@ -277,7 +282,10 @@ internal object BatchManager {
         val onlineBatchingAllowed = isOnlineBatchingAllowed(onlineBatchUploadManager)
         val status = if (onlineBatchingAllowed) "enabled" else "disabled"
         if (onlineBatchingAllowed) {
-            onlineBatchUploadManager.startBatchUploader(serviceContainer.getBatchManager(), serviceContainer)
+            onlineBatchUploadManager.startBatchUploader(
+                serviceContainer.getBatchManager(),
+                serviceContainer
+            )
         }
         serviceContainer.getLoggerService()?.log(
             LogLevelEnum.INFO,

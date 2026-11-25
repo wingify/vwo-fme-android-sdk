@@ -54,6 +54,13 @@
   "SEGMENTATION_PASSED_HOLDOUT": "Segmentation passed for holdout ID:{holdoutId} for user ID:{userId}",
   "USER_EXCLUDED_DUE_TO_HOLDOUT": "User ID:{userId} is excluded from feature:{featureKey} due to holdout ID:{holdoutId}",
 
+  "IMPRESSION_DEFERRED": "Deferred variationShown for user ID:{userId} feature:{featureKey} (count:{count})",
+  "IMPRESSION_EXPOSE_DEFERRED": "Exposing deferred variationShown for user ID:{userId} feature:{featureKey}",
+  "IMPRESSION_EXPOSE_REBUILD": "Exposing variationShown rebuilt from storage+impact for user ID:{userId} feature:{featureKey}",
+  "IMPRESSION_EXPOSE_ALREADY_SENT": "variationShown already sent for user ID:{userId} feature:{featureKey}; exposeResult no-op",
+  "IMPRESSION_EXPOSE_NOTHING": "Nothing to expose for user ID:{userId} feature:{featureKey}",
+  "CACHED_AWAITING_EXPOSE": "Cached decision awaiting exposeResult for user ID:{userId} feature:{featureKey}; skipping auto-send",
+
   "PANIC_MODE_ACTIVATED": "SDK is in disable mode (disable timestamp: {panicTs}). All client-facing API calls will not execute until the SDK is enabled again.",
   "PANIC_MODE_CLEARED_VIA_SETTINGS": "SDK enabled again via settings update. Feature flag evaluations have resumed.",
   "PANIC_MODE_CLEARED_VIA_RESPONSE": "SDK enabled again via network response. Feature flag evaluations have resumed.",

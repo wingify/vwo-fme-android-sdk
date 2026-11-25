@@ -24,21 +24,61 @@ object KeyedLockUtil {
     private val locks = ConcurrentHashMap<String, Any>()
 
     /**
+     * Lock keys the calling thread currently holds.
+     *
+     * Thread-local so a nested acquire on the same thread can re-enter [withLock].
+     * Mutated only while the corresponding monitor is held.
+     */
+    @PublishedApi
+    internal val heldLockKeys = ThreadLocal.withInitial { mutableSetOf<String>() }
+
+    /**
      * Returns the mutex for [key], creating one if needed.
      */
-    private fun lockFor(key: String): Any =
+    @PublishedApi
+    internal fun lockFor(key: String): Any =
         locks.computeIfAbsent(key) { Any() }
 
     /**
+     * Whether the calling thread already holds the lock for [key].
+     *
+     * Other threads always see false for keys they do not hold.
+     *
+     * @param key Lock key to check.
+     * @return True when this thread acquired [key] and has not released it.
+     */
+    @PublishedApi
+    internal fun isLockHeldByCurrentThread(key: String): Boolean =
+        heldLockKeys.get().contains(key)
+
+    /**
+     * Builds a multi-account-safe lock key aligned with MobileDefaultStorage identity.
+     */
+    fun flagLockKey(accountId: Int, sdkKey: String, featureKey: String, userId: String?): String =
+        "$accountId|$sdkKey|$featureKey|${userId.orEmpty()}"
+
+    /**
      * Runs [block] while holding the lock for [key].
+     *
+     * Reentrant on the calling thread: if [key] is already held, [block] runs without taking the
+     * monitor again. A different key on the same thread nests. Callers that take more than one key
+     * must acquire them in one consistent order, or two threads can deadlock.
      *
      * @param key Key whose critical section is being protected.
      * @param block Critical section to execute under the lock.
      * @return The result of [block].
      */
-    fun <T> withLock(key: String, block: () -> T): T {
-        synchronized(lockFor(key)) {
+    inline fun <T> withLock(key: String, block: () -> T): T {
+        if (isLockHeldByCurrentThread(key)) {
             return block()
+        }
+        synchronized(lockFor(key)) {
+            heldLockKeys.get().add(key)
+            try {
+                return block()
+            } finally {
+                heldLockKeys.get().remove(key)
+            }
         }
     }
 }

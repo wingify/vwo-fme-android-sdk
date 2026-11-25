@@ -198,7 +198,7 @@ jobs:
           if gh release view "$TAG" >/dev/null 2>&1; then
             gh release edit "$TAG" --title "$TITLE" --notes-file notes.md
           else
-            gh release create "$TAG" --title "$TITLE" --notes-file notes.md --target "$TAG" --verify-tag
+            gh release create "$TAG" --title "$TITLE" --notes-file notes.md --verify-tag
           fi
 
       - name: Notification

@@ -43,6 +43,7 @@ object Constants {
     const val HTTPS_PROTOCOL: String = "https"
     const val VWO_META_MEG_KEY: String = "_vwo_meta_meg_"
     const val VWO_META_HOLDOUT_KEY: String = "_vwo_meta_holdout_"
+    const val VWO_META_VARIATION_SHOWN_KEY: String = "_vwo_meta_variation_shown_"
 
     const val VWO_APP_URL: String = "app.vwo.com"
 
@@ -139,6 +140,9 @@ object Constants {
         "$REGEX_REQUIRES_GATEWAY_SERVICE|\"custom_variable\"\\s*:\\s*\\{\\s*\"name\"\\s*:\\s*\"inlist\\([^)]*\\)\""
 
     const val KEY_DECISION_IS_USER_PART_OF_CAMPAIGN = "isUserPartOfCampaign"
+
+    /** Storage map key for whether variationShown was already enqueued for a sticky decision. */
+    const val KEY_VARIATION_SHOWN_SENT = "variationShownSent"
 
     /**
      * Storage / decision-map keys for the user context variables persisted alongside a stored

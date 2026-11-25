@@ -43,7 +43,7 @@ import com.wingify.utils.DecisionUtil
 import com.wingify.utils.FunctionUtil.getAllExperimentRules
 import com.wingify.utils.FunctionUtil.getFeatureFromKey
 import com.wingify.utils.FunctionUtil.getSpecificRulesBasedOnType
-import com.wingify.utils.ImpressionUtil
+import com.wingify.utils.ImpressionExposureHelper
 import com.wingify.utils.UserTrackingUsageUtil
 import com.wingify.utils.RuleEvaluationUtil
 import com.wingify.utils.UUIDUtils
@@ -60,6 +60,7 @@ object GetFlagAPI {
      * @param settings Settings object containing the account settings.
      * @param context  VWOContext object containing the user context.
      * @param hookManager  HooksManager object containing the integrations.
+     * @param shouldSendImpressionToServer When false, variationShown is stashed for [GetFlag.exposeResult].
      * @return GetFlag object containing the flag value.
      */
     fun getFlag(
@@ -68,256 +69,461 @@ object GetFlagAPI {
         context: WingifyUserContext,
         serviceContainer: ServiceContainer,
         hookManager: HooksManager,
+        shouldSendImpressionToServer: Boolean = true,
     ): GetFlag {
+        return serviceContainer.withFlagLocksForEvaluation(settings, featureKey, context.id) {
 
-        // Store the logs as higher order function and later invoke them when required
-        // REASON:  it's a drop in replacement for execution flow change without any side-effects on
-        //          the logical flow.
-        val logsToBeShownAfterHoldoutLogs = mutableListOf<() -> Unit>()
+            // Store the logs as higher order function and later invoke them when required
+            // REASON:  it's a drop in replacement for execution flow change without any side-effects on
+            //          the logical flow.
+            val logsToBeShownAfterHoldoutLogs = mutableListOf<() -> Unit>()
 
-        val impressionPayload = ImpressionPayload()
+            val impressionPayload = ImpressionPayload()
 
-        val getFlag = GetFlag(context)
-        var shouldCheckForExperimentsRules = false
+            val getFlag = GetFlag(context)
+            var shouldCheckForExperimentsRules = false
+            var variationShownEnqueued = false
+            // When sticky storage has explicit variationShownSent=false, never auto-enqueue
+            // even if the caller asked for shouldSend=true (requires exposeResult).
+            var suppressAutoSendDueToPendingExpose = false
 
-        val passedRulesInformation: MutableMap<String, Any> = HashMap()
-        val evaluatedFeatureMap: MutableMap<String, Any> = HashMap()
+            val passedRulesInformation: MutableMap<String, Any> = HashMap()
+            val evaluatedFeatureMap: MutableMap<String, Any> = HashMap()
 
-        // True when the effective decision is served entirely from local storage (rollout-only path).
-        // In that case the hook should only fire if shouldTriggerIntegrationCallbackAlways is set,
-        // mirroring the behaviour of the stored-experiment and stored-holdout early-exit paths.
-        var isDecisionFromStorage = false
+            // True when the effective decision is served entirely from local storage (rollout-only path).
+            // In that case the hook should only fire if shouldTriggerIntegrationCallbackAlways is set,
+            // mirroring the behaviour of the stored-experiment and stored-holdout early-exit paths.
+            var isDecisionFromStorage = false
 
-        // get feature object from feature key
-        val feature: Feature? = getFeatureFromKey(settings, featureKey)
+            // get feature object from feature key
+            val feature: Feature? = getFeatureFromKey(settings, featureKey)
 
-        // Captures all invariant params so each exit point is a single line.
-        // variationShownSent is the only value that differs per exit.
-        /**
-         * Returns [getFlag] after optionally sending a user-tracked event when no
-         * variationShown impression was dispatched for this evaluation.
-         *
-         * @param variationShownSent true when a variationShown impression was already sent.
-         * @return The [GetFlag] result of this evaluation.
-         */
-        fun returnWithUserTrackingGate(variationShownSent: Boolean) =
-            UserTrackingUsageUtil.evaluateFlagAndTrackUsage(
-                settings = settings,
-                context = context,
-                featureKey = featureKey,
-                feature = feature,
-                serviceContainer = serviceContainer,
-                variationShownSent = variationShownSent,
-                getFlag = getFlag,
-            )
+            /**
+             * Whether this evaluation should enqueue variationShown now.
+             *
+             * False when the caller passed `shouldSendImpressionToServer = false`, or when storage
+             * has `variationShownSent = false` and the visitor must call [GetFlag.exposeResult].
+             */
+            fun effectiveShouldSend(): Boolean =
+                shouldSendImpressionToServer && !suppressAutoSendDueToPendingExpose
 
-        // Initialize debug event properties
-        val debugEventProps = mutableMapOf<String, Any>(
-            "an" to ApiEnum.GET_FLAG.value,
-            "uuid" to context.getUuid(serviceContainer),
-            FEATURE_KEY to featureKey,
-            "sId" to context.sessionId
-        )
-
-        /**
-         * Decision object to be sent for the integrations
-         */
-        val decision = mutableMapOf<String, Any>().apply {
-            feature?.name?.let { put("featureName", it) }
-            feature?.id?.let { put("featureId", it) }
-            feature?.key?.let { put("featureKey", it) }
-            context.id?.let { put(Constants.USER_ID, it) }
-            put("api", ApiEnum.GET_FLAG.value)
-
-            // default decisions for holdouts; fallback values
-            put(Constants.KEY_DECISION_IS_USER_PART_OF_CAMPAIGN, false)
-            put("isPartOfHoldout", false)
-            put("holdoutIDs", emptyList<Int>())
-
-            val isAnyHoldoutApplicableForThisFeature =
-                settings.holdoutGroups?.any { isHoldoutApplicableToFeature(it, feature?.id) }
-                    ?: false
-
-            put("isHoldoutPresent", isAnyHoldoutApplicableForThisFeature)
-        }
-
-        val storageService = StorageService(serviceContainer)
-        val storedDataMap: Map<String, Any>? =
-            StorageDecorator().getFeatureFromStorage(featureKey, context, storageService)
-
-        /**
-         * If feature is found in the storage, return the stored variation or holdout decision
-         */
-
-        var storedData: Storage? = null
-
-        try {
-            val storageMapAsString: String = WingifyClient.objectMapper.writeValueAsString(
-                obj = storedDataMap?.toMap() ?: emptyMap<String, Any>()
-            )
-            storedData = WingifyClient.objectMapper.readValue(
-                json = storageMapAsString, clazz = Storage::class.java
-            )
-
-            val isInHoldout = storedData?.holdoutIds?.values.isNullOrEmpty().not()
-
-            // locally saved "in holdout" ids and "not in holdout" ids
-            val savedHoldoutIds = storedData?.holdoutIds?.values
-            val savedNotInHoldoutIds = storedData?.notInHoldoutIds?.values
-
-            val holdoutIdsFromSettings =
-                settings.holdoutGroups
-                    ?.filter { isHoldoutApplicableToFeature(it, feature?.id) }
-                    ?.mapNotNull { it.id } ?: listOf()
-
-            val onServerButHidNotInLocal = holdoutIdsFromSettings.filter {
-                isOnServerButNotInLocal(it, savedHoldoutIds, savedNotInHoldoutIds)
+            /**
+             * Records variationShown impressions built during this evaluation.
+             *
+             * Enqueues [payload] now when `effectiveShouldSend` is true; otherwise merges it into
+             * `getFlag`'s stash for [GetFlag.exposeResult]. Sets `variationShownEnqueued` only
+             * when a non-empty payload is written to the batch DB.
+             *
+             * @param payload Impressions collected for this evaluation.
+             * @return `true` when the payload was enqueued; `false` when it is empty, deferred, or the send failed.
+             */
+            fun recordImpressions(payload: ImpressionPayload): Boolean {
+                val enqueued = ImpressionExposureHelper.record(
+                    settings = settings,
+                    impressionPayload = payload,
+                    context = context,
+                    serviceContainer = serviceContainer,
+                    shouldSend = effectiveShouldSend(),
+                    getFlag = getFlag,
+                    featureKey = featureKey,
+                    feature = feature,
+                )
+                if (enqueued) variationShownEnqueued = true
+                return enqueued
             }
 
-            //
-            // get a list of
-            // localHidAlsoValidOnServer - ids from local storage that are still on server ( valid ids )
-            // _    - ids that are not on server {( meaning they have been removed from server)
-            //                             (these needs to be removed because doesn't exist)}
-            val localHidAlsoValidOnServer =
-                savedHoldoutIds?.filter { isIdPresentOnServer(it, holdoutIdsFromSettings) }?.toSet()
-                    ?.toList() // remove if any duplicate ids
-                    ?: listOf()
-
-            // just like above, these ids were there on the server too
-            val validSavedNotInHoldoutIds =
-                savedNotInHoldoutIds?.filter { isIdPresentOnServer(it, holdoutIdsFromSettings) }
-                    ?.toSet()
-                    ?.toList() // remove if any duplicate ids
-                    ?: listOf()
-
-            // Only treat stored "in holdout" as valid for this feature if the holdout still
-            // applies to this feature (feature id still in holdout's featureIds, or holdout is global).
-            // If the holdout was detached from this feature, we must not early-exit as "blocked by holdout".
-            val holdoutIdsStillApplicableToThisFeature = settings.holdoutGroups
-                ?.filter { isHoldoutApplicableToFeature(it, feature?.id) }
-                ?.mapNotNull { it.id } ?: emptyList()
-            val localHidAlsoValidOnServerForThisFeature =
-                localHidAlsoValidOnServer.filter {
-                    isIdPresentOnServer(
-                        it,
-                        holdoutIdsStillApplicableToThisFeature
-                    )
-                }
-
-            if (isInHoldout && localHidAlsoValidOnServerForThisFeature.isNotEmpty()) {
-                serviceContainer.getLoggerService()?.log(
-                    LogLevelEnum.INFO, "STORED_HOLDOUT_DECISION_FOUND", mapOf(
-                        Constants.USER_ID to context.id,
-                        "featureKey" to featureKey,
-                        "holdoutId" to localHidAlsoValidOnServerForThisFeature.toString()
+            /**
+             * Attaches evaluation dependencies so a stored-decision early return can still
+             * call [GetFlag.exposeResult]. [ImpressionExposureHelper.record] attaches them on the send path.
+             */
+            fun attachExposeDeps() {
+                getFlag.attachExposeDeps(
+                    ImpressionExposureHelper.ExposeDeps(
+                        settings = settings,
+                        featureKey = featureKey,
+                        context = context,
+                        serviceContainer = serviceContainer,
+                        isEnabled = getFlag.isEnabled(),
                     )
                 )
+            }
 
-                var holdoutImpressions = ImpressionPayload()
-                // we might have new holdouts in server
-                // we need to evaluate them and send the data to the server
-                if (feature != null) {
+            /**
+             * Returns the flag after the monthly-active-user gate.
+             *
+             * Skips `vwo_feTrackUsage` when this call sent or stashed a variationShown, because
+             * both events track the same user. An empty queue sends the usage event now, so a
+             * getFlag that only drives the experience is still counted without waiting for
+             * [GetFlag.exposeResult].
+             *
+             * @param variationShownSent Whether this path already enqueued variationShown.
+             */
+            fun returnWithUserTrackingGate(variationShownSent: Boolean): GetFlag {
+                // A stashed impression was not dispatched, so it does not cover the user for
+                // MAU billing. Only a real send (or this call's enqueue) counts.
+                val coveredByVariationShown = variationShownSent
+                    || getFlag.isImpressionAlreadySent()
+                return UserTrackingUsageUtil.evaluateFlagAndTrackUsage(
+                    settings = settings,
+                    context = context,
+                    featureKey = featureKey,
+                    feature = feature,
+                    serviceContainer = serviceContainer,
+                    variationShownSent = coveredByVariationShown,
+                    getFlag = getFlag,
+                )
+            }
 
-                    val holdoutGroupService = HoldoutGroupService(DecisionMaker(), serviceContainer)
-                    holdoutImpressions = holdoutGroupService.getHoldoutsFor(
-                        settings = settings,
-                        feature = feature,
-                        context = context,
-                        storageService = storageService
-                    ).second
+            // Initialize debug event properties
+            val debugEventProps = mutableMapOf<String, Any>(
+                "an" to ApiEnum.GET_FLAG.value,
+                "uuid" to context.getUuid(serviceContainer),
+                FEATURE_KEY to featureKey,
+                "sId" to context.sessionId
+            )
 
-                    // filter out holdouts that were not part of the holdout
-                    val (qualifiedIdsAfterEvaluation, notQualifiedIdsAfterEvaluation) = holdoutImpressions.impressionList.partition { it.variationId == Constants.Holdouts.VARIATION_IS_PART_OF_HOLDOUT }
-                        .let { (qualified, notQualified) ->
-                            qualified.map { it.campaignId } to notQualified.map { it.campaignId }
-                        }
+            /**
+             * Decision object to be sent for the integrations
+             */
+            val decision = mutableMapOf<String, Any>().apply {
+                feature?.name?.let { put("featureName", it) }
+                feature?.id?.let { put("featureId", it) }
+                feature?.key?.let { put("featureKey", it) }
+                context.id?.let { put(Constants.USER_ID, it) }
+                put("api", ApiEnum.GET_FLAG.value)
 
-                    ImpressionUtil.createAndSendImpressionForVariationShown(
-                        settings = settings,
-                        impressionPayload = holdoutImpressions,
-                        context = context,
-                        serviceContainer = serviceContainer
-                    )
+                // default decisions for holdouts; fallback values
+                put(Constants.KEY_DECISION_IS_USER_PART_OF_CAMPAIGN, false)
+                put("isPartOfHoldout", false)
+                put("holdoutIDs", emptyList<Int>())
 
-                    // these are non duplicate final holdout ids that include
-                    // local ids that still apply to this feature (valid for this feature only)
-                    val finalInHoldoutIds =
-                        (localHidAlsoValidOnServerForThisFeature + qualifiedIdsAfterEvaluation).toSet()
-                            .toList()
-                    val finalNotInHoldoutIds =
-                        (notQualifiedIdsAfterEvaluation + validSavedNotInHoldoutIds).toSet()
-                            .toList()
+                val isAnyHoldoutApplicableForThisFeature =
+                    settings.holdoutGroups?.any { isHoldoutApplicableToFeature(it, feature?.id) }
+                        ?: false
 
-                    storageService.updateDataInStorage(
-                        feature = feature, context = context, data = mapOf(
-                            Constants.Holdouts.KEY_STORAGE_HOLDOUT_IDS to finalInHoldoutIds,
-                            Constants.Holdouts.KEY_STORAGE_NOT_IN_HOLDOUT_IDS to finalNotInHoldoutIds,
+                put("isHoldoutPresent", isAnyHoldoutApplicableForThisFeature)
+            }
+
+            val storageService = StorageService(serviceContainer)
+            val storedDataMap: Map<String, Any>? =
+                StorageDecorator().getFeatureFromStorage(featureKey, context, storageService)
+
+            /**
+             * If feature is found in the storage, return the stored variation or holdout decision
+             */
+
+            var storedData: Storage? = null
+
+            /**
+             * Fetch must not clear a sent sticky on the same decision. A new assignment still stores
+             * the current send intent. A legacy decision with no key counts as sent.
+             */
+            fun variationShownSentToStore(sameStickyDecision: Boolean): Boolean {
+                if (effectiveShouldSend()) return true
+                return sameStickyDecision && storedData?.isVariationShownAlreadySent() == true
+            }
+
+            try {
+                val storageMapAsString: String = WingifyClient.objectMapper.writeValueAsString(
+                    obj = storedDataMap?.toMap() ?: emptyMap<String, Any>()
+                )
+                storedData = WingifyClient.objectMapper.readValue(
+                    json = storageMapAsString, clazz = Storage::class.java
+                )
+
+                val isInHoldout = storedData?.holdoutIds?.values.isNullOrEmpty().not()
+
+                // locally saved "in holdout" ids and "not in holdout" ids
+                val savedHoldoutIds = storedData?.holdoutIds?.values
+                val savedNotInHoldoutIds = storedData?.notInHoldoutIds?.values
+
+                val holdoutIdsFromSettings =
+                    settings.holdoutGroups
+                        ?.filter { isHoldoutApplicableToFeature(it, feature?.id) }
+                        ?.mapNotNull { it.id } ?: listOf()
+
+                val onServerButHidNotInLocal = holdoutIdsFromSettings.filter {
+                    isOnServerButNotInLocal(it, savedHoldoutIds, savedNotInHoldoutIds)
+                }
+
+                //
+                // get a list of
+                // localHidAlsoValidOnServer - ids from local storage that are still on server ( valid ids )
+                // _    - ids that are not on server {( meaning they have been removed from server)
+                //                             (these needs to be removed because doesn't exist)}
+                val localHidAlsoValidOnServer =
+                    savedHoldoutIds?.filter { isIdPresentOnServer(it, holdoutIdsFromSettings) }
+                        ?.toSet()
+                        ?.toList() // remove if any duplicate ids
+                        ?: listOf()
+
+                // just like above, these ids were there on the server too
+                val validSavedNotInHoldoutIds =
+                    savedNotInHoldoutIds?.filter { isIdPresentOnServer(it, holdoutIdsFromSettings) }
+                        ?.toSet()
+                        ?.toList() // remove if any duplicate ids
+                        ?: listOf()
+
+                // Only treat stored "in holdout" as valid for this feature if the holdout still
+                // applies to this feature (feature id still in holdout's featureIds, or holdout is global).
+                // If the holdout was detached from this feature, we must not early-exit as "blocked by holdout".
+                val holdoutIdsStillApplicableToThisFeature = settings.holdoutGroups
+                    ?.filter { isHoldoutApplicableToFeature(it, feature?.id) }
+                    ?.mapNotNull { it.id } ?: emptyList()
+                val localHidAlsoValidOnServerForThisFeature =
+                    localHidAlsoValidOnServer.filter {
+                        isIdPresentOnServer(
+                            it,
+                            holdoutIdsStillApplicableToThisFeature
+                        )
+                    }
+
+                if (isInHoldout && localHidAlsoValidOnServerForThisFeature.isNotEmpty()) {
+                    serviceContainer.getLoggerService()?.log(
+                        LogLevelEnum.INFO, "STORED_HOLDOUT_DECISION_FOUND", mapOf(
+                            Constants.USER_ID to context.id,
+                            "featureKey" to featureKey,
+                            "holdoutId" to localHidAlsoValidOnServerForThisFeature.toString()
                         )
                     )
+
+                    var holdoutImpressions = ImpressionPayload()
+                    // we might have new holdouts in server
+                    // we need to evaluate them and send the data to the server
+                    if (feature != null) {
+                        if (storedData.variationShownSent == false) {
+                            suppressAutoSendDueToPendingExpose = true
+                            serviceContainer.getLoggerService()?.log(
+                                LogLevelEnum.INFO,
+                                "CACHED_AWAITING_EXPOSE",
+                                mapOf(
+                                    Constants.USER_ID to context.id,
+                                    "featureKey" to featureKey,
+                                ),
+                            )
+                        }
+
+                        val holdoutGroupService =
+                            HoldoutGroupService(DecisionMaker(), serviceContainer)
+                        holdoutImpressions = holdoutGroupService.getHoldoutsFor(
+                            settings = settings,
+                            feature = feature,
+                            context = context,
+                            storageService = storageService
+                        ).second
+
+                        // filter out holdouts that were not part of the holdout
+                        val (qualifiedIdsAfterEvaluation, notQualifiedIdsAfterEvaluation) = holdoutImpressions.impressionList.partition { it.variationId == Constants.Holdouts.VARIATION_IS_PART_OF_HOLDOUT }
+                            .let { (qualified, notQualified) ->
+                                qualified.map { it.campaignId } to notQualified.map { it.campaignId }
+                            }
+
+                        ImpressionExposureHelper.record(
+                            settings = settings,
+                            impressionPayload = holdoutImpressions,
+                            context = context,
+                            serviceContainer = serviceContainer,
+                            shouldSend = effectiveShouldSend(),
+                            getFlag = getFlag,
+                            featureKey = featureKey,
+                            feature = feature,
+                        ).also { if (it) variationShownEnqueued = true }
+
+                        // these are non duplicate final holdout ids that include
+                        // local ids that still apply to this feature (valid for this feature only)
+                        val finalInHoldoutIds =
+                            (localHidAlsoValidOnServerForThisFeature + qualifiedIdsAfterEvaluation).toSet()
+                                .toList()
+                        val finalNotInHoldoutIds =
+                            (notQualifiedIdsAfterEvaluation + validSavedNotInHoldoutIds).toSet()
+                                .toList()
+
+                        storageService.updateDataInStorage(
+                            feature = feature, context = context, data = mapOf(
+                                Constants.Holdouts.KEY_STORAGE_HOLDOUT_IDS to finalInHoldoutIds,
+                                Constants.Holdouts.KEY_STORAGE_NOT_IN_HOLDOUT_IDS to finalNotInHoldoutIds,
+                                Constants.KEY_VARIATION_SHOWN_SENT to variationShownSentToStore(
+                                    sameStickyDecision = true,
+                                ),
+                            )
+                        )
+                    }
+
+                    getFlag.setIsEnabled(false)
+                    getFlag.setVariables(emptyList())
+
+                    if (serviceContainer.getInitOptions().shouldTriggerIntegrationCallbackAlways) {
+                        decision["isPartOfHoldout"] = true
+                        decision["holdoutIDs"] = localHidAlsoValidOnServerForThisFeature
+                        ensureDecisionDefaults(decision, context, settings)
+
+                        hookManager.set(decision)
+                        hookManager.execute(hookManager.get())
+                    }
+
+                    // Decision served from storage — sync persisted context vars with the latest
+                    // values from `context` if they have diverged. No-op when they match.
+                    syncContextVarsToStorageIfDiverged(
+                        context = context,
+                        storedDataMap = storedDataMap,
+                        feature = feature,
+                        storageService = storageService
+                    )
+
+                    attachExposeDeps()
+                    return@withFlagLocksForEvaluation returnWithUserTrackingGate(variationShownEnqueued)
+                } else {
+
+                    // update local storage: only persist holdout ids that still apply to this feature,
+                    // so if feature was detached from a holdout we clear it and re-evaluate next time
+                    storageService.updateDataInStorage(
+                        feature = feature, context = context, data = mapOf(
+                            Constants.Holdouts.KEY_STORAGE_HOLDOUT_IDS to localHidAlsoValidOnServerForThisFeature,
+                            Constants.Holdouts.KEY_STORAGE_NOT_IN_HOLDOUT_IDS to validSavedNotInHoldoutIds,
+                        )
+                    )
+
                 }
 
-                getFlag.setIsEnabled(false)
-                getFlag.setVariables(emptyList())
-
-                if (serviceContainer.getInitOptions().shouldTriggerIntegrationCallbackAlways) {
-                    decision["isPartOfHoldout"] = true
-                    decision["holdoutIDs"] = localHidAlsoValidOnServerForThisFeature
-                    ensureDecisionDefaults(decision, context, settings)
-
-                    hookManager.set(decision)
-                    hookManager.execute(hookManager.get())
-                }
-
-                // Decision served from storage — sync persisted context vars with the latest
-                // values from `context` if they have diverged. No-op when they match.
-                syncContextVarsToStorageIfDiverged(
-                    context = context,
-                    storedDataMap = storedDataMap,
-                    feature = feature,
-                    storageService = storageService
-                )
-
-                return returnWithUserTrackingGate(holdoutImpressions.hasValidData())
-            } else {
-
-                // update local storage: only persist holdout ids that still apply to this feature,
-                // so if feature was detached from a holdout we clear it and re-evaluate next time
-                storageService.updateDataInStorage(
-                    feature = feature, context = context, data = mapOf(
-                        Constants.Holdouts.KEY_STORAGE_HOLDOUT_IDS to localHidAlsoValidOnServerForThisFeature,
-                        Constants.Holdouts.KEY_STORAGE_NOT_IN_HOLDOUT_IDS to validSavedNotInHoldoutIds,
+                if (storedData.isDecisionExpiryTimeFoundInStorage() && storedData.isDecisionExpired()) {
+                    serviceContainer.getLoggerService()?.log(
+                        key = "DECISION_EXPIRED",
+                        level = LogLevelEnum.WARN,
+                        map = mapOf("featureKey" to featureKey, "id" to "${context.id}")
                     )
-                )
+                } else if (storedData?.experimentVariationId?.toString()?.isNotEmpty() == true) {
 
-            }
+                    if (storedData.experimentKey != null && storedData.experimentKey!!.isNotEmpty()) {
+                        val variation: Variation? = getVariationFromCampaignKey(
+                            settings, storedData.experimentKey, storedData.experimentVariationId!!
+                        )
+                        // If variation is found in settings, return the variation
+                        if (variation != null) {
+                            serviceContainer.getLoggerService()?.log(
+                                LogLevelEnum.INFO,
+                                "STORED_VARIATION_FOUND",
+                                object : HashMap<String?, String?>() {
+                                    init {
+                                        put(Constants.VARIATION_KEY, variation.name)
+                                        put(Constants.USER_ID, context.id)
+                                        put(Constants.KEY_EXPERIMENT_TYPE, "experiment")
+                                        put(Constants.KEY_EXPERIMENT_KEY, storedData.experimentKey)
+                                    }
+                                })
 
-            if (storedData.isDecisionExpiryTimeFoundInStorage() && storedData.isDecisionExpired()) {
-                serviceContainer.getLoggerService()?.log(
-                    key = "DECISION_EXPIRED",
-                    level = LogLevelEnum.WARN,
-                    map = mapOf("featureKey" to featureKey, "id" to "${context.id}")
-                )
-            } else if (storedData?.experimentVariationId?.toString()?.isNotEmpty() == true) {
+                            getFlag.setIsEnabled(true)
+                            decision[Constants.KEY_DECISION_IS_USER_PART_OF_CAMPAIGN] = true
+                            getFlag.setVariables(variation.variables)
+                            attachExposeDeps()
 
-                if (storedData.experimentKey != null && storedData.experimentKey!!.isNotEmpty()) {
-                    val variation: Variation? = getVariationFromCampaignKey(
-                        settings, storedData.experimentKey, storedData.experimentVariationId!!
-                    )
-                    // If variation is found in settings, return the variation
-                    if (variation != null) {
-                        serviceContainer.getLoggerService()?.log(
-                            LogLevelEnum.INFO,
-                            "STORED_VARIATION_FOUND",
-                            object : HashMap<String?, String?>() {
-                                init {
-                                    put(Constants.VARIATION_KEY, variation.name)
-                                    put(Constants.USER_ID, context.id)
-                                    put(Constants.KEY_EXPERIMENT_TYPE, "experiment")
-                                    put(Constants.KEY_EXPERIMENT_KEY, storedData.experimentKey)
+                            if (serviceContainer.getInitOptions().shouldTriggerIntegrationCallbackAlways) {
+                                storedData.rolloutId?.let { decision["rolloutId"] = it }
+                                storedData.rolloutKey?.let { decision["rolloutKey"] = it }
+                                storedData.rolloutVariationId?.let {
+                                    decision["rolloutVariationId"] = it
                                 }
-                            })
+                                storedData.experimentId?.let { decision["experimentId"] = it }
+                                storedData.experimentKey?.let {
+                                    decision[Constants.KEY_EXPERIMENT_KEY] = it
+                                }
+                                storedData.experimentVariationId?.let {
+                                    decision["experimentVariationId"] = it
+                                }
+                                ensureDecisionDefaults(decision, context, settings)
 
+                                hookManager.set(decision)
+                                hookManager.execute(hookManager.get())
+                            }
+
+                            // Decision served from storage — sync persisted context vars with the
+                            // latest values from `context` if they have diverged. No-op when they match.
+                            syncContextVarsToStorageIfDiverged(
+                                context = context,
+                                storedDataMap = storedDataMap,
+                                feature = feature,
+                                storageService = storageService
+                            )
+
+                            val awaitingExpose = storedData.variationShownSent == false
+                            if (awaitingExpose) {
+                                suppressAutoSendDueToPendingExpose = true
+                                serviceContainer.getLoggerService()?.log(
+                                    LogLevelEnum.INFO,
+                                    "CACHED_AWAITING_EXPOSE",
+                                    mapOf(
+                                        Constants.USER_ID to context.id,
+                                        "featureKey" to featureKey,
+                                    ),
+                                )
+                                // Still discover new holdouts, but never auto-send while awaiting expose.
+                                sendNotInHoldoutForNewlyAddedHoldouts(
+                                    newIds = onServerButHidNotInLocal,
+                                    feature = feature,
+                                    settings = settings,
+                                    context = context,
+                                    impressionPayload = impressionPayload,
+                                    storageService = storageService,
+                                    storedData = storedData,
+                                    serviceContainer = serviceContainer,
+                                )
+                                if (impressionPayload.hasValidData()) {
+                                    recordImpressions(impressionPayload)
+                                }
+                                return@withFlagLocksForEvaluation returnWithUserTrackingGate(false)
+                            }
+
+                            sendNotInHoldoutForNewlyAddedHoldouts(
+                                newIds = onServerButHidNotInLocal,
+                                feature = feature,
+                                settings = settings,
+                                context = context,
+                                impressionPayload = impressionPayload,
+                                storageService = storageService,
+                                storedData = storedData,
+                                serviceContainer = serviceContainer,
+                            )
+                            if (impressionPayload.hasValidData()) {
+                                recordImpressions(impressionPayload)
+                            }
+
+                            // Legacy absent / explicit true → already sent; only new holdout hits may enqueue.
+                            return@withFlagLocksForEvaluation returnWithUserTrackingGate(
+                                if (impressionPayload.hasValidData()) variationShownEnqueued
+                                else true,
+                            )
+                        }
+                    }
+                } else if (storedData?.rolloutKey != null && storedData.rolloutKey!!.isNotEmpty() && storedData.rolloutId != null && storedData.rolloutId.toString()
+                        .isNotEmpty()
+                ) {
+
+                    val variation: Variation? = getVariationFromCampaignKey(
+                        settings, storedData.rolloutKey, storedData.rolloutVariationId
+                    )
+                    // If variation is found in settings, evaluate experiment rules
+                    if (variation != null) {
+                        logsToBeShownAfterHoldoutLogs.add {
+                            serviceContainer.getLoggerService()?.log(
+                                level = LogLevelEnum.INFO,
+                                key = "STORED_VARIATION_FOUND",
+                                map = mapOf(
+                                    Constants.VARIATION_KEY to variation.name,
+                                    Constants.USER_ID to context.id,
+                                    Constants.KEY_EXPERIMENT_TYPE to "rollout",
+                                    Constants.KEY_EXPERIMENT_KEY to storedData.rolloutKey,
+                                )
+                            )
+
+                            serviceContainer.getLoggerService()?.log(
+                                level = LogLevelEnum.DEBUG,
+                                key = "EXPERIMENTS_EVALUATION_WHEN_ROLLOUT_PASSED",
+                                map = mapOf(
+                                    Constants.USER_ID to context.id
+                                )
+                            )
+                        }
+
+                        // need to change here
                         sendNotInHoldoutForNewlyAddedHoldouts(
                             newIds = onServerButHidNotInLocal,
                             feature = feature,
@@ -327,544 +533,485 @@ object GetFlagAPI {
                             storageService = storageService,
                             storedData = storedData,
                             serviceContainer = serviceContainer,
-                            shouldUploadImmediately = true
                         )
 
                         getFlag.setIsEnabled(true)
                         decision[Constants.KEY_DECISION_IS_USER_PART_OF_CAMPAIGN] = true
                         getFlag.setVariables(variation.variables)
-
-                        if (serviceContainer.getInitOptions().shouldTriggerIntegrationCallbackAlways) {
-                            storedData.rolloutId?.let { decision["rolloutId"] = it }
-                            storedData.rolloutKey?.let { decision["rolloutKey"] = it }
-                            storedData.rolloutVariationId?.let {
-                                decision["rolloutVariationId"] = it
-                            }
-                            storedData.experimentId?.let { decision["experimentId"] = it }
-                            storedData.experimentKey?.let {
-                                decision[Constants.KEY_EXPERIMENT_KEY] = it
-                            }
-                            storedData.experimentVariationId?.let {
-                                decision["experimentVariationId"] = it
-                            }
-                            ensureDecisionDefaults(decision, context, settings)
-
-                            hookManager.set(decision)
-                            hookManager.execute(hookManager.get())
+                        shouldCheckForExperimentsRules = true
+                        isDecisionFromStorage = true
+                        val featureInfo = mutableMapOf<String, Any>()
+                        storedData.rolloutId?.let { featureInfo["rolloutId"] = it }
+                        storedData.rolloutKey?.let { featureInfo["rolloutKey"] = it }
+                        storedData.rolloutVariationId?.let {
+                            featureInfo["rolloutVariationId"] = it
                         }
+                        evaluatedFeatureMap[featureKey] = featureInfo
 
-                        // Decision served from storage — sync persisted context vars with the
-                        // latest values from `context` if they have diverged. No-op when they match.
-                        syncContextVarsToStorageIfDiverged(
-                            context = context,
-                            storedDataMap = storedDataMap,
-                            feature = feature,
-                            storageService = storageService
-                        )
+                        passedRulesInformation.putAll(featureInfo)
 
-                        return returnWithUserTrackingGate(impressionPayload.hasValidData())
+                        if (storedData.variationShownSent == false) {
+                            suppressAutoSendDueToPendingExpose = true
+                            serviceContainer.getLoggerService()?.log(
+                                LogLevelEnum.INFO,
+                                "CACHED_AWAITING_EXPOSE",
+                                mapOf(
+                                    Constants.USER_ID to context.id,
+                                    "featureKey" to featureKey,
+                                ),
+                            )
+                        }
                     }
                 }
-            } else if (storedData?.rolloutKey != null && storedData.rolloutKey!!.isNotEmpty() && storedData.rolloutId != null && storedData.rolloutId.toString()
-                    .isNotEmpty()
-            ) {
-
-                val variation: Variation? = getVariationFromCampaignKey(
-                    settings, storedData.rolloutKey, storedData.rolloutVariationId
+            } catch (e: Exception) {
+                serviceContainer.getLoggerService()?.log(
+                    LogLevelEnum.ERROR,
+                    "STORED_DATA_ERROR",
+                    mapOf(Constants.ERR to e.toString()),
                 )
-                // If variation is found in settings, evaluate experiment rules
-                if (variation != null) {
-                    logsToBeShownAfterHoldoutLogs.add {
-                        serviceContainer.getLoggerService()?.log(
-                            level = LogLevelEnum.INFO, key = "STORED_VARIATION_FOUND", map = mapOf(
-                                Constants.VARIATION_KEY to variation.name,
-                                Constants.USER_ID to context.id,
-                                Constants.KEY_EXPERIMENT_TYPE to "rollout",
-                                Constants.KEY_EXPERIMENT_KEY to storedData.rolloutKey,
-                            )
-                        )
-
-                        serviceContainer.getLoggerService()?.log(
-                            level = LogLevelEnum.DEBUG,
-                            key = "EXPERIMENTS_EVALUATION_WHEN_ROLLOUT_PASSED",
-                            map = mapOf(
-                                Constants.USER_ID to context.id
-                            )
-                        )
-                    }
-
-                    // need to change here
-                    sendNotInHoldoutForNewlyAddedHoldouts(
-                        newIds = onServerButHidNotInLocal,
-                        feature = feature,
-                        settings = settings,
-                        context = context,
-                        impressionPayload = impressionPayload,
-                        storageService = storageService,
-                        storedData = storedData,
-                        serviceContainer = serviceContainer,
-                        shouldUploadImmediately = false
-                    )
-
-                    getFlag.setIsEnabled(true)
-                    decision[Constants.KEY_DECISION_IS_USER_PART_OF_CAMPAIGN] = true
-                    getFlag.setVariables(variation.variables)
-                    shouldCheckForExperimentsRules = true
-                    isDecisionFromStorage = true
-                    val featureInfo = mutableMapOf<String, Any>()
-                    storedData.rolloutId?.let { featureInfo["rolloutId"] = it }
-                    storedData.rolloutKey?.let { featureInfo["rolloutKey"] = it }
-                    storedData.rolloutVariationId?.let {
-                        featureInfo["rolloutVariationId"] = it
-                    }
-                    evaluatedFeatureMap[featureKey] = featureInfo
-
-                    passedRulesInformation.putAll(featureInfo)
-                }
             }
-        } catch (e: Exception) {
-            serviceContainer.getLoggerService()
-                ?.log(LogLevelEnum.DEBUG, "Error parsing stored data: " + e.message, null)
-        }
-
-        /**
-         * if feature is not found, return false
-         */
-        if (feature == null) {
-            LoggerService.errorLog(
-
-                key = "FEATURE_NOT_FOUND",
-                data = mapOf("featureKey" to featureKey),
-                debugData = debugEventProps,
-                shouldSendToVWO = true,
-                serviceContainer = serviceContainer
-            )
-            getFlag.setIsEnabled(false)
-
-            if (serviceContainer.getInitOptions().shouldTriggerIntegrationCallbackAlways) {
-                ensureDecisionDefaults(decision, context, settings)
-
-                hookManager.set(decision)
-                hookManager.execute(hookManager.get())
-            }
-
-            return returnWithUserTrackingGate(false)
-        }
-
-        serviceContainer.getSegmentationManager()
-            .setContextualData(settings, feature, context, serviceContainer)
-
-        val holdoutGroup = mutableListOf<HoldoutGroup>()
-        var holdoutImpressions = ImpressionPayload()
-
-        // we want to only evaluate if getFlag is not true
-        // meaning: nothing was found on local storage
-        // only evaluate holdouts if we do not find anything in storage
-        if (!getFlag.isEnabled()) {
 
             /**
-             * Check if user is in a holdout group for this feature
-             * If user is in holdout, exclude them from the feature and return
+             * if feature is not found, return false
              */
-            val holdoutGroupService = HoldoutGroupService(DecisionMaker(), serviceContainer)
-            holdoutGroupService.getHoldoutsFor(
-                settings = settings,
-                feature = feature,
-                context = context,
-                storageService = storageService
-            ).apply {
-                holdoutGroup.clear()
-                holdoutGroup.addAll(elements = first)
+            if (feature == null) {
+                LoggerService.errorLog(
 
-                holdoutImpressions = second
-            }
-
-            // merge impressions for holdout and get flag
-            for (index in 0 until holdoutImpressions.size()) {
-                val hip = holdoutImpressions.get(index)
-                impressionPayload.add(
-                    campaignId = hip.campaignId,
-                    variationId = hip.variationId,
-                    featureId = hip.featureId
-                )
-            }
-
-            if (holdoutGroup.isNotEmpty()) {
-
-                val qualifiedHoldoutNames = holdoutGroup.joinToString(
-                    separator = ",", transform = { "${it.name}" })
-                val qualifiedHoldoutIds = holdoutGroup.mapNotNull { it.id }
-
-                decision["holdoutIDs"] = qualifiedHoldoutIds
-
-                serviceContainer.getLoggerService()?.log(
-                    LogLevelEnum.INFO, "USER_IN_HOLDOUT_GROUP", mutableMapOf(
-                        Constants.USER_ID to "${context.id}",
-                        "featureId" to "${feature.id}",
-                        "featureKey" to featureKey,
-                        "holdoutGroupName" to qualifiedHoldoutNames
-                    )
-                )
-
-                val holdoutStorageMap = mutableMapOf<String, Any>()
-                feature.key?.let { holdoutStorageMap["featureKey"] = it }
-                context.id?.let { holdoutStorageMap[Constants.USER_ID] = it }
-                holdoutStorageMap[Constants.KEY_STORAGE_CUSTOM_VARIABLES] =
-                    context.customVariables
-                holdoutStorageMap[Constants.KEY_STORAGE_VARIATION_TARGETING_VARIABLES] =
-                    context.variationTargetingVariables
-
-                val holdoutGroupSet = holdoutGroup.toSet()
-                holdoutStorageMap[Constants.Holdouts.KEY_STORAGE_HOLDOUT_IDS] =
-                    holdoutGroup.map { it.id }
-                holdoutStorageMap[Constants.Holdouts.KEY_STORAGE_NOT_IN_HOLDOUT_IDS] =
-                    settings.holdoutGroups
-                        // only not selected ids
-                        ?.filter { it !in holdoutGroupSet }
-                        // applicable for global or targeted to specific feature id
-                        ?.filter {
-                            val isForThisFeature =
-                                (it.featureIds?.contains((feature.id ?: -1)) == true)
-                            (it.isGlobal == true) || isForThisFeature
-                        }
-                        // store only ids as list
-                        ?.map { it.id } ?: listOf<String>()
-                StorageDecorator().setDataInStorage(holdoutStorageMap, storageService)
-
-                getFlag.setIsEnabled(false)
-                getFlag.setVariables(emptyList())
-
-                serviceContainer.getLoggerService()?.log(
-                    LogLevelEnum.INFO, "USER_EXCLUDED_DUE_TO_HOLDOUT", mapOf(
-                        Constants.USER_ID to "${context.id}",
-                        "featureKey" to featureKey,
-                        "holdoutId" to qualifiedHoldoutIds.joinToString(
-                            prefix = "[",
-                            postfix = "]",
-                            transform = { "$it" })
-                    )
-                )
-
-                decision["isEnabled"] = false
-                decision["isPartOfHoldout"] = true
-
-                ImpressionUtil.createAndSendImpressionForVariationShown(
-                    settings = settings,
-                    impressionPayload = impressionPayload,
-                    context = context,
+                    key = "FEATURE_NOT_FOUND",
+                    data = mapOf("featureKey" to featureKey),
+                    debugData = debugEventProps,
+                    shouldSendToVWO = true,
                     serviceContainer = serviceContainer
                 )
+                getFlag.setIsEnabled(false)
 
+                if (serviceContainer.getInitOptions().shouldTriggerIntegrationCallbackAlways) {
+                    ensureDecisionDefaults(decision, context, settings)
+
+                    hookManager.set(decision)
+                    hookManager.execute(hookManager.get())
+                }
+
+                return@withFlagLocksForEvaluation returnWithUserTrackingGate(false)
+            }
+
+            serviceContainer.getSegmentationManager()
+                .setContextualData(settings, feature, context, serviceContainer)
+
+            val holdoutGroup = mutableListOf<HoldoutGroup>()
+            var holdoutImpressions = ImpressionPayload()
+
+            // we want to only evaluate if getFlag is not true
+            // meaning: nothing was found on local storage
+            // only evaluate holdouts if we do not find anything in storage
+            if (!getFlag.isEnabled()) {
+
+                /**
+                 * Check if user is in a holdout group for this feature
+                 * If user is in holdout, exclude them from the feature and return
+                 */
+                val holdoutGroupService = HoldoutGroupService(DecisionMaker(), serviceContainer)
+                holdoutGroupService.getHoldoutsFor(
+                    settings = settings,
+                    feature = feature,
+                    context = context,
+                    storageService = storageService
+                ).apply {
+                    holdoutGroup.clear()
+                    holdoutGroup.addAll(elements = first)
+
+                    holdoutImpressions = second
+                }
+
+                // merge impressions for holdout and get flag
+                for (index in 0 until holdoutImpressions.size()) {
+                    val hip = holdoutImpressions.get(index)
+                    impressionPayload.add(
+                        campaignId = hip.campaignId,
+                        variationId = hip.variationId,
+                        featureId = hip.featureId
+                    )
+                }
+
+                if (holdoutGroup.isNotEmpty()) {
+
+                    val qualifiedHoldoutNames = holdoutGroup.joinToString(
+                        separator = ",", transform = { "${it.name}" })
+                    val qualifiedHoldoutIds = holdoutGroup.mapNotNull { it.id }
+
+                    decision["holdoutIDs"] = qualifiedHoldoutIds
+
+                    serviceContainer.getLoggerService()?.log(
+                        LogLevelEnum.INFO, "USER_IN_HOLDOUT_GROUP", mutableMapOf(
+                            Constants.USER_ID to "${context.id}",
+                            "featureId" to "${feature.id}",
+                            "featureKey" to featureKey,
+                            "holdoutGroupName" to qualifiedHoldoutNames
+                        )
+                    )
+
+                    val holdoutStorageMap = mutableMapOf<String, Any>()
+                    feature.key?.let { holdoutStorageMap["featureKey"] = it }
+                    context.id?.let { holdoutStorageMap[Constants.USER_ID] = it }
+                    holdoutStorageMap[Constants.KEY_STORAGE_CUSTOM_VARIABLES] =
+                        context.customVariables
+                    holdoutStorageMap[Constants.KEY_STORAGE_VARIATION_TARGETING_VARIABLES] =
+                        context.variationTargetingVariables
+
+                    val holdoutGroupSet = holdoutGroup.toSet()
+                    holdoutStorageMap[Constants.Holdouts.KEY_STORAGE_HOLDOUT_IDS] =
+                        holdoutGroup.map { it.id }
+                    holdoutStorageMap[Constants.Holdouts.KEY_STORAGE_NOT_IN_HOLDOUT_IDS] =
+                        settings.holdoutGroups
+                            // only not selected ids
+                            ?.filter { it !in holdoutGroupSet }
+                            // applicable for global or targeted to specific feature id
+                            ?.filter {
+                                val isForThisFeature =
+                                    (it.featureIds?.contains((feature.id ?: -1)) == true)
+                                (it.isGlobal == true) || isForThisFeature
+                            }
+                            // store only ids as list
+                            ?.map { it.id } ?: listOf<String>()
+                    StorageDecorator().setDataInStorage(holdoutStorageMap, storageService)
+
+                    getFlag.setIsEnabled(false)
+                    getFlag.setVariables(emptyList())
+
+                    serviceContainer.getLoggerService()?.log(
+                        LogLevelEnum.INFO, "USER_EXCLUDED_DUE_TO_HOLDOUT", mapOf(
+                            Constants.USER_ID to "${context.id}",
+                            "featureKey" to featureKey,
+                            "holdoutId" to qualifiedHoldoutIds.joinToString(
+                                prefix = "[",
+                                postfix = "]",
+                                transform = { "$it" })
+                        )
+                    )
+
+                    decision["isEnabled"] = false
+                    decision["isPartOfHoldout"] = true
+
+                    // Persist send intent for holdout sticky decision.
+                    storageService.updateDataInStorage(
+                        feature = feature,
+                        context = context,
+                        data = mapOf(Constants.KEY_VARIATION_SHOWN_SENT to effectiveShouldSend()),
+                    )
+
+                    recordImpressions(impressionPayload)
+
+                    ensureDecisionDefaults(decision, context, settings)
+                    hookManager.set(decision)
+                    hookManager.execute(hookManager.get())
+
+                    return@withFlagLocksForEvaluation returnWithUserTrackingGate(variationShownEnqueued)
+                } else {
+                    serviceContainer.getLoggerService()?.log(
+                        LogLevelEnum.INFO, "USER_NOT_EXCLUDED_DUE_TO_HOLDOUT", mapOf(
+                            Constants.USER_ID to "${context.id}", "featureKey" to featureKey
+                        )
+                    )
+                }
+            }
+
+            /**
+             * get all the rollout rules for the feature and evaluate them
+             * if any of the rollout rule passes, break the loop and evaluate the traffic
+             */
+            val rollOutRules: List<Campaign> =
+                getSpecificRulesBasedOnType(feature, CampaignTypeEnum.ROLLOUT)
+            if (rollOutRules.isNotEmpty() && !getFlag.isEnabled()) {
+                val rolloutRulesToEvaluate: MutableList<Campaign> = ArrayList<Campaign>()
+                for (rule in rollOutRules) {
+                    val evaluateRuleResult: Map<String, Any> = RuleEvaluationUtil.evaluateRule(
+                        settings,
+                        feature,
+                        rule,
+                        context,
+                        evaluatedFeatureMap,
+                        HashMap(),
+                        storageService,
+                        decision,
+                        serviceContainer,
+                        getFlag,
+                        effectiveShouldSend(),
+                    )
+                    val isForceUserApplicable =
+                        evaluateRuleResult[Constants.KEY_FORCED_USER_CHECK] as Boolean
+                    // Combined eligibility from force lists, MEG, and targeting segments.
+                    // Force On/Off take precedence: Off fails this check and skips the rule;
+                    // On (whitelistedObject) applies the variation and skips traffic.
+                    // Flow is as per PRD
+                    if (isForceUserApplicable) {
+                        val whitelistedObject: Variation? =
+                            evaluateRuleResult["whitelistedObject"] as? Variation
+                        if (whitelistedObject != null) {
+                            // Force On: apply rollout experience and skip traffic
+                            getFlag.setIsEnabled(true)
+                            getFlag.setVariables(whitelistedObject.variables)
+                            shouldCheckForExperimentsRules = true
+                            val featureMap: MutableMap<String, Any> = HashMap()
+                            rule.id?.let { featureMap["rolloutId"] = it }
+                            rule.key?.let { featureMap["rolloutKey"] = it }
+                            whitelistedObject.id?.let { featureMap["rolloutVariationId"] = it }
+                            evaluatedFeatureMap[featureKey] = featureMap
+                            updateIntegrationsDecisionObject(
+                                rule, whitelistedObject, passedRulesInformation, decision
+                            )
+                            break
+                        }
+
+                        rolloutRulesToEvaluate.add(rule)
+                        val featureMap: MutableMap<String, Any> = HashMap()
+
+                        rule.id?.let { featureMap["rolloutId"] = it }
+                        rule.key?.let { featureMap["rolloutKey"] = it }
+                        rule.variations?.getOrNull(0)?.id?.let {
+                            featureMap["rolloutVariationId"] = it
+                        }
+
+                        evaluatedFeatureMap[featureKey] = featureMap
+                        break
+                    }
+                }
+
+                // Evaluate the passed rollout rule traffic and get the variation
+                if (rolloutRulesToEvaluate.isNotEmpty()) {
+                    val passedRolloutCampaign: Campaign = rolloutRulesToEvaluate[0]
+                    val variation: Variation? =
+                        DecisionUtil().evaluateTrafficAndGetVariation(
+                            settings,
+                            passedRolloutCampaign,
+                            context,
+                            serviceContainer
+                        )
+                    if (variation != null) {
+                        getFlag.setIsEnabled(true)
+                        decision[Constants.KEY_DECISION_IS_USER_PART_OF_CAMPAIGN] = true
+                        getFlag.setVariables(variation.variables)
+                        shouldCheckForExperimentsRules = true
+                        updateIntegrationsDecisionObject(
+                            passedRolloutCampaign, variation, passedRulesInformation, decision
+                        )
+
+                        impressionPayload.add(
+                            campaignId = (passedRolloutCampaign.id ?: 0),
+                            variationId = (variation.id ?: 0),
+                            featureId = feature.id ?: Constants.IMPRESSION_NO_FEATURE_ID
+                        )
+                    }
+                }
+            } else {
+                if (rollOutRules.isEmpty()) {
+                    serviceContainer.getLoggerService()?.log(
+                        LogLevelEnum.DEBUG, "EXPERIMENTS_EVALUATION_WHEN_NO_ROLLOUT_PRESENT", null
+                    )
+                }
+                shouldCheckForExperimentsRules = true
+            }
+
+            /**
+             * If any rollout rule passed pre segmentation and traffic evaluation, check for experiment rules
+             * If no rollout rule passed, return false
+             */
+            if (shouldCheckForExperimentsRules) {
+                val experimentRulesToEvaluate: MutableList<Campaign> = ArrayList<Campaign>()
+                val experimentRules: List<Campaign> = getAllExperimentRules(feature)
+                val megGroupWinnerCampaigns = mutableMapOf<Int, String>()
+
+                for (rule in experimentRules) {
+                    // Evaluate the rule here
+                    val evaluateRuleResult: Map<String, Any> = RuleEvaluationUtil.evaluateRule(
+                        settings,
+                        feature,
+                        rule,
+                        context,
+                        evaluatedFeatureMap,
+                        megGroupWinnerCampaigns,
+                        storageService,
+                        decision,
+                        serviceContainer,
+                        getFlag,
+                        effectiveShouldSend(),
+                    )
+                    val preSegmentationResult =
+                        evaluateRuleResult["preSegmentationResult"] as Boolean
+                    // If pre-segmentation passes, check if the rule has whitelisted variation or not
+                    if (preSegmentationResult) {
+                        val whitelistedObject: Variation? =
+                            evaluateRuleResult["whitelistedObject"] as Variation?
+                        // If whitelisted object is null, add the rule to the list of rules to evaluate
+                        if (whitelistedObject == null) {
+                            experimentRulesToEvaluate.add(rule)
+                        } else {
+                            // If whitelisted object is not null, update the decision object and send an impression
+                            getFlag.setIsEnabled(true)
+                            decision[Constants.KEY_DECISION_IS_USER_PART_OF_CAMPAIGN] = true
+                            getFlag.setVariables(whitelistedObject.variables)
+                            rule.id?.let { passedRulesInformation["experimentId"] = it }
+                            rule.key?.let {
+                                passedRulesInformation[Constants.KEY_EXPERIMENT_KEY] = it
+                            }
+                            whitelistedObject.id?.let {
+                                passedRulesInformation["experimentVariationId"] = it
+                            }
+                        }
+                        break
+                    }
+                }
+
+                // Evaluate the passed experiment rule traffic and get the variation
+                if (experimentRulesToEvaluate.isNotEmpty()) {
+                    val campaign: Campaign = experimentRulesToEvaluate[0]
+                    val variation: Variation? =
+                        DecisionUtil().evaluateTrafficAndGetVariation(
+                            settings,
+                            campaign,
+                            context,
+                            serviceContainer
+                        )
+                    if (variation != null) {
+                        getFlag.setIsEnabled(true)
+                        decision[Constants.KEY_DECISION_IS_USER_PART_OF_CAMPAIGN] = true
+                        getFlag.setVariables(variation.variables)
+                        updateIntegrationsDecisionObject(
+                            campaign, variation, passedRulesInformation, decision
+                        )
+                        impressionPayload.add(
+                            campaignId = (campaign.id ?: 0),
+                            variationId = (variation.id ?: 0),
+                            featureId = feature.id ?: Constants.IMPRESSION_NO_FEATURE_ID
+                        )
+                        // A fresh experiment assignment was made on top of the stored rollout,
+                        // so this is a new decision — the hook must fire unconditionally.
+                        isDecisionFromStorage = false
+                    } else {
+                    }
+                }
+            }
+
+            val storageMap = mutableMapOf<String, Any>()
+
+            feature.key?.let { storageMap["featureKey"] = it }
+            context.id?.let { storageMap[Constants.USER_ID] = it }
+
+            val holdoutGroupSet = holdoutGroup.toSet()
+            if (getFlag.isEnabled()) {
+                storageMap["context"] = context
+                // Persist current user-context variables alongside the decision so the next
+                // call can detect drift and re-sync storage if the caller passes new values.
+                storageMap[Constants.KEY_STORAGE_CUSTOM_VARIABLES] = context.customVariables
+                storageMap[Constants.KEY_STORAGE_VARIATION_TARGETING_VARIABLES] =
+                    context.variationTargetingVariables
+                storageMap.putAll(passedRulesInformation)
+
+                val cachedDecisionExpiryTime =
+                    serviceContainer.getInitOptions().cachedDecisionExpiryTime
+                if (cachedDecisionExpiryTime > 0) {
+
+                    // Decision expiry: only set when we made a fresh decision (re-evaluated).
+                    // - When stored decision is valid and not expired (isAlreadyValid): we reuse it and do
+                    //   not add decisionExpiryTime to the write, so we don't overwrite/rewrite the TTL.
+                    // - When stored is null or expired (!isAlreadyValid): we re-evaluated, so set new
+                    //   expiry (now + cachedDecisionExpiryTime).
+
+                    val decisionHasNotExpired = (storedData?.isDecisionExpired() != true)
+                    val decisionExpiryTimeFoundInStorage =
+                        (storedData?.isDecisionExpiryTimeFoundInStorage() == true)
+
+                    val isDecisionValid =
+                        (decisionExpiryTimeFoundInStorage && decisionHasNotExpired)
+
+                    if (!isDecisionValid) {
+                        val expiresAt = System.currentTimeMillis() + cachedDecisionExpiryTime
+                        storageMap["decisionExpiryTime"] = expiresAt
+                    } else {
+                        storageMap["decisionExpiryTime"] = storedData?.decisionExpiryTime ?: 0
+                    }
+                }
+            }
+
+            // Written for disabled flags too: holdout bookkeeping and the deferred send intent
+            // must survive process death so exposeResult can rebuild the decision from storage.
+            storageMap[Constants.Holdouts.KEY_STORAGE_NOT_IN_HOLDOUT_IDS] =
+                settings.holdoutGroups
+                    // only not selected ids
+                    ?.filter { it !in holdoutGroupSet }
+                    // applicable for global or targeted to specific feature id
+                    ?.filter {
+                        val isForThisFeature =
+                            (it.featureIds?.contains((feature.id ?: -1)) == true)
+                        (it.isGlobal == true) || isForThisFeature
+                    }
+                    // store only ids as list
+                    ?.map { it.id } ?: listOf<String>()
+
+            // Same sticky decision keeps an already-sent flag. A new assignment stores the
+            // current send intent (false when this call is fetchFlags).
+            storageMap[Constants.KEY_VARIATION_SHOWN_SENT] = variationShownSentToStore(
+                sameStickyDecision = isDecisionFromStorage,
+            )
+
+            StorageDecorator().setDataInStorage(storageMap, storageService)
+
+            // Execute the integrations.
+            // - Fresh decision (first launch, re-evaluation): always fire.
+            // - Stored-rollout-only decision (subsequent launches): only fire when
+            //   shouldTriggerIntegrationCallbackAlways is true, matching the behaviour of
+            //   the stored-experiment and stored-holdout early-exit paths.
+            if (!isDecisionFromStorage) {
                 ensureDecisionDefaults(decision, context, settings)
                 hookManager.set(decision)
                 hookManager.execute(hookManager.get())
+            } else if (serviceContainer.getInitOptions().shouldTriggerIntegrationCallbackAlways) {
+                storedData?.rolloutId?.let { decision["rolloutId"] = it }
+                storedData?.rolloutKey?.let { decision["rolloutKey"] = it }
+                storedData?.rolloutVariationId?.let { decision["rolloutVariationId"] = it }
+                ensureDecisionDefaults(decision, context, settings)
+                hookManager.set(decision)
+                hookManager.execute(hookManager.get())
+            }
 
-                return returnWithUserTrackingGate(impressionPayload.hasValidData())
-            } else {
+            // send debug event, if debugger is enabled
+            if (feature.isDebuggerEnabled) {
+                debugEventProps["cg"] = DebuggerCategoryEnum.DECISION.key
+                debugEventProps["lt"] = com.wingify.enums.LogLevelEnum.INFO.name
+                debugEventProps["msg_t"] = Constants.FLAG_DECISION_GIVEN
+                debugEventProps["uuid"] = context.getUuid(serviceContainer)
+                // Update debug event props with decision keys
+                updateDebugEventProps(debugEventProps, decision)
+                sendDebugEventToVWO(debugEventProps, serviceContainer)
+            }
+
+            /**
+             * If the feature has an impact campaign, send an impression for the variation shown
+             * If flag enabled - variation 2, else - variation 1
+             */
+            if (feature.impactCampaign.campaignId != null && feature.impactCampaign.campaignId.toString()
+                    .isNotEmpty()
+            ) {
                 serviceContainer.getLoggerService()?.log(
-                    LogLevelEnum.INFO, "USER_NOT_EXCLUDED_DUE_TO_HOLDOUT", mapOf(
-                        Constants.USER_ID to "${context.id}", "featureKey" to featureKey
+                    LogLevelEnum.INFO, "IMPACT_ANALYSIS", mapOf(
+                        Constants.USER_ID to context.id,
+                        "featureKey" to featureKey,
+                        "status" to if (getFlag.isEnabled()) "enabled" else "disabled"
                     )
                 )
-            }
-        }
-
-        /**
-         * get all the rollout rules for the feature and evaluate them
-         * if any of the rollout rule passes, break the loop and evaluate the traffic
-         */
-        val rollOutRules: List<Campaign> =
-            getSpecificRulesBasedOnType(feature, CampaignTypeEnum.ROLLOUT)
-        if (rollOutRules.isNotEmpty() && !getFlag.isEnabled()) {
-            val rolloutRulesToEvaluate: MutableList<Campaign> = ArrayList<Campaign>()
-            for (rule in rollOutRules) {
-                val evaluateRuleResult: Map<String, Any> = RuleEvaluationUtil.evaluateRule(
-                    settings,
-                    feature,
-                    rule,
-                    context,
-                    evaluatedFeatureMap,
-                    HashMap(),
-                    storageService,
-                    decision,
-                    serviceContainer
-                )
-                val isForceUserApplicable = evaluateRuleResult[Constants.KEY_FORCED_USER_CHECK] as Boolean
-                // Combined eligibility from force lists, MEG, and targeting segments.
-                // Force On/Off take precedence: Off fails this check and skips the rule;
-                // On (whitelistedObject) applies the variation and skips traffic.
-                // Flow is as per PRD
-                if (isForceUserApplicable) {
-                    val whitelistedObject: Variation? =
-                        evaluateRuleResult["whitelistedObject"] as? Variation
-                    if (whitelistedObject != null) {
-                        // Force On: apply rollout experience and skip traffic
-                        getFlag.setIsEnabled(true)
-                        getFlag.setVariables(whitelistedObject.variables)
-                        shouldCheckForExperimentsRules = true
-                        val featureMap: MutableMap<String, Any> = HashMap()
-                        rule.id?.let { featureMap["rolloutId"] = it }
-                        rule.key?.let { featureMap["rolloutKey"] = it }
-                        whitelistedObject.id?.let { featureMap["rolloutVariationId"] = it }
-                        evaluatedFeatureMap[featureKey] = featureMap
-                        updateIntegrationsDecisionObject(
-                            rule, whitelistedObject, passedRulesInformation, decision
-                        )
-                        break
-                    }
-
-                    rolloutRulesToEvaluate.add(rule)
-                    val featureMap: MutableMap<String, Any> = HashMap()
-
-                    rule.id?.let { featureMap["rolloutId"] = it }
-                    rule.key?.let { featureMap["rolloutKey"] = it }
-                    rule.variations?.getOrNull(0)?.id?.let {
-                        featureMap["rolloutVariationId"] = it
-                    }
-
-                    evaluatedFeatureMap[featureKey] = featureMap
-                    break
-                }
-            }
-
-            // Evaluate the passed rollout rule traffic and get the variation
-            if (rolloutRulesToEvaluate.isNotEmpty()) {
-                val passedRolloutCampaign: Campaign = rolloutRulesToEvaluate[0]
-                val variation: Variation? =
-                    DecisionUtil().evaluateTrafficAndGetVariation(
-                        settings,
-                        passedRolloutCampaign,
-                        context,
-                        serviceContainer
-                    )
-                if (variation != null) {
-                    getFlag.setIsEnabled(true)
-                    decision[Constants.KEY_DECISION_IS_USER_PART_OF_CAMPAIGN] = true
-                    getFlag.setVariables(variation.variables)
-                    shouldCheckForExperimentsRules = true
-                    updateIntegrationsDecisionObject(
-                        passedRolloutCampaign, variation, passedRulesInformation, decision
-                    )
-
+                feature.impactCampaign.campaignId?.let {
                     impressionPayload.add(
-                        campaignId = (passedRolloutCampaign.id ?: 0),
-                        variationId = (variation.id ?: 0),
-                        featureId = feature?.id ?: Constants.IMPRESSION_NO_FEATURE_ID
+                        campaignId = it,
+                        variationId = (if (getFlag.isEnabled()) 2 else 1),
+                        featureId = feature.id ?: Constants.IMPRESSION_NO_FEATURE_ID
                     )
                 }
             }
-        } else {
-            if (rollOutRules.isEmpty()) {
-                serviceContainer.getLoggerService()?.log(
-                    LogLevelEnum.DEBUG, "EXPERIMENTS_EVALUATION_WHEN_NO_ROLLOUT_PRESENT", null
-                )
-            }
-            shouldCheckForExperimentsRules = true
+
+            if (logsToBeShownAfterHoldoutLogs.isNotEmpty()) logsToBeShownAfterHoldoutLogs.forEach { it.invoke() }
+
+            recordImpressions(impressionPayload)
+            return@withFlagLocksForEvaluation returnWithUserTrackingGate(variationShownEnqueued)
         }
-
-        /**
-         * If any rollout rule passed pre segmentation and traffic evaluation, check for experiment rules
-         * If no rollout rule passed, return false
-         */
-        if (shouldCheckForExperimentsRules) {
-            val experimentRulesToEvaluate: MutableList<Campaign> = ArrayList<Campaign>()
-            val experimentRules: List<Campaign> = getAllExperimentRules(feature)
-            val megGroupWinnerCampaigns = mutableMapOf<Int, String>()
-
-            for (rule in experimentRules) {
-                // Evaluate the rule here
-                val evaluateRuleResult: Map<String, Any> = RuleEvaluationUtil.evaluateRule(
-                    settings,
-                    feature,
-                    rule,
-                    context,
-                    evaluatedFeatureMap,
-                    megGroupWinnerCampaigns,
-                    storageService,
-                    decision,
-                    serviceContainer
-                )
-                val preSegmentationResult = evaluateRuleResult["preSegmentationResult"] as Boolean
-                // If pre-segmentation passes, check if the rule has whitelisted variation or not
-                if (preSegmentationResult) {
-                    val whitelistedObject: Variation? =
-                        evaluateRuleResult["whitelistedObject"] as Variation?
-                    // If whitelisted object is null, add the rule to the list of rules to evaluate
-                    if (whitelistedObject == null) {
-                        experimentRulesToEvaluate.add(rule)
-                    } else {
-                        // If whitelisted object is not null, update the decision object and send an impression
-                        getFlag.setIsEnabled(true)
-                        decision[Constants.KEY_DECISION_IS_USER_PART_OF_CAMPAIGN] = true
-                        getFlag.setVariables(whitelistedObject.variables)
-                        rule.id?.let { passedRulesInformation["experimentId"] = it }
-                        rule.key?.let { passedRulesInformation[Constants.KEY_EXPERIMENT_KEY] = it }
-                        whitelistedObject.id?.let {
-                            passedRulesInformation["experimentVariationId"] = it
-                        }
-                    }
-                    break
-                }
-            }
-
-            // Evaluate the passed experiment rule traffic and get the variation
-            if (experimentRulesToEvaluate.isNotEmpty()) {
-                val campaign: Campaign = experimentRulesToEvaluate[0]
-                val variation: Variation? =
-                    DecisionUtil().evaluateTrafficAndGetVariation(
-                        settings,
-                        campaign,
-                        context,
-                        serviceContainer
-                    )
-                if (variation != null) {
-                    getFlag.setIsEnabled(true)
-                    decision[Constants.KEY_DECISION_IS_USER_PART_OF_CAMPAIGN] = true
-                    getFlag.setVariables(variation.variables)
-                    updateIntegrationsDecisionObject(
-                        campaign, variation, passedRulesInformation, decision
-                    )
-                    impressionPayload.add(
-                        campaignId = (campaign.id ?: 0),
-                        variationId = (variation.id ?: 0),
-                        featureId = feature?.id ?: Constants.IMPRESSION_NO_FEATURE_ID
-                    )
-                    // A fresh experiment assignment was made on top of the stored rollout,
-                    // so this is a new decision — the hook must fire unconditionally.
-                    isDecisionFromStorage = false
-                }
-            }
-        }
-
-        val storageMap = mutableMapOf<String, Any>()
-
-        feature.key?.let { storageMap["featureKey"] = it }
-        context.id?.let { storageMap[Constants.USER_ID] = it }
-
-        val holdoutGroupSet = holdoutGroup.toSet()
-        if (getFlag.isEnabled()) {
-            storageMap["context"] = context
-            // Persist current user-context variables alongside the decision so the next
-            // call can detect drift and re-sync storage if the caller passes new values.
-            storageMap[Constants.KEY_STORAGE_CUSTOM_VARIABLES] = context.customVariables
-            storageMap[Constants.KEY_STORAGE_VARIATION_TARGETING_VARIABLES] =
-                context.variationTargetingVariables
-            storageMap.putAll(passedRulesInformation)
-
-            val cachedDecisionExpiryTime =
-                serviceContainer.getInitOptions().cachedDecisionExpiryTime
-            if (cachedDecisionExpiryTime > 0) {
-
-                // Decision expiry: only set when we made a fresh decision (re-evaluated).
-                // - When stored decision is valid and not expired (isAlreadyValid): we reuse it and do
-                //   not add decisionExpiryTime to the write, so we don't overwrite/rewrite the TTL.
-                // - When stored is null or expired (!isAlreadyValid): we re-evaluated, so set new
-                //   expiry (now + cachedDecisionExpiryTime).
-
-                val decisionHasNotExpired = (storedData?.isDecisionExpired() != true)
-                val decisionExpiryTimeFoundInStorage =
-                    (storedData?.isDecisionExpiryTimeFoundInStorage() == true)
-
-                val isDecisionValid = (decisionExpiryTimeFoundInStorage && decisionHasNotExpired)
-
-                if (!isDecisionValid) {
-                    val expiresAt = System.currentTimeMillis() + cachedDecisionExpiryTime
-                    storageMap["decisionExpiryTime"] = expiresAt
-                } else {
-                    storageMap["decisionExpiryTime"] = storedData?.decisionExpiryTime ?: 0
-                }
-            }
-
-            storageMap[Constants.Holdouts.KEY_STORAGE_NOT_IN_HOLDOUT_IDS] = settings.holdoutGroups
-                // only not selected ids
-                ?.filter { it !in holdoutGroupSet }
-                // applicable for global or targeted to specific feature id
-                ?.filter {
-                    val isForThisFeature = (it.featureIds?.contains((feature.id ?: -1)) == true)
-                    (it.isGlobal == true) || isForThisFeature
-                }
-                // store only ids as list
-                ?.map { it.id } ?: listOf<String>()
-
-            StorageDecorator().setDataInStorage(storageMap, storageService)
-        } else {
-
-            // holdouts data should be saved even if the getFlag is not enabled
-            storageMap[Constants.Holdouts.KEY_STORAGE_NOT_IN_HOLDOUT_IDS] = settings.holdoutGroups
-                // only not selected ids
-                ?.filter { it !in holdoutGroupSet }
-                // applicable for global or targeted to specific feature id
-                ?.filter {
-                    val isForThisFeature = (it.featureIds?.contains((feature.id ?: -1)) == true)
-                    (it.isGlobal == true) || isForThisFeature
-                }
-                // store only ids as list
-                ?.map { it.id } ?: listOf<String>()
-
-        }
-
-        // Execute the integrations.
-        // - Fresh decision (first launch, re-evaluation): always fire.
-        // - Stored-rollout-only decision (subsequent launches): only fire when
-        //   shouldTriggerIntegrationCallbackAlways is true, matching the behaviour of
-        //   the stored-experiment and stored-holdout early-exit paths.
-        if (!isDecisionFromStorage) {
-            ensureDecisionDefaults(decision, context, settings)
-            hookManager.set(decision)
-            hookManager.execute(hookManager.get())
-        } else if (serviceContainer.getInitOptions().shouldTriggerIntegrationCallbackAlways) {
-            storedData?.rolloutId?.let { decision["rolloutId"] = it }
-            storedData?.rolloutKey?.let { decision["rolloutKey"] = it }
-            storedData?.rolloutVariationId?.let { decision["rolloutVariationId"] = it }
-            ensureDecisionDefaults(decision, context, settings)
-            hookManager.set(decision)
-            hookManager.execute(hookManager.get())
-        }
-
-        // send debug event, if debugger is enabled
-        if (feature.isDebuggerEnabled) {
-            debugEventProps["cg"] = DebuggerCategoryEnum.DECISION.key
-            debugEventProps["lt"] = com.wingify.enums.LogLevelEnum.INFO.name
-            debugEventProps["msg_t"] = Constants.FLAG_DECISION_GIVEN
-            debugEventProps["uuid"] = context.getUuid(serviceContainer)
-            // Update debug event props with decision keys
-            updateDebugEventProps(debugEventProps, decision)
-            sendDebugEventToVWO(debugEventProps, serviceContainer)
-        }
-
-        /**
-         * If the feature has an impact campaign, send an impression for the variation shown
-         * If flag enabled - variation 2, else - variation 1
-         */
-        if (feature.impactCampaign.campaignId != null && feature.impactCampaign.campaignId.toString()
-                .isNotEmpty()
-        ) {
-            serviceContainer.getLoggerService()?.log(
-                LogLevelEnum.INFO, "IMPACT_ANALYSIS", mapOf(
-                    Constants.USER_ID to context.id,
-                    "featureKey" to featureKey,
-                    "status" to if (getFlag.isEnabled()) "enabled" else "disabled"
-                )
-            )
-            feature.impactCampaign.campaignId?.let {
-                impressionPayload.add(
-                    campaignId = it,
-                    variationId = (if (getFlag.isEnabled()) 2 else 1),
-                    featureId = feature?.id ?: Constants.IMPRESSION_NO_FEATURE_ID
-                )
-            }
-        }
-
-        if (logsToBeShownAfterHoldoutLogs.isNotEmpty()) logsToBeShownAfterHoldoutLogs.forEach { it.invoke() }
-
-        val variationShownSent = impressionPayload.hasValidData()
-        ImpressionUtil.createAndSendImpressionForVariationShown(
-            settings = settings,
-            impressionPayload = impressionPayload,
-            context = context,
-            serviceContainer = serviceContainer
-        )
-        return returnWithUserTrackingGate(variationShownSent)
     }
 
     /**
@@ -890,7 +1037,6 @@ object GetFlagAPI {
         storageService: StorageService,
         storedData: Storage?,
         serviceContainer: ServiceContainer,
-        shouldUploadImmediately: Boolean
     ) {
 
         val validNewIds = newIds.filterNotNull()
@@ -912,15 +1058,6 @@ object GetFlagAPI {
                 Constants.Holdouts.KEY_STORAGE_NOT_IN_HOLDOUT_IDS to updatedIds.toList()
             )
         )
-
-        if (shouldUploadImmediately) {
-            ImpressionUtil.createAndSendImpressionForVariationShown(
-                settings = settings,
-                impressionPayload = impressionPayload,
-                context = context,
-                serviceContainer = serviceContainer
-            )
-        }
     }
 
     /**

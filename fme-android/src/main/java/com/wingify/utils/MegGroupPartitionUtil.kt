@@ -74,4 +74,29 @@ object MegGroupPartitionUtil {
 
         return batches
     }
+
+    /**
+     * Feature keys that must share one lock ordering for concurrent getFlag.
+     *
+     * Members of the MEG group containing [featureKey], sorted lexicographically, so every caller
+     * acquires the same mutexes in the same order.
+     *
+     * @param settings Account settings used to resolve MEG group membership.
+     * @param featureKey Feature key whose group is being resolved.
+     * @return Sorted distinct MEG member keys. A singleton of [featureKey] when the key is not in a
+     * MEG group, the group id is missing, member keys cannot be read, or the group has at most one key.
+     */
+    fun megMemberFeatureKeys(settings: Settings, featureKey: String): List<String> {
+        val groups = CampaignUtil.findGroupsFeaturePartOf(settings, featureKey)
+        val groupId = groups.firstOrNull()?.get("groupId")?.toIntOrNull()
+            ?: return listOf(featureKey)
+
+        @Suppress("UNCHECKED_CAST")
+        val megKeys = MegUtil().getFeatureKeysFromGroup(settings, groupId)["featureKeys"]
+            as? List<String>
+            ?: return listOf(featureKey)
+
+        val distinct = megKeys.filter { it.isNotEmpty() }.distinct().sorted()
+        return if (distinct.size <= 1) listOf(featureKey) else distinct
+    }
 }

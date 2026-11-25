@@ -15,6 +15,7 @@
  */
 package com.wingify.utils
 
+import com.vwo.models.user.GetFlag
 import com.wingify.ServiceContainer
 import com.wingify.constants.Constants.IMPRESSION_NO_FEATURE_ID
 import com.wingify.models.Campaign
@@ -43,6 +44,8 @@ object RuleEvaluationUtil {
      * @param evaluatedFeatureMap   Map containing the evaluated feature map.
      * @param megGroupWinnerCampaigns  Map containing the MEG group winner campaigns.
      * @param decision  Map containing the decision object.
+     * @param getFlag Flag result used to stash deferred whitelist impressions.
+     * @param shouldSendImpressionToServer When false, whitelist impressions are stashed for exposeResult.
      * @return
      */
     fun evaluateRule(
@@ -54,7 +57,10 @@ object RuleEvaluationUtil {
         megGroupWinnerCampaigns: MutableMap<Int, String>?,
         storageService: StorageService,
         decision: MutableMap<String, Any>,
-        serviceContainer: ServiceContainer
+        serviceContainer: ServiceContainer,
+        getFlag: GetFlag? = null,
+        shouldSendImpressionToServer: Boolean = true,
+        impressionOwnerFeatureKey: String? = null,
     ): Map<String, Any> {
         // Perform whitelisting and pre-segmentation checks
         try {
@@ -68,7 +74,10 @@ object RuleEvaluationUtil {
                 megGroupWinnerCampaigns,
                 storageService,
                 decision,
-                serviceContainer
+                serviceContainer,
+                shouldSendImpressionToServer,
+                getFlag,
+                impressionOwnerFeatureKey ?: feature?.key,
             )
 
             // Extract the results of the evaluation
@@ -84,19 +93,36 @@ object RuleEvaluationUtil {
                 decision["experimentKey"] = campaign.key ?: ""
                 decision["experimentVariationId"] = whilistedId
 
-                // Send an impression for the variation shown
                 val impressionPayload = ImpressionPayload()
                 impressionPayload.add(
                     campaignId = cmpId,
                     variationId = whilistedId,
                     featureId = feature?.id ?: IMPRESSION_NO_FEATURE_ID
                 )
-                ImpressionUtil.createAndSendImpressionForVariationShown(
-                    settings = settings,
-                    impressionPayload = impressionPayload,
-                    context,
-                    serviceContainer
-                )
+                val sameFeature = impressionOwnerFeatureKey == null ||
+                    impressionOwnerFeatureKey == feature?.key
+                if (getFlag != null && sameFeature) {
+                    ImpressionExposureHelper.record(
+                        settings = settings,
+                        impressionPayload = impressionPayload,
+                        context = context,
+                        serviceContainer = serviceContainer,
+                        shouldSend = shouldSendImpressionToServer,
+                        getFlag = getFlag,
+                        featureKey = feature?.key ?: "",
+                        feature = feature,
+                    )
+                } else if (getFlag != null && !shouldSendImpressionToServer) {
+                    // Sibling MEG rollout belongs to this fetch. exposeResult sends it.
+                    getFlag.mergePendingImpressions(impressionPayload)
+                } else if (shouldSendImpressionToServer) {
+                    ImpressionExposureHelper.send(
+                        settings = settings,
+                        impressionPayload = impressionPayload,
+                        context = context,
+                        serviceContainer = serviceContainer,
+                    )
+                }
             }
 
             // Return the results of the evaluation

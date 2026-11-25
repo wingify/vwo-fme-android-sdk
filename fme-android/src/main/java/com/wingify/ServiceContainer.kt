@@ -28,11 +28,15 @@ import com.wingify.services.HooksManager
 import com.wingify.services.LoggerService
 import com.wingify.services.PanicManager
 import com.wingify.services.SettingsManager
+import com.wingify.utils.KeyedLockUtil
+import com.wingify.utils.MegGroupPartitionUtil
 import com.wingify.utils.UsageStats
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
+import java.util.Collections
+import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.AtomicInteger
 
 /**
@@ -64,6 +68,10 @@ class ServiceContainer(
     private val deferImmediateBatchUploadCount = AtomicInteger(0)
     lateinit var usageStats: UsageStats
     internal var storage: Storage? = null
+    
+    /** Campaign+variation already sent for a user this session; drops MEG sibling double-stash. */
+    internal val sentVariationShownKeys: MutableSet<String> =
+        Collections.newSetFromMap(ConcurrentHashMap<String, Boolean>())
 
     /** Manages panic-mode and force-refresh signals from DaCDN. Long-lived per account. */
     val panicManager = PanicManager()
@@ -276,6 +284,78 @@ class ServiceContainer(
 
     fun getSdkKey(): String {
         return settingsManager?.sdkKey ?: options?.sdkKey ?: ""
+    }
+
+    /**
+     * Runs [block] under the flag lock for this account, [featureKey], and [userId].
+     *
+     * The lock key includes [getAccountId] and [getSdkKey], so two accounts in one process do not
+     * share a mutex. A null [userId] uses the same key as an empty user id. Same-thread re-entry
+     * of that key is safe.
+     *
+     * @param featureKey Feature whose storage read-modify-write is being protected.
+     * @param userId User the flag decision is for, or null when the caller has no user id.
+     * @param block Critical section to execute under the lock.
+     * @return The result of [block].
+     */
+    inline fun <T> withFlagLock(
+        featureKey: String,
+        userId: String?,
+        block: () -> T,
+    ): T {
+        val key = KeyedLockUtil.flagLockKey(getAccountId(), getSdkKey(), featureKey, userId)
+        return KeyedLockUtil.withLock(key, block)
+    }
+
+    /**
+     * Holds the flag locks for [featureKey] and every MEG sibling for the duration of [block].
+     *
+     * Locks are acquired in lexicographic feature-key order so two threads evaluating siblings cannot
+     * deadlock. [withFlagLock] on any of those keys from the same thread re-enters without waiting.
+     * A flag that is not in a multi-member MEG group takes only its own lock.
+     *
+     * @param settings Account settings used to resolve MEG group membership.
+     * @param featureKey Feature key being evaluated.
+     * @param userId User the flag decision is for, or null when the caller has no user id.
+     * @param block Flag evaluation to run once every required lock is held.
+     * @return The result of [block].
+     */
+    fun <T> withFlagLocksForEvaluation(
+        settings: Settings,
+        featureKey: String,
+        userId: String?,
+        block: () -> T,
+    ): T {
+        val featureKeys = MegGroupPartitionUtil.megMemberFeatureKeys(settings, featureKey)
+        if (featureKeys.size == 1) {
+            return withFlagLock(featureKeys.single(), userId, block)
+        }
+        return acquireFlagLocksInOrder(featureKeys, userId, 0, block)
+    }
+
+    /**
+     * Acquires [featureKeys] from [index] onward, then runs [block].
+     *
+     * [featureKeys] must already be sorted. Each lock stays held until [block] returns.
+     *
+     * @param featureKeys Sorted feature keys to lock.
+     * @param userId User id included in each lock key. Null uses the same key as an empty user id.
+     * @param index Next key to acquire. [block] runs when [index] is past the end of [featureKeys].
+     * @param block Work to run after every key is held.
+     * @return The result of [block].
+     */
+    private fun <T> acquireFlagLocksInOrder(
+        featureKeys: List<String>,
+        userId: String?,
+        index: Int,
+        block: () -> T,
+    ): T {
+        if (index >= featureKeys.size) {
+            return block()
+        }
+        return withFlagLock(featureKeys[index], userId) {
+            acquireFlagLocksInOrder(featureKeys, userId, index + 1, block)
+        }
     }
 
     /**
